@@ -61,3 +61,6 @@ assets/photo/**/[0-9]*.png
 **/.env
 firebase-service-account.json
 *-firebase-adminsdk-*.json
+
+# Local emulator screenshots
+.android-screenshot.png

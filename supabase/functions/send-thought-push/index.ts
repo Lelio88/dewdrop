@@ -94,7 +94,15 @@ async function sendFcm(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: { token, notification: { title: "DewDrop", body } },
+        message: {
+          token,
+          notification: { title: "DewDrop", body },
+          // Route to the water-drop "Pensées" channel (Android 8+ takes the
+          // sound from the channel; `sound` covers older versions).
+          android: {
+            notification: { channel_id: "thoughts_v2", sound: "drop" },
+          },
+        },
       }),
     },
   );

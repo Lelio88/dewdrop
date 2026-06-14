@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "515627278707",
+    "project_id": "dewdrop-60229",
+    "storage_bucket": "dewdrop-60229.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:515627278707:android:d7b941d69e30e7659e2506",
+        "android_client_info": {
+          "package_name": "app.dewdrop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ7LF6VE9f5OcO_zfPSxt3ry7F6b_VL8M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

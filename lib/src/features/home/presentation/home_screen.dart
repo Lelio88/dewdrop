@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
+import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
@@ -245,6 +246,9 @@ class _HomeMenu extends ConsumerWidget {
                 title: const Text('Se déconnecter'),
                 onTap: () async {
                   Navigator.of(context).pop();
+                  // Drop the device token while still authenticated (RLS),
+                  // then sign out.
+                  await ref.read(pushServiceProvider).unregister();
                   await ref.read(authRepositoryProvider).signOut();
                 },
               ),
