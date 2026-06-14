@@ -80,6 +80,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
       if (result == 'decor') _openDecorPicker();
       if (result == 'friends') context.push('/friends');
       if (result == 'thoughts') context.push('/thoughts');
+      if (result == 'settings') context.push('/settings');
     });
   }
 
@@ -230,6 +231,13 @@ class _HomeMenu extends ConsumerWidget {
                 title: const Text('Ambiance'),
                 trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
                 onTap: () => Navigator.of(context).pop('decor'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.tune_rounded, color: white.withValues(alpha: 0.85)),
+                title: const Text('Réglages'),
+                trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
+                onTap: () => Navigator.of(context).pop('settings'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
