@@ -55,3 +55,9 @@ supabase/.temp/
 # Generated parallax layers — regenerate from base.png via tools/depth_split.
 # (base.png sources and .gitkeep are kept.)
 assets/photo/**/[0-9]*.png
+
+# Secrets — NEVER commit (Firebase service account, etc.)
+.env
+**/.env
+firebase-service-account.json
+*-firebase-adminsdk-*.json
