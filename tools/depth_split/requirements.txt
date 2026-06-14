@@ -1,0 +1,6 @@
+# Install torch separately (CPU build) first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.44
+pillow
+numpy
+opencv-python
