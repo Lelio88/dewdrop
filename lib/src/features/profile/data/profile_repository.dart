@@ -1,0 +1,42 @@
+import 'package:dewdrop/src/features/profile/domain/profile.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class ProfileRepository {
+  ProfileRepository(this._client);
+
+  final SupabaseClient _client;
+
+  Future<Profile?> getMyProfile() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final data =
+        await _client.from('profiles').select().eq('id', uid).maybeSingle();
+    return data == null ? null : Profile.fromMap(data);
+  }
+
+  Future<bool> isHandleAvailable(String handle) async {
+    final res = await _client
+        .from('profiles')
+        .select('id')
+        .eq('handle', handle)
+        .maybeSingle();
+    return res == null;
+  }
+
+  Future<void> setHandle(String handle, {String? displayName}) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client.from('profiles').update({
+      'handle': handle,
+      if (displayName != null && displayName.isNotEmpty)
+        'display_name': displayName,
+    }).eq('id', uid);
+  }
+
+  Future<void> updateDecor(String decor, String renderMode) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'decor': decor, 'render_mode': renderMode})
+        .eq('id', uid);
+  }
+}
