@@ -39,4 +39,18 @@ class ProfileRepository {
         .update({'decor': decor, 'render_mode': renderMode})
         .eq('id', uid);
   }
+
+  /// Quiet hours are hours 0-23 (null = disabled).
+  Future<void> updateSettings({
+    required bool defaultAnonymous,
+    int? quietStart,
+    int? quietEnd,
+  }) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client.from('profiles').update({
+      'default_anonymous': defaultAnonymous,
+      'quiet_start': quietStart,
+      'quiet_end': quietEnd,
+    }).eq('id', uid);
+  }
 }

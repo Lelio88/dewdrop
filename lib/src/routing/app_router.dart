@@ -4,6 +4,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/auth/presentation/sign_in_screen.dart';
 import 'package:dewdrop/src/features/friends/presentation/friends_screen.dart';
 import 'package:dewdrop/src/features/home/presentation/home_screen.dart';
+import 'package:dewdrop/src/features/settings/presentation/settings_screen.dart';
 import 'package:dewdrop/src/features/thoughts/presentation/thoughts_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home', builder: (_, _) => const HomeGate()),
       GoRoute(path: '/friends', builder: (_, _) => const FriendsScreen()),
       GoRoute(path: '/thoughts', builder: (_, _) => const ThoughtsScreen()),
+      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
     ],
   );
 });
