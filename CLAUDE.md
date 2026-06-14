@@ -73,5 +73,5 @@ python tools/depth_split/split_all.py  # (dans le venv) couches photo
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : MVP cœur (comptes, profil, décors dessin/photo persistés, amis, envoyer une pensée, historique) sur Supabase local.
-- **Focus immédiat** : réglages in-app (heures calmes, anonymat), puis notifications push FCM.
+- **Dernier focus** : cible Android opérationnelle (bundle id `app.dewdrop`, émulateur) + notifications push FCM de bout en bout (enregistrement du token dans `devices`, webhook `thoughts`→Edge Function, son de notification goutte d'eau sur le canal `thoughts_v2`).
+- **Focus immédiat** : réglages in-app finalisés (heures calmes/anonymat) ; assets photo réels pour les décors restants ; cible iOS.
