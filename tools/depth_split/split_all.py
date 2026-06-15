@@ -16,6 +16,30 @@ DEFAULT_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "photo")
 )
 
+# Per-environment split settings. The algorithm is shared; only these knobs
+# differ per scene. Landscapes with real depth get more planes (smaller
+# per-plane shift → softer parallax) and a moderate feather; space has
+# unreliable monocular depth (stars/void), so few planes + a big feather hide
+# bad cuts (and the renderer flattens its parallax — see _depthStrength).
+# Keys: layers, feather, radius (None = auto), invert.
+DEFAULTS = {"layers": 4, "feather": 10, "radius": None, "invert": False}
+SCENE_SETTINGS = {
+    "space": {"layers": 2, "feather": 16, "radius": 12},
+    "library": {"layers": 3, "feather": 10},
+    "underwater": {"layers": 4, "feather": 11},
+    "forest": {"layers": 4, "feather": 10},
+    "beach": {"layers": 4, "feather": 10},
+    "desert": {"layers": 4, "feather": 12},
+    "aurora": {"layers": 4, "feather": 12},
+    "mountain": {"layers": 5, "feather": 10},
+}
+
+
+def settings_for(env):
+    s = dict(DEFAULTS)
+    s.update(SCENE_SETTINGS.get(env, {}))
+    return s
+
 
 def find_bases(root):
     bases = []
@@ -29,8 +53,10 @@ def find_bases(root):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root", nargs="?", default=DEFAULT_ROOT)
-    ap.add_argument("--layers", type=int, default=3)
-    ap.add_argument("--feather", type=int, default=6)
+    ap.add_argument("--layers", type=int, default=None,
+                    help="force a layer count for all scenes (else per-scene defaults)")
+    ap.add_argument("--feather", type=int, default=None,
+                    help="force a feather for all scenes (else per-scene defaults)")
     args = ap.parse_args()
 
     bases = find_bases(args.root)
@@ -42,8 +68,14 @@ def main():
     pipe = build_pipe()
     for b in bases:
         rel = os.path.relpath(b, args.root)
-        print(f"-> {rel}", flush=True)
-        split_image(b, layers=args.layers, feather=args.feather, pipe=pipe)
+        env = rel.replace("\\", "/").split("/")[0]
+        s = settings_for(env)
+        # Explicit CLI flags override the per-scene defaults.
+        n = args.layers if args.layers is not None else s["layers"]
+        feather = args.feather if args.feather is not None else s["feather"]
+        print(f"-> {rel}  (env={env}, layers={n}, feather={feather})", flush=True)
+        split_image(b, layers=n, feather=feather, invert=s["invert"],
+                    radius=s["radius"], pipe=pipe)
     print(f"All done: {len(bases)} scene(s) split.", flush=True)
 
 

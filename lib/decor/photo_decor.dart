@@ -197,7 +197,11 @@ class _PhotoDecorState extends State<PhotoDecor>
                         environment: widget.environment,
                         variant: widget.variant,
                       )
-                    : _ImageParallax(layers: _layers, model: _model),
+                    : _ImageParallax(
+                        layers: _layers,
+                        model: _model,
+                        strength: _depthStrengthFor(widget.environment),
+                      ),
               ),
               Positioned.fill(
                 child: IgnorePointer(
@@ -359,13 +363,30 @@ class _OverlayPainter extends CustomPainter {
 
 // ── Real parallax (when assets exist) ────────────────────────────────────────
 
+/// Per-decor parallax strength (0..1 multiplier on the shift). Scenes where the
+/// depth estimate is unreliable (space: stars/void) are kept nearly flat so the
+/// bad cuts don't swim around; landscapes get the full effect.
+const Map<String, double> _depthStrengthByEnv = {
+  'space': 0.25,
+  'library': 0.7,
+  'aurora': 0.9,
+};
+
+double _depthStrengthFor(Environment env) => _depthStrengthByEnv[env.name] ?? 1.0;
+
 /// Each image layer shifts by an amount proportional to its depth (front
-/// layers move most). Layers are slightly over-scaled so edges never show.
+/// layers move most), scaled by the decor's [strength]. Layers are slightly
+/// over-scaled so edges never show.
 class _ImageParallax extends StatelessWidget {
-  const _ImageParallax({required this.layers, required this.model});
+  const _ImageParallax({
+    required this.layers,
+    required this.model,
+    this.strength = 1.0,
+  });
 
   final List<String> layers;
   final _PhotoModel model;
+  final double strength;
 
   static const double _maxShift = 34;
 
@@ -382,7 +403,8 @@ class _ImageParallax extends StatelessWidget {
                 // Back layer (0) stays anchored; front layers move the most.
                 offset: model.look *
                     (layers.length == 1 ? 0.4 : i / (layers.length - 1)) *
-                    _maxShift,
+                    _maxShift *
+                    strength,
                 child: Transform.scale(
                   scale: 1.12,
                   child: Image.asset(layers[i], fit: BoxFit.cover),
