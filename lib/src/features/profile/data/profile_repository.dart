@@ -1,11 +1,13 @@
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
+import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ProfileRepository {
-  ProfileRepository(this._client);
+class SupabaseProfileRepository implements ProfileRepository {
+  SupabaseProfileRepository(this._client);
 
   final SupabaseClient _client;
 
+  @override
   Future<Profile?> getMyProfile() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
@@ -14,6 +16,7 @@ class ProfileRepository {
     return data == null ? null : Profile.fromMap(data);
   }
 
+  @override
   Future<bool> isHandleAvailable(String handle) async {
     final res = await _client
         .from('profiles')
@@ -23,6 +26,7 @@ class ProfileRepository {
     return res == null;
   }
 
+  @override
   Future<void> setHandle(String handle, {String? displayName}) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('profiles').update({
@@ -32,6 +36,7 @@ class ProfileRepository {
     }).eq('id', uid);
   }
 
+  @override
   Future<void> updateDecor(String decor, String renderMode) async {
     final uid = _client.auth.currentUser!.id;
     await _client
@@ -40,7 +45,7 @@ class ProfileRepository {
         .eq('id', uid);
   }
 
-  /// Persists the per-decor soundscape customization (synced across devices).
+  @override
   Future<void> updateSoundPrefs(Map<String, dynamic> soundPrefs) async {
     final uid = _client.auth.currentUser!.id;
     await _client
@@ -51,6 +56,7 @@ class ProfileRepository {
 
   /// Quiet hours are hours 0-23 (null = disabled). [quietTz] is the user's IANA
   /// timezone, so the push function evaluates the window in local time.
+  @override
   Future<void> updateSettings({
     required bool defaultAnonymous,
     int? quietStart,

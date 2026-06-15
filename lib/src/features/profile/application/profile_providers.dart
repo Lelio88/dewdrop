@@ -1,11 +1,12 @@
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/data/profile_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
+import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository(Supabase.instance.client);
+  return SupabaseProfileRepository(Supabase.instance.client);
 });
 
 /// The signed-in user's profile (null when signed out / not yet created).
