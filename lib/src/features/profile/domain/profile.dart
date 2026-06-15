@@ -1,3 +1,5 @@
+import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
+
 /// A user's public profile + app settings (mirrors `public.profiles`).
 class Profile {
   const Profile({
@@ -10,6 +12,7 @@ class Profile {
     this.quietEnd,
     this.quietTz,
     this.defaultAnonymous = false,
+    this.soundPrefsRaw = const {},
   });
 
   final String id;
@@ -21,8 +24,12 @@ class Profile {
   final int? quietEnd;
   final String? quietTz; // IANA timezone for evaluating quiet hours locally
   final bool defaultAnonymous;
+  final Map<String, dynamic> soundPrefsRaw; // per-decor soundscape customization
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
+
+  /// Parsed per-decor soundscape customization.
+  SoundPrefs get soundPrefs => SoundPrefs.fromJson(soundPrefsRaw);
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
         id: m['id'] as String,
@@ -34,5 +41,7 @@ class Profile {
         quietEnd: m['quiet_end'] as int?,
         quietTz: m['quiet_tz'] as String?,
         defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
+        soundPrefsRaw:
+            (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
       );
 }

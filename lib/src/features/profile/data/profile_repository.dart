@@ -40,6 +40,15 @@ class ProfileRepository {
         .eq('id', uid);
   }
 
+  /// Persists the per-decor soundscape customization (synced across devices).
+  Future<void> updateSoundPrefs(Map<String, dynamic> soundPrefs) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'sound_prefs': soundPrefs})
+        .eq('id', uid);
+  }
+
   /// Quiet hours are hours 0-23 (null = disabled). [quietTz] is the user's IANA
   /// timezone, so the push function evaluates the window in local time.
   Future<void> updateSettings({

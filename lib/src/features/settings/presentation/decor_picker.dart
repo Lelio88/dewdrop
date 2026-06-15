@@ -2,12 +2,16 @@ import 'dart:ui';
 
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
+import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
+import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Glass bottom sheet to pick the ambiance (environment + variant) and the
-/// render mode (drawn / photo). Calls [onChanged] live as the user selects,
-/// so the home behind it updates instantly.
-class DecorPicker extends StatefulWidget {
+/// Glass bottom sheet to pick the ambiance (environment + variant), the render
+/// mode (drawn / photo), and to fine-tune the selected decor's soundscape
+/// (per-track on/off, volume, and per-secondary frequency). Calls [onChanged]
+/// live as the user selects; sound edits apply live via [soundPrefsProvider].
+class DecorPicker extends ConsumerStatefulWidget {
   const DecorPicker({
     super.key,
     required this.decor,
@@ -20,10 +24,10 @@ class DecorPicker extends StatefulWidget {
   final void Function(String decor, RenderMode mode) onChanged;
 
   @override
-  State<DecorPicker> createState() => _DecorPickerState();
+  ConsumerState<DecorPicker> createState() => _DecorPickerState();
 }
 
-class _DecorPickerState extends State<DecorPicker> {
+class _DecorPickerState extends ConsumerState<DecorPicker> {
   late (Environment, int) _sel = parseDecor(widget.decor);
   late RenderMode _mode = widget.mode;
 
@@ -36,6 +40,9 @@ class _DecorPickerState extends State<DecorPicker> {
     setState(() => _mode = m);
     widget.onChanged(encodeDecor(_sel.$1, _sel.$2), m);
   }
+
+  void _update(String env, EnvSoundPref pref) =>
+      ref.read(soundPrefsProvider.notifier).setEnv(env, pref);
 
   @override
   Widget build(BuildContext context) {
@@ -79,10 +86,15 @@ class _DecorPickerState extends State<DecorPicker> {
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: media.size.height * 0.48),
+                constraints: BoxConstraints(maxHeight: media.size.height * 0.62),
                 child: SingleChildScrollView(
                   child: Column(
-                    children: [for (final env in Environment.values) _envRow(env, w)],
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final env in Environment.values) _envRow(env, w),
+                      const SizedBox(height: 10),
+                      _soundPanel(_sel.$1, w),
+                    ],
                   ),
                 ),
               ),
@@ -92,6 +104,143 @@ class _DecorPickerState extends State<DecorPicker> {
       ),
     );
   }
+
+  // ── Sound customization panel for the selected decor ─────────────────────────
+
+  Widget _soundPanel(Environment env, Color w) {
+    final cfg = kDecorAudio[env.name];
+    if (cfg == null) return const SizedBox.shrink();
+    final pref = ref.watch(soundPrefsProvider).forEnv(env.name);
+    final divider = Divider(color: w.withValues(alpha: 0.12), height: 22);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: w.withValues(alpha: 0.05),
+        border: Border.all(color: w.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.graphic_eq_rounded, size: 16, color: w.withValues(alpha: 0.7)),
+              const SizedBox(width: 8),
+              Text('Son · ${env.label}',
+                  style: TextStyle(
+                      fontSize: 13,
+                      letterSpacing: 0.4,
+                      fontWeight: FontWeight.w600,
+                      color: w.withValues(alpha: 0.7))),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _track(
+            w,
+            label: 'Ambiance',
+            on: pref.amb.on,
+            vol: pref.amb.vol,
+            onOn: (v) => _update(env.name, pref.copyWith(amb: pref.amb.copyWith(on: v))),
+            onVol: (v) => _update(env.name, pref.copyWith(amb: pref.amb.copyWith(vol: v))),
+          ),
+          _track(
+            w,
+            label: 'Musique',
+            on: pref.mus.on,
+            vol: pref.mus.vol,
+            onOn: (v) => _update(env.name, pref.copyWith(mus: pref.mus.copyWith(on: v))),
+            onVol: (v) => _update(env.name, pref.copyWith(mus: pref.mus.copyWith(vol: v))),
+          ),
+          if (cfg.secondaries.isNotEmpty) divider,
+          for (final entry in cfg.secondaries.entries)
+            _secondaryTrack(env.name, entry.key, entry.value, pref, w),
+        ],
+      ),
+    );
+  }
+
+  Widget _secondaryTrack(
+      String env, String key, SecondaryCat cat, EnvSoundPref pref, Color w) {
+    final sp = pref.sec[key] ?? SecondaryPref(vol: cat.volume);
+    return _track(
+      w,
+      label: cat.label,
+      on: sp.on,
+      vol: sp.vol,
+      freq: sp.freq,
+      onOn: (v) => _update(env, pref.withSecondary(key, sp.copyWith(on: v))),
+      onVol: (v) => _update(env, pref.withSecondary(key, sp.copyWith(vol: v))),
+      onFreq: (v) => _update(env, pref.withSecondary(key, sp.copyWith(freq: v))),
+    );
+  }
+
+  Widget _track(
+    Color w, {
+    required String label,
+    required bool on,
+    required double vol,
+    required ValueChanged<bool> onOn,
+    required ValueChanged<double> onVol,
+    double? freq,
+    ValueChanged<double>? onFreq,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        color: w.withValues(alpha: on ? 0.92 : 0.45))),
+              ),
+              SizedBox(
+                height: 26,
+                child: Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: on,
+                    onChanged: onOn,
+                    activeThumbColor: w,
+                    activeTrackColor: w.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          _slider(w, Icons.volume_up_rounded, vol, on ? onVol : null),
+          if (freq != null)
+            _slider(w, Icons.timer_outlined, freq, on ? onFreq : null),
+        ],
+      ),
+    );
+  }
+
+  Widget _slider(Color w, IconData icon, double value, ValueChanged<double>? onChanged) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: w.withValues(alpha: onChanged == null ? 0.25 : 0.5)),
+        Expanded(
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 2.5,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+              activeTrackColor: w.withValues(alpha: 0.8),
+              inactiveTrackColor: w.withValues(alpha: 0.16),
+              thumbColor: w,
+            ),
+            child: Slider(value: value.clamp(0.0, 1.0), onChanged: onChanged),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Decor + variant + mode selection ─────────────────────────────────────────
 
   Widget _modeToggle(Color w) {
     return Container(
