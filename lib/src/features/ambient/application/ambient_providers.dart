@@ -174,10 +174,16 @@ class SoundscapeNotifier extends Notifier<bool> {
   String? _musAsset;
   String? _musLoaded;
   final Map<String, Timer> _catTimers = {};
+  int _applyGen = 0; // serializes concurrent _apply() calls (last one wins)
+  bool _disposed = false;
 
   @override
   bool build() {
     final prefs = ref.watch(sharedPreferencesProvider);
+    // If build() ever re-runs (a watched dep changes), tear down the previous
+    // players/timers first so they don't leak.
+    _teardown();
+    _disposed = false;
     _amb = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
     _mus = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
     for (var i = 0; i < 4; i++) {
@@ -185,19 +191,25 @@ class SoundscapeNotifier extends Notifier<bool> {
     }
     // Live-react to per-decor customization edits.
     ref.listen(soundPrefsProvider, (_, _) => unawaited(_apply()));
-    ref.onDispose(() {
-      for (final t in _catTimers.values) {
-        t.cancel();
-      }
-      unawaited(_amb?.dispose());
-      unawaited(_mus?.dispose());
-      for (final p in _shots) {
-        unawaited(p.dispose());
-      }
-      _amb = _mus = null;
-      _shots.clear();
-    });
+    ref.onDispose(_teardown);
     return prefs.getBool(_kMaster) ?? true;
+  }
+
+  /// Cancels timers and disposes players. Sets [_disposed] first so any in-flight
+  /// `_apply()` / one-shot reschedule bails out instead of touching dead players.
+  void _teardown() {
+    _disposed = true;
+    for (final t in _catTimers.values) {
+      t.cancel();
+    }
+    _catTimers.clear();
+    unawaited(_amb?.dispose());
+    unawaited(_mus?.dispose());
+    for (final p in _shots) {
+      unawaited(p.dispose());
+    }
+    _amb = _mus = null;
+    _shots.clear();
   }
 
   DecorAudio? get _cfg => _env == null ? null : kDecorAudio[_env];
@@ -238,7 +250,14 @@ class SoundscapeNotifier extends Notifier<bool> {
 
   /// Reconciles the players + per-category timers against [state], [_env] and
   /// the current [SoundPrefs]. Safe to call on any change (idempotent).
+  ///
+  /// Three callers (`setEnvironment`, `toggleMaster`, the prefs `ref.listen`)
+  /// can fire this concurrently. A generation counter makes the latest call win:
+  /// an older invocation bails after its next await instead of issuing a
+  /// `resume()`/`setVolume()` against a player a newer call already replaced.
   Future<void> _apply({bool freshMusic = false}) async {
+    final gen = ++_applyGen;
+    bool stale() => _disposed || gen != _applyGen;
     final cfg = _cfg;
     final pref = _pref;
     final wantAmb = state && cfg != null && pref.amb.on;
@@ -251,10 +270,12 @@ class SoundscapeNotifier extends Notifier<bool> {
       } else {
         await _amb?.resume();
       }
+      if (stale()) return;
       await _amb?.setVolume(pref.amb.vol.clamp(0.0, 1.0));
     } else {
       await _amb?.pause();
     }
+    if (stale()) return;
 
     if (wantMus) {
       if (freshMusic || _musLoaded != _musAsset) {
@@ -263,10 +284,12 @@ class SoundscapeNotifier extends Notifier<bool> {
       } else {
         await _mus?.resume();
       }
+      if (stale()) return;
       await _mus?.setVolume(pref.mus.vol.clamp(0.0, 1.0));
     } else {
       await _mus?.pause();
     }
+    if (stale()) return;
 
     _rescheduleSecondaries();
   }
@@ -277,7 +300,7 @@ class SoundscapeNotifier extends Notifier<bool> {
     }
     _catTimers.clear();
     final cfg = _cfg;
-    if (cfg == null || !state) return;
+    if (cfg == null || !state || _disposed) return;
     final pref = _pref;
     for (final entry in cfg.secondaries.entries) {
       final sp = pref.sec[entry.key];
@@ -293,11 +316,12 @@ class SoundscapeNotifier extends Notifier<bool> {
     final maxMs = (cat.maxGap.inMilliseconds * factor).round();
     final gap = minMs + (maxMs > minMs ? _rng.nextInt(maxMs - minMs) : 0);
     _catTimers[key] = Timer(Duration(milliseconds: gap), () async {
+      if (_disposed) return;
       final cfg = _cfg;
       final cat2 = cfg?.secondaries[key];
       if (cat2 != null && state) {
         final p = _pref.sec[key];
-        if ((p?.on ?? true) && cat2.clips.isNotEmpty) {
+        if ((p?.on ?? true) && cat2.clips.isNotEmpty && _shots.isNotEmpty) {
           final clip = cat2.clips[_rng.nextInt(cat2.clips.length)];
           final vol = (p?.vol ?? cat2.volume).clamp(0.0, 1.0);
           final player = _shots[_shotIdx];
@@ -308,7 +332,9 @@ class SoundscapeNotifier extends Notifier<bool> {
             // A failed one-shot must never break the schedule.
           }
         }
-        _scheduleCat(key, cat2); // reschedule with the latest prefs
+        // Reschedule only if a dispose didn't land during the await above —
+        // otherwise we'd add an orphaned Timer after onDispose cancelled them.
+        if (!_disposed) _scheduleCat(key, cat2);
       }
     });
   }
@@ -326,6 +352,10 @@ class SoundPrefsNotifier extends Notifier<SoundPrefs> {
   @override
   SoundPrefs build() {
     ref.onDispose(() => _save?.cancel());
+    // Seeded once via `read` (not `watch`): this is read only after HomeGate has
+    // resolved `myProfileProvider`, so `.value` is the loaded profile. After
+    // that, edits flow through `setEnv` (live) and persist to the profile, so we
+    // intentionally don't re-seed when the profile provider updates.
     return ref.read(myProfileProvider).value?.soundPrefs ?? SoundPrefs.empty;
   }
 
