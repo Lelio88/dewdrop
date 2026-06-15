@@ -25,9 +25,16 @@ Deno.serve(async (req) => {
     if (!t?.recipient_id) return json({ ok: false, reason: "no record" });
 
     const recipient = (await rest(
-      `profiles?id=eq.${t.recipient_id}&select=quiet_start,quiet_end`,
+      `profiles?id=eq.${t.recipient_id}&select=quiet_start,quiet_end,quiet_tz`,
     ))[0];
-    if (recipient && inQuietHours(recipient.quiet_start, recipient.quiet_end)) {
+    if (
+      recipient &&
+      inQuietHours(
+        recipient.quiet_start as number | null,
+        recipient.quiet_end as number | null,
+        recipient.quiet_tz as string | null,
+      )
+    ) {
       return json({ skipped: "quiet hours" });
     }
 
@@ -66,10 +73,31 @@ async function rest(query: string): Promise<Array<Record<string, unknown>>> {
   return res.ok ? await res.json() : [];
 }
 
-function inQuietHours(start: number | null, end: number | null): boolean {
+function inQuietHours(
+  start: number | null,
+  end: number | null,
+  tz: string | null,
+): boolean {
   if (start == null || end == null) return false;
-  const h = new Date().getUTCHours();
+  const h = currentHour(tz);
   return start <= end ? h >= start && h < end : h >= start || h < end;
+}
+
+// The recipient's current hour (0-23) in their IANA timezone (DST-correct via
+// Intl). Falls back to UTC when the timezone is missing or invalid.
+function currentHour(tz: string | null): number {
+  if (!tz) return new Date().getUTCHours();
+  try {
+    const s = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date());
+    const h = Number.parseInt(s, 10);
+    return Number.isNaN(h) ? new Date().getUTCHours() : h % 24;
+  } catch {
+    return new Date().getUTCHours();
+  }
 }
 
 function json(obj: unknown, status = 200): Response {

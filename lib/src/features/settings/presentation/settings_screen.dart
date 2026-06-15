@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 /// In-app settings: default anonymity + quiet hours. Persisted to the profile
 /// (quiet hours will gate push notifications once FCM is wired).
@@ -18,6 +19,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _quiet = false;
   int _start = 22;
   int _end = 7;
+  String? _tz; // device IANA timezone, captured when quiet hours are enabled
 
   @override
   void initState() {
@@ -28,14 +30,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _quiet = p.quietStart != null && p.quietEnd != null;
       _start = p.quietStart ?? 22;
       _end = p.quietEnd ?? 7;
+      _tz = p.quietTz;
     }
   }
 
+  /// The device's IANA timezone, so quiet hours are evaluated server-side in the
+  /// user's local time. Cached after the first lookup.
+  Future<String?> _deviceTz() async {
+    if (_tz != null) return _tz;
+    try {
+      _tz = (await FlutterTimezone.getLocalTimezone()).identifier;
+    } on Exception catch (_) {
+      _tz = null; // fall back to UTC server-side
+    }
+    return _tz;
+  }
+
   Future<void> _persist() async {
+    final tz = _quiet ? await _deviceTz() : null;
     await ref.read(profileRepositoryProvider).updateSettings(
           defaultAnonymous: _anonymous,
           quietStart: _quiet ? _start : null,
           quietEnd: _quiet ? _end : null,
+          quietTz: tz,
         );
     ref.invalidate(myProfileProvider);
   }
