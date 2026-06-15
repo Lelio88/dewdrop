@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,6 +95,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             children: [
+              _section(w, 'Son'),
+              _card(
+                w,
+                child: Builder(
+                  builder: (context) {
+                    final sound = ref.watch(soundscapeProvider);
+                    final notifier = ref.read(soundscapeProvider.notifier);
+                    return Column(
+                      children: [
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: sound.ambiance,
+                          onChanged: (v) => unawaited(notifier.setAmbiance(v)),
+                          title: const Text('Ambiance'),
+                          subtitle: Text('Sons du décor (vagues, feu, vent…).',
+                              style: TextStyle(color: w.withValues(alpha: 0.5))),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: sound.music,
+                          onChanged: (v) => unawaited(notifier.setMusic(v)),
+                          title: const Text('Musique'),
+                          subtitle: Text('La musique d’ambiance du décor.',
+                              style: TextStyle(color: w.withValues(alpha: 0.5))),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
               _section(w, 'Pensées'),
               _card(
                 w,

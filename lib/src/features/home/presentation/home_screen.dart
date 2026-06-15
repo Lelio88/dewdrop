@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
+import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
@@ -66,9 +67,40 @@ class HomeView extends ConsumerStatefulWidget {
   ConsumerState<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends ConsumerState<HomeView> {
+class _HomeViewState extends ConsumerState<HomeView>
+    with WidgetsBindingObserver {
   late String _decor = widget.profile.decor;
   late RenderMode _mode = parseRenderMode(widget.profile.renderMode);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncAmbient());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(ref.read(soundscapeProvider.notifier).pauseAll());
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final sound = ref.read(soundscapeProvider.notifier);
+    if (state == AppLifecycleState.resumed) {
+      unawaited(sound.resumeAll());
+    } else if (state != AppLifecycleState.detached) {
+      unawaited(sound.pauseAll());
+    }
+  }
+
+  /// Drive the soundscape (ambiance + music + one-shots) for the current decor.
+  void _syncAmbient() {
+    final (env, _) = parseDecor(_decor);
+    unawaited(ref.read(soundscapeProvider.notifier).setEnvironment(env.name));
+  }
 
   void _openMenu() {
     showModalBottomSheet<String>(
@@ -98,6 +130,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
             _decor = decor;
             _mode = mode;
           });
+          _syncAmbient();
           unawaited(_persist(decor, mode));
         },
       ),
@@ -116,6 +149,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
   Widget build(BuildContext context) {
     final (env, variant) = parseDecor(_decor);
     final white = Colors.white;
+    final soundOn = ref.watch(soundscapeProvider).master;
 
     return Scaffold(
       body: buildDecor(
@@ -150,6 +184,17 @@ class _HomeViewState extends ConsumerState<HomeView> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              Positioned(
+                right: 20,
+                bottom: 84,
+                child: _GlassCircleButton(
+                  icon: soundOn
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
+                  onTap: () =>
+                      unawaited(ref.read(soundscapeProvider.notifier).toggleMaster()),
                 ),
               ),
               Positioned(

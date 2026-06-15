@@ -650,6 +650,122 @@ class _ForestBgPainter extends CustomPainter {
         );
       }
     }
+
+    _paintCanopyRays(canvas, w, h);
+    _paintCanopyForeground(canvas, w, h);
+  }
+
+  // Dramatic god-rays fanning down through the canopy gap (the photo's light).
+  void _paintCanopyRays(Canvas canvas, double w, double h) {
+    const rayColor = Color(0xFFEAF8CC);
+    final originX = w * 0.36;
+    for (var i = 0; i < 6; i++) {
+      final t = i / 5;
+      final topX = originX + (t - 0.5) * w * 0.22;
+      final botX = topX + w * (0.16 + t * 0.30);
+      const halfTop = 0.012;
+      const halfBot = 0.05;
+      final path = Path()
+        ..moveTo((topX) - halfTop * w, -h * 0.02)
+        ..lineTo((topX) + halfTop * w, -h * 0.02)
+        ..lineTo(botX + halfBot * w, h)
+        ..lineTo(botX - halfBot * w, h)
+        ..close();
+      canvas.drawPath(
+        path,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..shader = ui.Gradient.linear(
+            Offset(0, 0),
+            Offset(0, h),
+            [rayColor.withValues(alpha: 0.12), rayColor.withValues(alpha: 0)],
+            const [0.0, 0.72],
+          ),
+      );
+    }
+  }
+
+  // Out-of-focus tropical framing: dark leaves + red heliconia flowers, bottom.
+  void _paintCanopyForeground(Canvas canvas, double w, double h) {
+    canvas.drawRect(
+      Rect.fromLTRB(0, h * 0.78, w, h),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, h * 0.78),
+          Offset(0, h),
+          const [Color(0x000A1A06), Color(0xD607140A)],
+        ),
+    );
+    _canopyLeaf(canvas, Offset(w * 0.05, h * 0.99), w * 0.36, -0.45,
+        const Color(0xFF14320E));
+    _canopyLeaf(canvas, Offset(w * 0.18, h * 1.03), w * 0.30, -1.15,
+        const Color(0xFF1E4416));
+    _canopyLeaf(canvas, Offset(w * 0.97, h * 0.99), w * 0.38, math.pi + 0.5,
+        const Color(0xFF112E0C));
+    _canopyLeaf(canvas, Offset(w * 0.83, h * 1.03), w * 0.30, math.pi - 1.2,
+        const Color(0xFF1E4416));
+    _heliconia(canvas, Offset(w * 0.13, h * 1.0), h * 0.30, false);
+    _heliconia(canvas, Offset(w * 0.25, h * 1.03), h * 0.23, true);
+  }
+
+  void _canopyLeaf(
+      Canvas canvas, Offset base, double len, double angle, Color color) {
+    canvas.save();
+    canvas.translate(base.dx, base.dy);
+    canvas.rotate(angle);
+    final path = Path()
+      ..moveTo(0, 0)
+      ..quadraticBezierTo(len * 0.4, -len * 0.17, len, 0)
+      ..quadraticBezierTo(len * 0.4, len * 0.17, 0, 0)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+    canvas.drawLine(
+      Offset.zero,
+      Offset(len, 0),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.20)
+        ..strokeWidth = len * 0.012,
+    );
+    canvas.restore();
+  }
+
+  // Stylised heliconia ("lobster claw"): a stalk with alternating red→orange
+  // bracts, like the flowers framing the photo's lower-left.
+  void _heliconia(Canvas canvas, Offset base, double height, bool flip) {
+    canvas.save();
+    canvas.translate(base.dx, base.dy);
+    if (flip) canvas.scale(-1, 1);
+    canvas.drawLine(
+      Offset.zero,
+      Offset(0, -height),
+      Paint()
+        ..color = const Color(0xFF2E5020)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = height * 0.03
+        ..strokeCap = StrokeCap.round,
+    );
+    const n = 5;
+    for (var i = 0; i < n; i++) {
+      final t = i / (n - 1);
+      final y = -height * (0.12 + t * 0.78);
+      final side = i.isEven ? 1.0 : -1.0;
+      final len = height * (0.34 - t * 0.12);
+      final col =
+          Color.lerp(const Color(0xFFE23A22), const Color(0xFFF59021), t)!;
+      final p = Path()
+        ..moveTo(0, y)
+        ..lineTo(side * len, y - height * 0.045)
+        ..lineTo(side * len * 0.8, y - height * 0.12)
+        ..lineTo(0, y - height * 0.06)
+        ..close();
+      canvas.drawPath(p, Paint()..color = col);
+      canvas.drawCircle(
+        Offset(side * len, y - height * 0.045),
+        height * 0.02,
+        Paint()..color = const Color(0xFFE9E36A),
+      );
+    }
+    canvas.restore();
   }
 
   @override
