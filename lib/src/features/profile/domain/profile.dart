@@ -8,6 +8,7 @@ class Profile {
     this.renderMode = 'photo',
     this.quietStart,
     this.quietEnd,
+    this.quietTz,
     this.defaultAnonymous = false,
   });
 
@@ -18,6 +19,7 @@ class Profile {
   final String renderMode; // 'drawn' | 'photo'
   final int? quietStart;
   final int? quietEnd;
+  final String? quietTz; // IANA timezone for evaluating quiet hours locally
   final bool defaultAnonymous;
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
@@ -30,6 +32,7 @@ class Profile {
         renderMode: (m['render_mode'] as String?) ?? 'photo',
         quietStart: m['quiet_start'] as int?,
         quietEnd: m['quiet_end'] as int?,
+        quietTz: m['quiet_tz'] as String?,
         defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
       );
 }

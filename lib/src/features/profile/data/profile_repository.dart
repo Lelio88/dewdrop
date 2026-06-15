@@ -40,17 +40,20 @@ class ProfileRepository {
         .eq('id', uid);
   }
 
-  /// Quiet hours are hours 0-23 (null = disabled).
+  /// Quiet hours are hours 0-23 (null = disabled). [quietTz] is the user's IANA
+  /// timezone, so the push function evaluates the window in local time.
   Future<void> updateSettings({
     required bool defaultAnonymous,
     int? quietStart,
     int? quietEnd,
+    String? quietTz,
   }) async {
     final uid = _client.auth.currentUser!.id;
     await _client.from('profiles').update({
       'default_anonymous': defaultAnonymous,
       'quiet_start': quietStart,
       'quiet_end': quietEnd,
+      'quiet_tz': quietTz,
     }).eq('id', uid);
   }
 }
