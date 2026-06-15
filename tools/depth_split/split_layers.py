@@ -42,8 +42,16 @@ def estimate_depth(image: Image.Image, pipe) -> np.ndarray:
     return np.array(out["depth"].convert("L"), dtype=np.float32) / 255.0
 
 
-def split_image(input_path, layers=3, feather=6, invert=False, out=None, pipe=None):
-    """Write N parallax layers next to (or into --out) the input. Returns (dir, n)."""
+def split_image(input_path, layers=4, feather=10, invert=False, radius=None,
+                out=None, pipe=None):
+    """Write N parallax layers next to (or into --out) the input. Returns (dir, n).
+
+    Each layer's RGB is the photo with everything *nearer* than that layer
+    inpainted away, so the layer's feathered edge fades into a plausible
+    background (no hard cut-out seam) when it parallax-shifts. The band mask is
+    eroded a touch (drop the background halo around the object) then feathered
+    generously, and the back layer (0) is a fully-opaque inpainted plate.
+    """
     if pipe is None:
         pipe = build_pipe()
 
@@ -64,19 +72,29 @@ def split_image(input_path, layers=3, feather=6, invert=False, out=None, pipe=No
     os.makedirs(out_dir, exist_ok=True)
     feather = max(1, feather)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    if radius is None:
+        radius = max(6, w // 220)  # inpaint reach scales with image size
 
     for li in range(n):
         lo, hi = bounds[li], bounds[li + 1]
+        # Plane RGB: erase (inpaint) everything strictly nearer than this plane,
+        # so the revealed area around the plane is plausible background.
+        nearer = (depth >= hi).astype(np.uint8) * 255
+        if nearer.any():
+            mask = cv2.dilate(nearer, kernel, iterations=2)
+            plane_rgb = cv2.inpaint(rgb, mask, radius, cv2.INPAINT_TELEA)
+        else:
+            plane_rgb = rgb.copy()
+
         if li == 0:
-            nearer = (depth >= hi).astype(np.uint8) * 255
-            base = cv2.inpaint(rgb, nearer, 5, cv2.INPAINT_TELEA) if nearer.any() else rgb.copy()
-            alpha = np.full((h, w), 255, np.uint8)
-            rgba = np.dstack([base, alpha])
+            alpha = np.full((h, w), 255, np.uint8)  # back plate: fully opaque
         else:
             band = (((depth >= lo) & (depth < hi)).astype(np.uint8)) * 255
             band = cv2.morphologyEx(band, cv2.MORPH_OPEN, kernel)
+            band = cv2.erode(band, kernel, iterations=1)  # trim background halo
             alpha = cv2.GaussianBlur(band, (0, 0), feather)
-            rgba = np.dstack([rgb, alpha])
+
+        rgba = np.dstack([plane_rgb, alpha])
         Image.fromarray(rgba, "RGBA").save(os.path.join(out_dir, f"{li}.png"))
 
     return out_dir, n
@@ -85,15 +103,16 @@ def split_image(input_path, layers=3, feather=6, invert=False, out=None, pipe=No
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("input")
-    ap.add_argument("--layers", type=int, default=3)
-    ap.add_argument("--feather", type=int, default=6, help="edge feather radius (px)")
+    ap.add_argument("--layers", type=int, default=4)
+    ap.add_argument("--feather", type=int, default=10, help="edge feather radius (px)")
+    ap.add_argument("--radius", type=int, default=None, help="inpaint reach (px); auto if unset")
     ap.add_argument("--out", default=None)
     ap.add_argument("--invert", action="store_true", help="flip near/far if swapped")
     args = ap.parse_args()
 
     print("Estimating depth (first run downloads the ~100 MB model)...", flush=True)
     out_dir, n = split_image(
-        args.input, args.layers, args.feather, args.invert, args.out
+        args.input, args.layers, args.feather, args.invert, args.radius, args.out
     )
     print(f"Done: {n} layers in {out_dir}", flush=True)
 
