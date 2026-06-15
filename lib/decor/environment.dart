@@ -12,37 +12,22 @@ import 'package:flutter/material.dart';
 /// Global rendering style for a decor.
 enum RenderMode { drawn, photo }
 
-/// How finished an environment's renderer is.
-enum DecorStatus {
-  /// Bespoke immersive renderer.
-  full,
-
-  /// On-theme placeholder ("ébauche") — not yet a bespoke scene.
-  draft,
-}
-
 /// The DewDrop ambiances. Each has 2–3 variants.
 enum Environment {
-  space('Espace', Icons.public, ['Cosmos', 'Nuit noire', 'Planètes'],
-      DecorStatus.full),
-  underwater('Sous l’eau', Icons.water, ['Fonds marins', 'Poissons'],
-      DecorStatus.full),
-  forest('Forêt', Icons.forest, ['Chênes', 'Sakura', 'Canopée'],
-      DecorStatus.full),
-  beach('Plage', Icons.beach_access, ['Jour', 'Coucher'], DecorStatus.full),
-  library('Bibliothèque', Icons.menu_book, ['Cosy', 'Ancienne'],
-      DecorStatus.full),
-  mountain('Montagne', Icons.landscape, ['Aube', 'Nuit'], DecorStatus.full),
-  desert('Désert', Icons.nights_stay, ['Dunes', 'Étoilé'], DecorStatus.full),
-  aurora('Aurores boréales', Icons.ac_unit, ['Émeraude', 'Magenta'],
-      DecorStatus.full);
+  space('Espace', Icons.public, ['Cosmos', 'Nuit noire', 'Planètes']),
+  underwater('Sous l’eau', Icons.water, ['Fonds marins', 'Poissons']),
+  forest('Forêt', Icons.forest, ['Chênes', 'Sakura', 'Canopée']),
+  beach('Plage', Icons.beach_access, ['Jour', 'Coucher']),
+  library('Bibliothèque', Icons.menu_book, ['Cosy', 'Ancienne']),
+  mountain('Montagne', Icons.landscape, ['Aube', 'Nuit']),
+  desert('Désert', Icons.nights_stay, ['Dunes', 'Étoilé']),
+  aurora('Aurores boréales', Icons.ac_unit, ['Émeraude', 'Magenta']);
 
-  const Environment(this.label, this.icon, this.variants, this.status);
+  const Environment(this.label, this.icon, this.variants);
 
   final String label;
   final IconData icon;
   final List<String> variants;
-  final DecorStatus status;
 
   int get variantCount => variants.length;
 }

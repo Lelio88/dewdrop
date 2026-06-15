@@ -281,7 +281,6 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
   }
 
   Widget _envRow(Environment env, Color w) {
-    final isDraft = env.status == DecorStatus.draft;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -296,7 +295,6 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 15, color: w.withValues(alpha: 0.92))),
                 ),
-                if (isDraft) ...[const SizedBox(width: 8), _tag(w)],
               ],
             ),
           ),
@@ -310,20 +308,6 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
       ),
     );
   }
-
-  Widget _tag(Color w) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: w.withValues(alpha: 0.08),
-          border: Border.all(color: w.withValues(alpha: 0.18)),
-        ),
-        child: Text('ébauche',
-            style: TextStyle(
-                fontSize: 10,
-                fontStyle: FontStyle.italic,
-                color: w.withValues(alpha: 0.55))),
-      );
 
   Widget _chip(Color w, String label, bool sel, VoidCallback onTap) =>
       GestureDetector(

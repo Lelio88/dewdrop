@@ -2,13 +2,16 @@
 
 Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douces *good vibes* :
 « Lelio a pensé à toi ✨ ». Une app mobile cosy, avec des **décors immersifs** qu'on choisit
-(espace, forêt, sous l'eau, plage, montagne, désert, bibliothèque), en style **dessiné** ou **photo**.
+(espace, forêt, sous l'eau, plage, montagne, désert, bibliothèque, aurores boréales), en style
+**dessiné** ou **photo**, chacun avec son **ambiance sonore + musique** réglables par décor.
 
 ## Stack
 
 - **App** : Flutter (Riverpod, GoRouter, freezed) — Android d'abord, iOS ensuite.
 - **Décors** : moteur Canvas maison (parallax gyroscope, particules) + un mode **photo** en
-  parallax multi-couches.
+  parallax multi-couches (inpainting + nb de plans par décor).
+- **Son** : 2 couches par décor (ambiance + musique en boucle) + sons ponctuels aléatoires
+  (baleines, tonnerre, virevoltants…) via `audioplayers` ; volumes/fréquences réglables par décor.
 - **Backend** : Supabase (Postgres + Auth + RLS), en **local via Docker** pour le développement.
 
 ## Structure
@@ -21,7 +24,8 @@ lib/
     └── features/     # auth · profile · friends · thoughts · settings · home
 supabase/migrations/  # schéma (profiles, friendships, thoughts) + RLS
 tools/depth_split/    # script Python : découpe une photo en plans de profondeur (Depth Anything V2)
-assets/photo/         # décors photo (base.png = source ; 0/1/2.png = couches générées)
+assets/photo/         # décors photo (base.png = source ; 0..N.png = couches parallax générées)
+assets/audio/         # sons par décor (*_amb / *_mus en boucle ; oneshot/ = sons ponctuels)
 ```
 
 ## Démarrer
@@ -51,12 +55,13 @@ cd tools/depth_split
 python -m venv .venv
 .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python split_all.py     # génère les couches parallax 0/1/2.png
+.venv/Scripts/python split_all.py     # couches parallax (nb de plans + feather par décor)
 ```
 
 ## État
 
 ✅ Comptes (email) · ✅ Profil + pseudo/handle · ✅ Décors (dessin + photo, persistés) ·
-✅ Amis (demandes accepter/refuser) · ✅ Envoyer une pensée (+ option anonyme) · ✅ Historique.
+✅ Amis (demandes accepter/refuser) · ✅ Envoyer une pensée (+ option anonyme) · ✅ Historique ·
+✅ Notifications push (FCM + heures calmes) · ✅ Son par décor (ambiance + musique, personnalisable).
 
-🔜 Notifications push (FCM), heures calmes, lien d'invitation, groupes/channels, iOS.
+🔜 Lien d'invitation, groupes/channels, cible iOS, déploiement prod.
