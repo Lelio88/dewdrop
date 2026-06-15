@@ -1,9 +1,10 @@
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
+import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ThoughtRepository {
-  ThoughtRepository(this._client);
+class SupabaseThoughtRepository implements ThoughtRepository {
+  SupabaseThoughtRepository(this._client);
 
   final SupabaseClient _client;
 
@@ -11,6 +12,7 @@ class ThoughtRepository {
 
   /// Sends a "pensée" to [recipientId] (must be an accepted friend — enforced
   /// by RLS). When [anonymous], the recipient won't see who it's from.
+  @override
   Future<void> sendThought(String recipientId, {bool anonymous = false}) =>
       _client.from('thoughts').insert({
         'recipient_id': recipientId,
@@ -18,6 +20,7 @@ class ThoughtRepository {
         'is_anonymous': anonymous,
       });
 
+  @override
   Future<List<ReceivedThought>> receivedThoughts() async {
     final rows = await _client
         .from('thoughts')

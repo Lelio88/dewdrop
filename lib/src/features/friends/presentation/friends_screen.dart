@@ -1,6 +1,5 @@
 import 'package:dewdrop/src/common/glass.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
-import 'package:dewdrop/src/features/friends/data/friend_repository.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/presentation/send_thought_sheet.dart';

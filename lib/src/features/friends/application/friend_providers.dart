@@ -1,10 +1,11 @@
 import 'package:dewdrop/src/features/friends/data/friend_repository.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
+import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final friendRepositoryProvider = Provider<FriendRepository>((ref) {
-  return FriendRepository(Supabase.instance.client);
+  return SupabaseFriendRepository(Supabase.instance.client);
 });
 
 final friendsProvider = FutureProvider<List<Friend>>((ref) {

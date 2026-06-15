@@ -5,6 +5,8 @@ import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../helpers/fakes.dart';
+
 // soundPrefsProvider holds the live, editable per-decor sound customization.
 // It seeds once from the signed-in profile and is mutated by the decor picker.
 // (The debounced Supabase save fires on a 700 ms timer that the container's
@@ -55,5 +57,27 @@ void main() {
         );
 
     expect(container.read(soundPrefsProvider).forEnv('space').amb.vol, 0.2);
+  });
+
+  test('setEnv persists to the repository, debounced', () async {
+    final repo = FakeProfileRepository();
+    final container = ProviderContainer(overrides: [
+      myProfileProvider.overrideWith((ref) async => null),
+      profileRepositoryProvider.overrideWithValue(repo),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(myProfileProvider.future);
+    container.read(soundPrefsProvider);
+
+    container.read(soundPrefsProvider.notifier).setEnv(
+          'desert',
+          const EnvSoundPref(mus: LayerPref(on: false)),
+        );
+
+    expect(repo.savedSoundPrefs, isNull, reason: 'debounced — not saved yet');
+    await Future.delayed(const Duration(milliseconds: 800));
+    expect(repo.savedSoundPrefs, isNotNull, reason: 'saved after the debounce');
+    final desert = repo.savedSoundPrefs!['desert'] as Map<String, dynamic>;
+    expect((desert['mus'] as Map)['on'], false);
   });
 }

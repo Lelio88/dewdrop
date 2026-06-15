@@ -1,23 +1,17 @@
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
+import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// A user-facing friend error (handle not found, already friends, …).
-class FriendException implements Exception {
-  FriendException(this.message);
-  final String message;
-  @override
-  String toString() => message;
-}
-
-class FriendRepository {
-  FriendRepository(this._client);
+class SupabaseFriendRepository implements FriendRepository {
+  SupabaseFriendRepository(this._client);
 
   final SupabaseClient _client;
 
   String get _uid => _client.auth.currentUser!.id;
 
   /// Sends a friend request to the user with [handle].
+  @override
   Future<void> sendRequest(String handle) async {
     final h = handle.trim().toLowerCase();
     final target =
@@ -46,6 +40,7 @@ class FriendRepository {
         .insert({'requester_id': _uid, 'addressee_id': targetId});
   }
 
+  @override
   Future<List<IncomingRequest>> incomingRequests() async {
     final rows = await _client
         .from('friendships')
@@ -62,6 +57,7 @@ class FriendRepository {
     ];
   }
 
+  @override
   Future<List<Friend>> friends() async {
     final rows = await _client
         .from('friendships')
@@ -81,11 +77,13 @@ class FriendRepository {
     ];
   }
 
+  @override
   Future<void> acceptRequest(String friendshipId) => _client
       .from('friendships')
       .update({'status': 'accepted'}).eq('id', friendshipId);
 
   /// Reject a request or remove a friend (deletes the friendship row).
+  @override
   Future<void> removeFriendship(String friendshipId) =>
       _client.from('friendships').delete().eq('id', friendshipId);
 

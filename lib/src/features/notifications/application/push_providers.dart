@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:dewdrop/src/features/notifications/data/push_repository.dart';
+import 'package:dewdrop/src/features/notifications/domain/push_repository.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final pushRepositoryProvider = Provider<PushRepository>((ref) {
-  return PushRepository(FirebaseMessaging.instance, Supabase.instance.client);
+  return FirebasePushRepository(
+      FirebaseMessaging.instance, Supabase.instance.client);
 });
 
 final pushServiceProvider = Provider<PushService>((ref) {
