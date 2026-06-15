@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
+import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,30 +13,40 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
   (_) => throw UnimplementedError('sharedPreferencesProvider must be overridden'),
 );
 
-/// Per-decor audio recipe. Each decor has **two independent layers** — a looping
-/// [ambiance] bed and a looping [music] track — plus an optional pool of
-/// [oneShots] (environmental events fired at random intervals over the ambiance,
-/// e.g. whale calls, page turns, thunder). [music] may hold several variants;
-/// one is picked at random each time the decor starts. Asset convention:
-/// `assets/audio/<name>.ogg` for loops, `assets/audio/oneshot/<name>.ogg` for
-/// one-shots. Loops are pre-equalized (music ≈ -18 LUFS, ambiance ≈ -28 LUFS) so
-/// the ambiance always sits well below the music.
+/// A secondary (one-shot) category for a decor — fired at random intervals over
+/// the ambiance. [clips] is the random pool (one is picked per firing). The
+/// [volume]/[minGap]/[maxGap] are the engine defaults; the user can override
+/// volume, on/off and frequency per category (see [SoundPrefs]).
+class SecondaryCat {
+  const SecondaryCat({
+    required this.label,
+    required this.clips,
+    this.volume = 0.5,
+    this.minGap = const Duration(seconds: 30),
+    this.maxGap = const Duration(seconds: 80),
+  });
+
+  final String label;
+  final List<String> clips;
+  final double volume;
+  final Duration minGap;
+  final Duration maxGap;
+}
+
+/// Per-decor audio recipe: a looping ambiance bed, a looping music track (one or
+/// more variants, picked at random) and named secondary categories. Loops are
+/// pre-equalized (music ≈ -18 LUFS, ambiance ≈ -28 LUFS). Asset convention:
+/// `assets/audio/<name>.ogg` (loops), `assets/audio/oneshot/<name>.ogg` (shots).
 class DecorAudio {
   const DecorAudio({
     required this.ambiance,
     required this.music,
-    this.oneShots = const [],
-    this.minGap = const Duration(seconds: 30),
-    this.maxGap = const Duration(seconds: 80),
-    this.oneShotVolume = 0.5,
+    this.secondaries = const {},
   });
 
   final String ambiance;
   final List<String> music;
-  final List<String> oneShots;
-  final Duration minGap;
-  final Duration maxGap;
-  final double oneShotVolume;
+  final Map<String, SecondaryCat> secondaries;
 }
 
 const List<String> _whales = [
@@ -45,225 +57,291 @@ const List<String> _whales = [
   'underwater_whale_13',
 ];
 
-/// Audio recipe per [Environment.name].
-const Map<String, DecorAudio> _audio = {
+/// Audio recipe per [Environment.name]. Exposed so the decor picker can list a
+/// decor's adjustable tracks.
+const Map<String, DecorAudio> kDecorAudio = {
   'space': DecorAudio(ambiance: 'space_amb', music: ['space_mus']),
   'underwater': DecorAudio(
     ambiance: 'underwater_amb',
     music: ['underwater_mus'],
-    oneShots: _whales,
-    minGap: Duration(seconds: 18),
-    maxGap: Duration(seconds: 45),
-    oneShotVolume: 0.7,
+    secondaries: {
+      'whales': SecondaryCat(
+        label: 'Baleines',
+        clips: _whales,
+        volume: 0.7,
+        minGap: Duration(seconds: 18),
+        maxGap: Duration(seconds: 45),
+      ),
+    },
   ),
   'forest': DecorAudio(ambiance: 'forest_amb', music: ['forest_mus']),
   'beach': DecorAudio(ambiance: 'beach_amb', music: ['beach_mus']),
   'library': DecorAudio(
     ambiance: 'library_amb',
     music: ['library_mus'],
-    oneShots: ['library_page_1', 'library_purr_1', 'library_purr_2', 'library_purr_3'],
-    minGap: Duration(seconds: 12),
-    maxGap: Duration(seconds: 30),
-    oneShotVolume: 0.5,
+    secondaries: {
+      'pages': SecondaryCat(
+        label: 'Pages',
+        clips: ['library_page_1'],
+        volume: 0.5,
+        minGap: Duration(seconds: 18),
+        maxGap: Duration(seconds: 42),
+      ),
+      'purrs': SecondaryCat(
+        label: 'Ronron du chat',
+        clips: ['library_purr_1', 'library_purr_2', 'library_purr_3'],
+        volume: 0.5,
+        minGap: Duration(seconds: 25),
+        maxGap: Duration(seconds: 60),
+      ),
+    },
   ),
   'mountain': DecorAudio(
     ambiance: 'mountain_amb',
     music: ['mountain_mus'],
-    oneShots: ['mountain_pigeon_1'],
-    minGap: Duration(seconds: 22),
-    maxGap: Duration(seconds: 55),
-    oneShotVolume: 0.4,
+    secondaries: {
+      'pigeon': SecondaryCat(
+        label: 'Pigeon ramier',
+        clips: ['mountain_pigeon_1'],
+        volume: 0.4,
+        minGap: Duration(seconds: 22),
+        maxGap: Duration(seconds: 55),
+      ),
+    },
   ),
   'desert': DecorAudio(
     ambiance: 'desert_amb',
     music: ['desert_mus'],
-    oneShots: [
-      'desert_thunder_1', 'desert_thunder_2', 'desert_thunder_3',
-      'desert_tumble_1', 'desert_tumble_2', 'desert_tumble_3',
-    ],
-    minGap: Duration(seconds: 14),
-    maxGap: Duration(seconds: 40),
-    oneShotVolume: 0.6,
+    secondaries: {
+      'thunder': SecondaryCat(
+        label: 'Tonnerre',
+        clips: ['desert_thunder_1', 'desert_thunder_2', 'desert_thunder_3'],
+        volume: 0.6,
+        minGap: Duration(seconds: 22),
+        maxGap: Duration(seconds: 55),
+      ),
+      'tumbleweed': SecondaryCat(
+        label: 'Virevoltants',
+        clips: ['desert_tumble_1', 'desert_tumble_2', 'desert_tumble_3'],
+        volume: 0.6,
+        minGap: Duration(seconds: 16),
+        maxGap: Duration(seconds: 40),
+      ),
+    },
   ),
   'aurora': DecorAudio(
     ambiance: 'aurora_amb',
     music: ['aurora_mus_a', 'aurora_mus_b'],
-    oneShots: ['aurora_crack_1', 'aurora_crack_2', 'aurora_crack_3', 'aurora_shimmer_1'],
-    minGap: Duration(seconds: 25),
-    maxGap: Duration(seconds: 70),
-    oneShotVolume: 0.5,
+    secondaries: {
+      'cracks': SecondaryCat(
+        label: 'Glace qui craque',
+        clips: ['aurora_crack_1', 'aurora_crack_2', 'aurora_crack_3'],
+        volume: 0.55,
+        minGap: Duration(seconds: 25),
+        maxGap: Duration(seconds: 70),
+      ),
+      'shimmer': SecondaryCat(
+        label: 'Scintillement',
+        clips: ['aurora_shimmer_1'],
+        volume: 0.35,
+        minGap: Duration(seconds: 40),
+        maxGap: Duration(seconds: 90),
+      ),
+    },
   ),
 };
 
-/// Immutable on/off state of the soundscape. [master] is the home-screen mute
-/// (silences everything); [ambiance] and [music] are the two independent toggles
-/// from Settings. A layer plays only when [master] **and** its own flag are on.
-class SoundscapeState {
-  const SoundscapeState({
-    required this.master,
-    required this.ambiance,
-    required this.music,
-  });
-
-  final bool master;
-  final bool ambiance;
-  final bool music;
-
-  SoundscapeState copyWith({bool? master, bool? ambiance, bool? music}) =>
-      SoundscapeState(
-        master: master ?? this.master,
-        ambiance: ambiance ?? this.ambiance,
-        music: music ?? this.music,
-      );
-}
-
 const _kMaster = 'snd_master';
-const _kAmbiance = 'snd_ambiance';
-const _kMusic = 'snd_music';
 
-/// Drives the per-decor soundscape: an ambiance loop, a music loop and a random
-/// one-shot scheduler, reconciled against [SoundscapeState] and the current
-/// decor. Mute uses pause/resume (audioplayers does not reliably restart a
-/// *stopped* same-source player); switching decor issues a fresh `play` with a
-/// new source, which is reliable.
-class SoundscapeNotifier extends Notifier<SoundscapeState> {
+/// Maps a 0..1 frequency knob to a multiplier on a category's default gap range.
+/// 0.5 = default, 1 = ~2.3× more frequent, 0 = ~2.3× rarer.
+double _freqFactor(double freq) => pow(2, (0.5 - freq) * 2.4).toDouble();
+
+/// Drives the per-decor soundscape: an ambiance loop, a music loop and one timer
+/// per secondary category, reconciled against the home **master** mute
+/// (`state`) and the per-decor [SoundPrefs] (on/off, volume, frequency). Reacts
+/// live to pref edits. Mute uses pause/resume; switching decor issues a fresh
+/// `play` with a new source (reliable with audioplayers).
+class SoundscapeNotifier extends Notifier<bool> {
   final Random _rng = Random();
   AudioPlayer? _amb;
   AudioPlayer? _mus;
-  AudioPlayer? _shot;
+  final List<AudioPlayer> _shots = [];
+  int _shotIdx = 0;
 
-  String? _env; // current decor environment name
-  String? _ambLoaded; // env whose ambiance is loaded in [_amb]
-  String? _musAsset; // music variant chosen for [_env]
-  String? _musLoaded; // music asset loaded in [_mus]
-  Timer? _shotTimer;
+  String? _env;
+  String? _ambLoaded;
+  String? _musAsset;
+  String? _musLoaded;
+  final Map<String, Timer> _catTimers = {};
 
   @override
-  SoundscapeState build() {
+  bool build() {
     final prefs = ref.watch(sharedPreferencesProvider);
     _amb = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
     _mus = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
-    _shot = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
+    for (var i = 0; i < 4; i++) {
+      _shots.add(AudioPlayer()..setReleaseMode(ReleaseMode.stop));
+    }
+    // Live-react to per-decor customization edits.
+    ref.listen(soundPrefsProvider, (_, _) => unawaited(_apply()));
     ref.onDispose(() {
-      _shotTimer?.cancel();
+      for (final t in _catTimers.values) {
+        t.cancel();
+      }
       unawaited(_amb?.dispose());
       unawaited(_mus?.dispose());
-      unawaited(_shot?.dispose());
-      _amb = _mus = _shot = null;
+      for (final p in _shots) {
+        unawaited(p.dispose());
+      }
+      _amb = _mus = null;
+      _shots.clear();
     });
-    return SoundscapeState(
-      master: prefs.getBool(_kMaster) ?? true,
-      ambiance: prefs.getBool(_kAmbiance) ?? true,
-      music: prefs.getBool(_kMusic) ?? true,
-    );
+    return prefs.getBool(_kMaster) ?? true;
   }
 
-  DecorAudio? get _cfg => _env == null ? null : _audio[_env];
+  DecorAudio? get _cfg => _env == null ? null : kDecorAudio[_env];
+
+  EnvSoundPref get _pref =>
+      _env == null ? const EnvSoundPref() : ref.read(soundPrefsProvider).forEnv(_env!);
 
   /// Switches the soundscape to [environment] (e.g. 'forest'). Picks a fresh
-  /// random music variant and restarts the one-shot scheduler.
+  /// random music variant and restarts the secondary schedulers.
   Future<void> setEnvironment(String environment) async {
     _env = environment;
-    final cfg = _audio[environment];
+    final cfg = kDecorAudio[environment];
     _musAsset = (cfg != null && cfg.music.isNotEmpty)
         ? cfg.music[_rng.nextInt(cfg.music.length)]
         : null;
-    await _apply(freshMusic: true, restartShots: true);
+    await _apply(freshMusic: true);
   }
 
-  /// Home-screen master mute: silences (or restores) every layer.
+  /// Home-screen master mute: silences (or restores) everything.
   Future<void> toggleMaster() async {
-    state = state.copyWith(master: !state.master);
-    await ref.read(sharedPreferencesProvider).setBool(_kMaster, state.master);
-    await _apply(restartShots: true);
-  }
-
-  /// Settings toggle for the ambiance layer (bed + one-shots).
-  Future<void> setAmbiance(bool value) async {
-    state = state.copyWith(ambiance: value);
-    await ref.read(sharedPreferencesProvider).setBool(_kAmbiance, value);
-    await _apply(restartShots: true);
-  }
-
-  /// Settings toggle for the music layer.
-  Future<void> setMusic(bool value) async {
-    state = state.copyWith(music: value);
-    await ref.read(sharedPreferencesProvider).setBool(_kMusic, value);
+    state = !state;
+    await ref.read(sharedPreferencesProvider).setBool(_kMaster, state);
     await _apply();
   }
 
   /// Lifecycle: app backgrounded — pause everything (keep state).
   Future<void> pauseAll() async {
-    _shotTimer?.cancel();
+    for (final t in _catTimers.values) {
+      t.cancel();
+    }
+    _catTimers.clear();
     await _amb?.pause();
     await _mus?.pause();
   }
 
-  /// Lifecycle: app resumed — restore the layers that should be playing.
-  Future<void> resumeAll() async => _apply(restartShots: true);
+  /// Lifecycle: app resumed — restore the layers that should play.
+  Future<void> resumeAll() async => _apply();
 
-  /// Reconciles the players + scheduler against [state] and [_env].
-  Future<void> _apply({bool freshMusic = false, bool restartShots = false}) async {
+  /// Reconciles the players + per-category timers against [state], [_env] and
+  /// the current [SoundPrefs]. Safe to call on any change (idempotent).
+  Future<void> _apply({bool freshMusic = false}) async {
     final cfg = _cfg;
-    final wantAmb = state.master && state.ambiance && cfg != null;
-    final wantMus = state.master && state.music && _musAsset != null;
+    final pref = _pref;
+    final wantAmb = state && cfg != null && pref.amb.on;
+    final wantMus = state && _musAsset != null && pref.mus.on;
 
     if (wantAmb) {
       if (_ambLoaded != _env) {
-        await _amb?.setVolume(1.0);
         await _amb?.play(AssetSource('audio/${cfg.ambiance}.ogg'));
         _ambLoaded = _env;
       } else {
         await _amb?.resume();
       }
+      await _amb?.setVolume(pref.amb.vol.clamp(0.0, 1.0));
     } else {
       await _amb?.pause();
     }
 
     if (wantMus) {
       if (freshMusic || _musLoaded != _musAsset) {
-        await _mus?.setVolume(1.0);
         await _mus?.play(AssetSource('audio/$_musAsset.ogg'));
         _musLoaded = _musAsset;
       } else {
         await _mus?.resume();
       }
+      await _mus?.setVolume(pref.mus.vol.clamp(0.0, 1.0));
     } else {
       await _mus?.pause();
     }
 
-    if (state.master && state.ambiance && restartShots) {
-      _scheduleNextShot();
-    } else if (!(state.master && state.ambiance)) {
-      _shotTimer?.cancel();
+    _rescheduleSecondaries();
+  }
+
+  void _rescheduleSecondaries() {
+    for (final t in _catTimers.values) {
+      t.cancel();
+    }
+    _catTimers.clear();
+    final cfg = _cfg;
+    if (cfg == null || !state) return;
+    final pref = _pref;
+    for (final entry in cfg.secondaries.entries) {
+      final sp = pref.sec[entry.key];
+      if (!(sp?.on ?? true)) continue; // category muted by the user
+      _scheduleCat(entry.key, entry.value);
     }
   }
 
-  /// Schedules the next one-shot at a random gap; reschedules itself after firing.
-  void _scheduleNextShot() {
-    _shotTimer?.cancel();
-    final cfg = _cfg;
-    if (cfg == null || cfg.oneShots.isEmpty) return;
-    if (!(state.master && state.ambiance)) return;
-    final span = cfg.maxGap.inMilliseconds - cfg.minGap.inMilliseconds;
-    final gap = cfg.minGap.inMilliseconds + (span <= 0 ? 0 : _rng.nextInt(span));
-    _shotTimer = Timer(Duration(milliseconds: gap), () async {
-      final c = _cfg;
-      if (c != null && c.oneShots.isNotEmpty && state.master && state.ambiance) {
-        final clip = c.oneShots[_rng.nextInt(c.oneShots.length)];
-        try {
-          await _shot?.play(
-            AssetSource('audio/oneshot/$clip.ogg'),
-            volume: c.oneShotVolume,
-          );
-        } on Exception catch (_) {
-          // A failed one-shot must never break the loop.
+  void _scheduleCat(String key, SecondaryCat cat) {
+    final sp = _pref.sec[key];
+    final factor = _freqFactor(sp?.freq ?? 0.5);
+    final minMs = (cat.minGap.inMilliseconds * factor).round();
+    final maxMs = (cat.maxGap.inMilliseconds * factor).round();
+    final gap = minMs + (maxMs > minMs ? _rng.nextInt(maxMs - minMs) : 0);
+    _catTimers[key] = Timer(Duration(milliseconds: gap), () async {
+      final cfg = _cfg;
+      final cat2 = cfg?.secondaries[key];
+      if (cat2 != null && state) {
+        final p = _pref.sec[key];
+        if ((p?.on ?? true) && cat2.clips.isNotEmpty) {
+          final clip = cat2.clips[_rng.nextInt(cat2.clips.length)];
+          final vol = (p?.vol ?? cat2.volume).clamp(0.0, 1.0);
+          final player = _shots[_shotIdx];
+          _shotIdx = (_shotIdx + 1) % _shots.length;
+          try {
+            await player.play(AssetSource('audio/oneshot/$clip.ogg'), volume: vol);
+          } on Exception catch (_) {
+            // A failed one-shot must never break the schedule.
+          }
         }
+        _scheduleCat(key, cat2); // reschedule with the latest prefs
       }
-      _scheduleNextShot();
     });
   }
 }
 
 final soundscapeProvider =
-    NotifierProvider<SoundscapeNotifier, SoundscapeState>(SoundscapeNotifier.new);
+    NotifierProvider<SoundscapeNotifier, bool>(SoundscapeNotifier.new);
+
+/// The live, editable per-decor soundscape customization. Seeded once from the
+/// user's profile, mutated instantly by the decor picker (so changes apply
+/// live), and persisted to Supabase (debounced) so it syncs across devices.
+class SoundPrefsNotifier extends Notifier<SoundPrefs> {
+  Timer? _save;
+
+  @override
+  SoundPrefs build() {
+    ref.onDispose(() => _save?.cancel());
+    return ref.read(myProfileProvider).value?.soundPrefs ?? SoundPrefs.empty;
+  }
+
+  /// Replaces the prefs for [env] and schedules a debounced sync.
+  void setEnv(String env, EnvSoundPref pref) {
+    state = state.withEnv(env, pref);
+    _scheduleSave();
+  }
+
+  void _scheduleSave() {
+    _save?.cancel();
+    _save = Timer(const Duration(milliseconds: 700), () {
+      unawaited(ref.read(profileRepositoryProvider).updateSoundPrefs(state.toJson()));
+    });
+  }
+}
+
+final soundPrefsProvider =
+    NotifierProvider<SoundPrefsNotifier, SoundPrefs>(SoundPrefsNotifier.new);

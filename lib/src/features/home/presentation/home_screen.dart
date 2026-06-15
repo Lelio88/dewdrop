@@ -122,6 +122,7 @@ class _HomeViewState extends ConsumerState<HomeView>
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.18),
+      isScrollControlled: true, // tall content (decor list + sound panel) scrolls
       builder: (_) => DecorPicker(
         decor: _decor,
         mode: _mode,
@@ -149,7 +150,7 @@ class _HomeViewState extends ConsumerState<HomeView>
   Widget build(BuildContext context) {
     final (env, variant) = parseDecor(_decor);
     final white = Colors.white;
-    final soundOn = ref.watch(soundscapeProvider).master;
+    final soundOn = ref.watch(soundscapeProvider);
 
     return Scaffold(
       body: buildDecor(
