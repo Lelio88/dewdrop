@@ -1,0 +1,337 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+
+/// Immersive "aurores boréales" decor — the Arctic night: a deep starry sky
+/// with undulating aurora curtains over a snowy horizon that softly reflects
+/// the light. Two variants:
+///  - 0 "Émeraude": green / teal aurora.
+///  - 1 "Magenta": pink / violet aurora.
+///
+/// The sky gradient + snow horizon are a static layer; the stars (twinkle),
+/// the aurora curtains (waving) and the tap "flash" animate on top. A "pensée"
+/// (tap) makes the aurora surge brighter. Rendered entirely on the Canvas.
+class AuroraDecor extends StatefulWidget {
+  const AuroraDecor({super.key, this.variant = 0, this.child});
+
+  final int variant;
+  final Widget? child;
+
+  @override
+  State<AuroraDecor> createState() => _AuroraDecorState();
+}
+
+class _AuroraDecorState extends State<AuroraDecor>
+    with SingleTickerProviderStateMixin {
+  final _model = _AuroraModel();
+  final math.Random _rng = math.Random(7);
+
+  late final Ticker _ticker;
+  late final List<_Star> _stars = _genStars();
+  late final List<_Curtain> _curtains = _genCurtains();
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker((e) {
+      _model.time = e.inMicroseconds / 1e6;
+      _model.notify();
+    })..start();
+  }
+
+  void _surge() {
+    _model.flash = _model.time;
+    HapticFeedback.lightImpact();
+  }
+
+  List<_Star> _genStars() => List.generate(140, (_) {
+        final y = _rng.nextDouble();
+        return _Star(
+          x: _rng.nextDouble(),
+          y: y * 0.72, // stars only in the sky, not the snow
+          r: 0.4 + _rng.nextDouble() * 1.4,
+          phase: _rng.nextDouble() * math.pi * 2,
+          twinkle: 0.25 + _rng.nextDouble() * 0.7,
+        );
+      });
+
+  List<_Curtain> _genCurtains() => List.generate(5, (i) {
+        return _Curtain(
+          cx: 0.12 + i * 0.19 + _rng.nextDouble() * 0.04,
+          width: 0.16 + _rng.nextDouble() * 0.14,
+          top: 0.01 + _rng.nextDouble() * 0.06,
+          height: 0.40 + _rng.nextDouble() * 0.24,
+          speed: 0.12 + _rng.nextDouble() * 0.18,
+          phase: _rng.nextDouble() * math.pi * 2,
+          waviness: 0.02 + _rng.nextDouble() * 0.035,
+          bright: 0.55 + _rng.nextDouble() * 0.45,
+        );
+      });
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _model.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final v = widget.variant.clamp(0, 1);
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: CustomPaint(painter: _AuroraBgPainter(variant: v)),
+          ),
+        ),
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _AuroraFxPainter(
+                model: _model,
+                variant: v,
+                stars: _stars,
+                curtains: _curtains,
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _surge,
+          ),
+        ),
+        if (widget.child != null) Positioned.fill(child: widget.child!),
+      ],
+    );
+  }
+}
+
+// Aurora palettes (low/high colour pair per variant).
+List<Color> _auroraColors(int variant) => variant == 0
+    ? const [Color(0xFF38F5B0), Color(0xFF2A8CFF)] // emerald → teal-blue
+    : const [Color(0xFFFF5FBF), Color(0xFF8A5BFF)]; // magenta → violet
+
+const double _snowLine = 0.74;
+
+class _AuroraModel extends ChangeNotifier {
+  double time = 0;
+  double flash = -10;
+  void notify() => notifyListeners();
+}
+
+class _Star {
+  const _Star({
+    required this.x,
+    required this.y,
+    required this.r,
+    required this.phase,
+    required this.twinkle,
+  });
+  final double x;
+  final double y;
+  final double r;
+  final double phase;
+  final double twinkle;
+}
+
+class _Curtain {
+  const _Curtain({
+    required this.cx,
+    required this.width,
+    required this.top,
+    required this.height,
+    required this.speed,
+    required this.phase,
+    required this.waviness,
+    required this.bright,
+  });
+  final double cx;
+  final double width;
+  final double top;
+  final double height;
+  final double speed;
+  final double phase;
+  final double waviness;
+  final double bright;
+}
+
+class _AuroraBgPainter extends CustomPainter {
+  const _AuroraBgPainter({required this.variant});
+
+  final int variant;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final glow = _auroraColors(variant).first;
+
+    // Night sky.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(w / 2, 0),
+          Offset(w / 2, h),
+          const [Color(0xFF050A1E), Color(0xFF0A1530), Color(0xFF0E2240)],
+          const [0.0, 0.55, 1.0],
+        ),
+    );
+
+    // Faint horizon glow where the aurora meets the snow.
+    canvas.drawRect(
+      Rect.fromLTRB(0, _snowLine * h - h * 0.22, w, _snowLine * h),
+      Paint()
+        ..blendMode = BlendMode.plus
+        ..shader = ui.Gradient.linear(
+          Offset(0, _snowLine * h - h * 0.22),
+          Offset(0, _snowLine * h),
+          [glow.withValues(alpha: 0), glow.withValues(alpha: 0.10)],
+        ),
+    );
+
+    // Distant snowy ridges.
+    _ridge(canvas, w, h, baseY: _snowLine, amp: 0.04, color: const Color(0xFF16263F));
+    _ridge(canvas, w, h, baseY: _snowLine + 0.015, amp: 0.025, color: const Color(0xFF22324C));
+
+    // Snowfield, softly lit by the aurora.
+    canvas.drawRect(
+      Rect.fromLTRB(0, _snowLine * h, w, h),
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, _snowLine * h),
+          Offset(0, h),
+          [
+            Color.lerp(const Color(0xFFAEC4DC), glow, 0.25)!,
+            const Color(0xFF2A3A52),
+          ],
+        ),
+    );
+  }
+
+  void _ridge(Canvas canvas, double w, double h,
+      {required double baseY, required double amp, required Color color}) {
+    final path = Path()..moveTo(0, h);
+    path.lineTo(0, baseY * h);
+    const steps = 14;
+    for (var i = 0; i <= steps; i++) {
+      final xN = i / steps;
+      final y = (baseY -
+              amp * (0.5 + 0.5 * math.sin(xN * math.pi * 3 + 1.2)) *
+                  (0.6 + 0.4 * math.sin(xN * 9))) *
+          h;
+      path.lineTo(xN * w, y);
+    }
+    path
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_AuroraBgPainter old) => old.variant != variant;
+}
+
+class _AuroraFxPainter extends CustomPainter {
+  _AuroraFxPainter({
+    required this.model,
+    required this.variant,
+    required this.stars,
+    required this.curtains,
+  }) : super(repaint: model);
+
+  final _AuroraModel model;
+  final int variant;
+  final List<_Star> stars;
+  final List<_Curtain> curtains;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final time = model.time;
+    final surge = (1 - (time - model.flash) / 1.6).clamp(0.0, 1.0);
+
+    // Stars (behind the aurora).
+    for (final s in stars) {
+      final a = s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase));
+      canvas.drawCircle(
+        Offset(s.x * w, s.y * h),
+        s.r,
+        Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
+      );
+    }
+
+    // Aurora curtains.
+    final cols = _auroraColors(variant);
+    for (final c in curtains) {
+      _paintCurtain(canvas, w, h, time, c, cols, surge);
+    }
+
+    // Depth vignette.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(w / 2, h * 0.4),
+          size.longestSide * 0.82,
+          const [Color(0x00000000), Color(0x66050A1E)],
+          const [0.45, 1.0],
+        ),
+    );
+  }
+
+  void _paintCurtain(Canvas canvas, double w, double h, double time,
+      _Curtain c, List<Color> cols, double surge) {
+    const steps = 16;
+    double waveX(double yN) =>
+        c.cx +
+        math.sin(time * c.speed + c.phase + yN * 6.5) * c.waviness +
+        math.sin(time * c.speed * 0.6 + yN * 13) * c.waviness * 0.4;
+
+    final path = Path();
+    for (var i = 0; i <= steps; i++) {
+      final yN = c.top + c.height * i / steps;
+      final x = (waveX(yN) - c.width / 2) * w;
+      i == 0 ? path.moveTo(x, yN * h) : path.lineTo(x, yN * h);
+    }
+    for (var i = steps; i >= 0; i--) {
+      final yN = c.top + c.height * i / steps;
+      final x = (waveX(yN) + c.width / 2) * w;
+      path.lineTo(x, yN * h);
+    }
+    path.close();
+
+    final topY = c.top * h;
+    final botY = (c.top + c.height) * h;
+    final intensity = (c.bright * (0.7 + 0.3 * math.sin(time * 0.5 + c.phase)) +
+            surge * 0.5)
+        .clamp(0.0, 1.0);
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..blendMode = BlendMode.plus
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14)
+        ..shader = ui.Gradient.linear(
+          Offset(0, topY),
+          Offset(0, botY),
+          [
+            cols[1].withValues(alpha: 0.05 * intensity),
+            cols[0].withValues(alpha: 0.30 * intensity),
+            cols[0].withValues(alpha: 0.0),
+          ],
+          const [0.0, 0.45, 1.0],
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_AuroraFxPainter old) => old.variant != variant;
+}

@@ -64,3 +64,6 @@ firebase-service-account.json
 
 # Local emulator screenshots
 .android-screenshot.png
+
+# Audio working dir (raw downloads; final loops live in assets/audio)
+tools/sounds/

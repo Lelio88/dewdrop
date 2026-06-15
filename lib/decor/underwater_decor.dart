@@ -266,6 +266,7 @@ const _openWater = _UWConfig(
   brightness: 1.0,
   showSeabed: false,
   showFish: true,
+  showReef: true,
 );
 
 class _UWConfig {
@@ -276,6 +277,7 @@ class _UWConfig {
     required this.brightness,
     required this.showSeabed,
     required this.showFish,
+    this.showReef = false,
   });
 
   final Color top;
@@ -284,7 +286,18 @@ class _UWConfig {
   final double brightness;
   final bool showSeabed;
   final bool showFish;
+  final bool showReef;
 }
+
+// Warm reef palette for the "Poissons" coral scene.
+const _coralColors = [
+  Color(0xFFCBA36A), // tan
+  Color(0xFFD98A52), // orange
+  Color(0xFFCE7F92), // pink
+  Color(0xFFB8A14C), // mustard
+  Color(0xFF6E9A86), // teal-green
+  Color(0xFFA07AA8), // mauve
+];
 
 class _UWModel extends ChangeNotifier {
   double time = 0;
@@ -435,6 +448,9 @@ class _UWPainter extends CustomPainter {
 
     if (config.showSeabed) {
       _paintSeabed(canvas, w, h, time);
+    }
+    if (config.showReef) {
+      _paintReef(canvas, w, h, time);
     }
     if (config.showFish) {
       for (final f in fish) {
@@ -625,6 +641,114 @@ class _UWPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..color = const Color.fromRGBO(120, 180, 190, 0.16),
+      );
+    }
+  }
+
+  // Sunlit coral reef bed (the "Poissons" photo's foreground).
+  void _paintReef(Canvas canvas, double w, double h, double time) {
+    double reefY(double xN) =>
+        0.82 -
+        0.05 * math.sin(xN * math.pi * 3 + 0.6) -
+        0.02 * math.sin(xN * math.pi * 7);
+
+    final bed = Path()..moveTo(0, h);
+    for (var i = 0; i <= 24; i++) {
+      final xN = i / 24;
+      bed.lineTo(xN * w, reefY(xN) * h);
+    }
+    bed
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(
+      bed,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, reefY(0.5) * h),
+          Offset(0, h),
+          const [Color(0xFF2E6E66), Color(0xFF0C2830)],
+        ),
+    );
+
+    final rng = math.Random(7); // deterministic layout, stable across frames
+    for (var i = 0; i < 16; i++) {
+      final xN = (i + 0.5) / 16 + (rng.nextDouble() - 0.5) * 0.04;
+      final s = h * (0.05 + rng.nextDouble() * 0.06);
+      final col = _coralColors[rng.nextInt(_coralColors.length)];
+      final seed = rng.nextDouble();
+      final base = Offset(xN * w, reefY(xN) * h + 4);
+      switch (i % 3) {
+        case 0:
+          _branchCoral(canvas, base, s, col, seed);
+        case 1:
+          _brainCoral(canvas, base, s, col);
+        default:
+          _fanCoral(canvas, base, s, col, time, seed);
+      }
+    }
+  }
+
+  void _branchCoral(
+      Canvas canvas, Offset base, double s, Color col, double seed) {
+    final paint = Paint()
+      ..color = col
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s * 0.22
+      ..strokeCap = StrokeCap.round;
+    final n = 3 + (seed * 3).floor();
+    for (var i = 0; i < n; i++) {
+      final a = -math.pi / 2 + (i - (n - 1) / 2) * 0.5;
+      final mid = base + Offset(math.cos(a), math.sin(a)) * s * 0.6;
+      final tip = base + Offset(math.cos(a) * 1.3, math.sin(a) * 1.5) * s;
+      canvas.drawPath(
+        Path()
+          ..moveTo(base.dx, base.dy)
+          ..quadraticBezierTo(mid.dx, mid.dy, tip.dx, tip.dy),
+        paint,
+      );
+    }
+  }
+
+  void _brainCoral(Canvas canvas, Offset base, double s, Color col) {
+    final c = base.translate(0, -s * 0.5);
+    canvas.drawOval(
+      Rect.fromCenter(center: c, width: s * 2.0, height: s * 1.3),
+      Paint()..color = col,
+    );
+    final groove = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s * 0.07
+      ..color = Color.lerp(col, Colors.black, 0.35)!;
+    for (var i = 0; i < 3; i++) {
+      canvas.drawArc(
+        Rect.fromCenter(
+            center: c, width: s * (1.4 - i * 0.4), height: s * (0.9 - i * 0.25)),
+        math.pi,
+        math.pi,
+        false,
+        groove,
+      );
+    }
+  }
+
+  void _fanCoral(
+      Canvas canvas, Offset base, double s, Color col, double time, double seed) {
+    final sway = math.sin(time * 0.8 + seed * 6) * 0.12;
+    final paint = Paint()
+      ..color = col
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = s * 0.05
+      ..strokeCap = StrokeCap.round;
+    const n = 7;
+    for (var i = 0; i < n; i++) {
+      final a = -math.pi / 2 + (i - (n - 1) / 2) * 0.16 + sway;
+      final mid = base + Offset(math.cos(a) * 0.6 + sway, math.sin(a) * 0.8) * s;
+      final tip = base + Offset(math.cos(a), math.sin(a)) * s * 1.5;
+      canvas.drawPath(
+        Path()
+          ..moveTo(base.dx, base.dy)
+          ..quadraticBezierTo(mid.dx, mid.dy, tip.dx, tip.dy),
+        paint,
       );
     }
   }

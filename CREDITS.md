@@ -18,5 +18,21 @@
     android/app/src/main/res/raw/drop.wav
   ```
 
+### Ambient soundscapes — `assets/audio/<environment>.ogg`
+
+Per-decor looping ambiences. All sources are **CC0 1.0** (Public Domain, no
+attribution required); listed here for transparency. Each was trimmed,
+loudness-normalised and crossfade-looped (seamless) with ffmpeg.
+
+| Decor | Source | Origin (OpenGameArt, CC0) |
+|---|---|---|
+| space | "Background space track" (MyVeryOwnDeadShip) | opengameart.org/content/background-space-track |
+| underwater | "Underwater Theme II" | opengameart.org/content/underwater-theme-ii |
+| forest | "CC0 Background Ambience" (Forest Ambience) | opengameart.org/content/cc0-background-ambience |
+| beach | "Beach Ocean Waves" (jasinski) | opengameart.org/content/beach-ocean-waves |
+| library | "Fireplace Sound loop" | opengameart.org/content/fireplace-sound-loop |
+| mountain / desert | "wind whoosh loop" | opengameart.org/content/wind-whoosh-loop |
+
 > TODO before public release: add an in-app credits line so the CC BY attribution
-> is shown to end users (a repo file alone is not sufficient for CC BY).
+> (notification sound) is shown to end users (a repo file alone is not sufficient
+> for CC BY). The CC0 ambiences above need no attribution.

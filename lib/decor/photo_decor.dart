@@ -254,6 +254,7 @@ _Overlay _overlayFor(Environment env, int variant) => switch (env) {
       Environment.library => const _Overlay(_PKind.dust, Color(0xFFFFE0A8), 30),
       Environment.mountain => const _Overlay(_PKind.dust, Color(0xFFFFFFFF), 20),
       Environment.desert => const _Overlay(_PKind.star, Color(0xFFEAF2FF), 40),
+      Environment.aurora => const _Overlay(_PKind.dust, Color(0xFFEAF6FF), 34),
     };
 
 class _Particle {
@@ -543,4 +544,6 @@ _Palette _paletteFor(Environment env) => switch (env) {
           Color(0xFFE5A6A0), Color(0xFF243A52), Color(0xFF5A7088), Color(0xFF0E1622)),
       Environment.desert => const _Palette(
           Color(0xFF2A2440), Color(0xFF1A1208), Color(0xFF5A4A2A), Color(0xFF12100A)),
+      Environment.aurora => const _Palette(
+          Color(0xFF0A1530), Color(0xFF0E2240), Color(0xFF2A8CFF), Color(0xFF16263F)),
     };
