@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
+import 'package:dewdrop/src/features/notifications/domain/push_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -36,13 +39,18 @@ class FakeAuthRepository implements AuthRepository {
 class FakeProfileRepository implements ProfileRepository {
   Profile? profile;
   Map<String, dynamic>? savedSoundPrefs;
+  bool handleAvailable = true;
+  String? lastSetHandle;
 
   @override
   Future<Profile?> getMyProfile() async => profile;
   @override
-  Future<bool> isHandleAvailable(String handle) async => true;
+  Future<bool> isHandleAvailable(String handle) async => handleAvailable;
   @override
-  Future<void> setHandle(String handle, {String? displayName}) async {}
+  Future<void> setHandle(String handle, {String? displayName}) async {
+    lastSetHandle = handle;
+  }
+
   @override
   Future<void> updateDecor(String decor, String renderMode) async {}
   @override
@@ -57,4 +65,31 @@ class FakeProfileRepository implements ProfileRepository {
     int? quietEnd,
     String? quietTz,
   }) async {}
+}
+
+class FakePushRepository implements PushRepository {
+  bool permission = true;
+  String? token = 'tok-1';
+  final List<(String userId, String token)> saved = [];
+  final List<String> deleted = [];
+  final _refreshes = StreamController<String>.broadcast();
+
+  @override
+  Future<bool> requestPermission() async => permission;
+  @override
+  Future<String?> currentToken() async => token;
+  @override
+  Stream<String> tokenRefreshes() => _refreshes.stream;
+  @override
+  Future<void> saveToken(String userId, String token) async {
+    saved.add((userId, token));
+  }
+
+  @override
+  Future<void> deleteToken(String token) async {
+    deleted.add(token);
+  }
+
+  void emitRefresh(String t) => _refreshes.add(t);
+  Future<void> dispose() => _refreshes.close();
 }

@@ -24,9 +24,10 @@ class HomeGate extends ConsumerWidget {
     final profile = ref.watch(myProfileProvider);
     return profile.when(
       loading: () => const _DecorLoading(),
-      error: (e, _) => Scaffold(
+      error: (_, _) => const Scaffold(
         body: Center(
-          child: Text('Erreur : $e', style: const TextStyle(color: Colors.white70)),
+          child: Text('Une erreur est survenue.',
+              style: TextStyle(color: Colors.white70)),
         ),
       ),
       data: (p) {
@@ -71,10 +72,13 @@ class _HomeViewState extends ConsumerState<HomeView>
     with WidgetsBindingObserver {
   late String _decor = widget.profile.decor;
   late RenderMode _mode = parseRenderMode(widget.profile.renderMode);
+  // Cached at initState so dispose() never reads `ref` across teardown.
+  late final SoundscapeNotifier _sound;
 
   @override
   void initState() {
     super.initState();
+    _sound = ref.read(soundscapeProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncAmbient());
   }
@@ -82,24 +86,23 @@ class _HomeViewState extends ConsumerState<HomeView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(ref.read(soundscapeProvider.notifier).pauseAll());
+    unawaited(_sound.pauseAll());
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final sound = ref.read(soundscapeProvider.notifier);
     if (state == AppLifecycleState.resumed) {
-      unawaited(sound.resumeAll());
+      unawaited(_sound.resumeAll());
     } else if (state != AppLifecycleState.detached) {
-      unawaited(sound.pauseAll());
+      unawaited(_sound.pauseAll());
     }
   }
 
   /// Drive the soundscape (ambiance + music + one-shots) for the current decor.
   void _syncAmbient() {
     final (env, _) = parseDecor(_decor);
-    unawaited(ref.read(soundscapeProvider.notifier).setEnvironment(env.name));
+    unawaited(_sound.setEnvironment(env.name));
   }
 
   void _openMenu() {
@@ -291,11 +294,19 @@ class _HomeMenu extends ConsumerWidget {
                 leading: Icon(Icons.logout_rounded, color: white.withValues(alpha: 0.85)),
                 title: const Text('Se déconnecter'),
                 onTap: () async {
+                  // Capture before popping — the sheet's `ref` is gone after pop.
+                  final push = ref.read(pushServiceProvider);
+                  final auth = ref.read(authRepositoryProvider);
                   Navigator.of(context).pop();
-                  // Drop the device token while still authenticated (RLS),
-                  // then sign out.
-                  await ref.read(pushServiceProvider).unregister();
-                  await ref.read(authRepositoryProvider).signOut();
+                  try {
+                    // Drop the device token while still authenticated (RLS),
+                    // then sign out. Best-effort: a failure must not strand the
+                    // user in a half-signed-out state silently.
+                    await push.unregister();
+                    await auth.signOut();
+                  } on Exception catch (_) {
+                    // The router redirect handles navigation on success.
+                  }
                 },
               ),
             ],

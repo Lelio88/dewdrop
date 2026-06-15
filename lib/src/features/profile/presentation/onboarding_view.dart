@@ -49,13 +49,19 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
     final repo = ref.read(profileRepositoryProvider);
     try {
       if (!await repo.isHandleAvailable(handle)) {
-        setState(() => _error = 'Ce handle est déjà pris.');
+        if (mounted) setState(() => _error = 'Ce handle est déjà pris.');
         return;
       }
       await repo.setHandle(handle, displayName: pseudo);
-      ref.invalidate(myProfileProvider); // HomeGate then shows the home
-    } on Exception catch (_) {
-      if (mounted) setState(() => _error = 'Une erreur est survenue.');
+      if (mounted) ref.invalidate(myProfileProvider); // HomeGate shows the home
+    } on Exception catch (e) {
+      if (!mounted) return;
+      // TOCTOU: someone grabbed the handle between the check and the insert →
+      // the unique-constraint violation (Postgres 23505) means "taken".
+      final taken = e.toString().contains('23505') ||
+          e.toString().toLowerCase().contains('duplicate');
+      setState(() =>
+          _error = taken ? 'Ce handle est déjà pris.' : 'Une erreur est survenue.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

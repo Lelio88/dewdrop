@@ -33,11 +33,11 @@ class ThoughtsScreen extends ConsumerWidget {
               loading: () => const Center(
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
               ),
-              error: (e, _) => ListView(
+              error: (_, _) => ListView(
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text('Erreur : $e',
+                    child: Text('Impossible de charger tes pensées.',
                         style: TextStyle(color: w.withValues(alpha: 0.6))),
                   ),
                 ],
