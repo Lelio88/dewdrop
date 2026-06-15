@@ -1,9 +1,9 @@
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/glass.dart';
+import 'package:dewdrop/src/features/auth/application/auth_error.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Email + password sign in / sign up, over a calm decor background.
 class SignInScreen extends ConsumerStatefulWidget {
@@ -48,10 +48,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         await auth.signIn(email, password);
       }
       // Navigation is handled by the router redirect on auth-state change.
-    } on AuthException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } on Exception catch (_) {
-      if (mounted) setState(() => _error = 'Une erreur est survenue.');
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() => _error = authErrorMessage(e, isSignUp: _isSignUp));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -111,10 +111,29 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       onSubmitted: (_) => _submit(),
                     ),
                     if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        style: const TextStyle(color: Color(0xFFFFB4A8), fontSize: 13),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF6B5A).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: const Color(0xFFFF6B5A).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                color: Color(0xFFFFB4A8), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(
+                                    color: Color(0xFFFFD6CE), fontSize: 13, height: 1.3),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     const SizedBox(height: 20),
