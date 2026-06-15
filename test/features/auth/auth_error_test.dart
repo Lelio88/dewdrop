@@ -77,5 +77,17 @@ void main() {
       expect(authErrorMessage(Exception('weak_password')), contains('trop court'));
       expect(authErrorMessage(Exception('email_not_confirmed')), contains('Confirme'));
     });
+
+    test('covers the remaining network + code branches', () {
+      expect(authErrorMessage(Exception('invalid_credentials')),
+          'Email ou mot de passe incorrect.');
+      expect(
+          authErrorMessage(Exception('Connection closed before full header was received')),
+          contains('Connexion au serveur'));
+      expect(authErrorMessage(Exception('XMLHttpRequest error')),
+          contains('Connexion au serveur'));
+      expect(authErrorMessage(Exception('validation_failed')),
+          contains('email invalide'));
+    });
   });
 }

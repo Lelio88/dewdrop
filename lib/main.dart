@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:dewdrop/src/app.dart';
+import 'package:dewdrop/src/common/provider_error_logger.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/notifications/data/notification_channels.dart';
 import 'package:dewdrop/src/supabase/supabase_config.dart';
@@ -33,6 +34,7 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
+      observers: const [ProviderErrorLogger()],
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: const DewDropApp(),
     ),

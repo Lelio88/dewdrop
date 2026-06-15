@@ -11,6 +11,11 @@ class SupabaseFriendRepository implements FriendRepository {
   String get _uid => _client.auth.currentUser!.id;
 
   /// Sends a friend request to the user with [handle].
+  ///
+  /// A missing handle surfaces "Aucun utilisateur @x" — handle existence is
+  /// **intentionally not hidden**: handles are meant to be publicly searchable
+  /// so people can add each other, and the threat model is low. This is a
+  /// deliberate decision, not an enumeration bug — don't "fix" it.
   @override
   Future<void> sendRequest(String handle) async {
     final h = handle.trim().toLowerCase();
