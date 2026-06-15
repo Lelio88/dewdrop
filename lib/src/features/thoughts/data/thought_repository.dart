@@ -3,6 +3,27 @@ import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Pure row→domain mapping for received thoughts. Extracted so the
+/// **privacy-critical** anonymity rule (an anonymous thought never exposes its
+/// sender) is unit-testable without a Supabase fake. [profilesBySenderId] holds
+/// only the non-anonymous senders. A malformed/absent `created_at` falls back
+/// to epoch 0 rather than throwing (keeps the whole list from crashing).
+List<ReceivedThought> mapReceivedThoughts(
+  List<Map<String, dynamic>> rows,
+  Map<String, Profile> profilesBySenderId,
+) {
+  return [
+    for (final r in rows)
+      ReceivedThought(
+        id: r['id'] as String,
+        createdAt: DateTime.tryParse(r['created_at']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        isAnonymous: r['is_anonymous'] == true,
+        sender: r['is_anonymous'] == true ? null : profilesBySenderId[r['sender_id']],
+      ),
+  ];
+}
+
 class SupabaseThoughtRepository implements ThoughtRepository {
   SupabaseThoughtRepository(this._client);
 
@@ -35,15 +56,7 @@ class SupabaseThoughtRepository implements ThoughtRepository {
     }.toList();
     final profiles = await _profilesByIds(senderIds);
 
-    return [
-      for (final r in rows)
-        ReceivedThought(
-          id: r['id'] as String,
-          createdAt: DateTime.parse(r['created_at'] as String),
-          isAnonymous: r['is_anonymous'] == true,
-          sender: r['is_anonymous'] == true ? null : profiles[r['sender_id']],
-        ),
-    ];
+    return mapReceivedThoughts(rows, profiles);
   }
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {

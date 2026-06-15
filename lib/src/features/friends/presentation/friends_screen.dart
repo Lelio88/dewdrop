@@ -46,14 +46,24 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   }
 
   Future<void> _accept(String id) async {
-    await ref.read(friendRepositoryProvider).acceptRequest(id);
-    ref.invalidate(incomingRequestsProvider);
-    ref.invalidate(friendsProvider);
+    try {
+      await ref.read(friendRepositoryProvider).acceptRequest(id);
+      if (!mounted) return;
+      ref.invalidate(incomingRequestsProvider);
+      ref.invalidate(friendsProvider);
+    } on Exception catch (_) {
+      _snack('Action impossible pour le moment.');
+    }
   }
 
   Future<void> _reject(String id) async {
-    await ref.read(friendRepositoryProvider).removeFriendship(id);
-    ref.invalidate(incomingRequestsProvider);
+    try {
+      await ref.read(friendRepositoryProvider).removeFriendship(id);
+      if (!mounted) return;
+      ref.invalidate(incomingRequestsProvider);
+    } on Exception catch (_) {
+      _snack('Action impossible pour le moment.');
+    }
   }
 
   Future<void> _sendTo(Profile p) async {
@@ -123,7 +133,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               _section(white, 'Demandes reçues'),
               requests.when(
                 loading: () => const _Loading(),
-                error: (e, _) => _error(white, e),
+                error: (_, _) => _error(white),
                 data: (list) => list.isEmpty
                     ? _empty(white, 'Aucune demande.')
                     : Column(
@@ -136,7 +146,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               _section(white, 'Mes amis'),
               friends.when(
                 loading: () => const _Loading(),
-                error: (e, _) => _error(white, e),
+                error: (_, _) => _error(white),
                 data: (list) => list.isEmpty
                     ? _empty(white, 'Pas encore d\'amis. Invite quelqu\'un !')
                     : Column(
@@ -220,9 +230,10 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         child: Text(msg, style: TextStyle(color: w.withValues(alpha: 0.45))),
       );
 
-  Widget _error(Color w, Object e) => Padding(
+  Widget _error(Color w) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Text('Erreur : $e', style: TextStyle(color: w.withValues(alpha: 0.6))),
+        child: Text('Impossible de charger pour le moment.',
+            style: TextStyle(color: w.withValues(alpha: 0.6))),
       );
 }
 
