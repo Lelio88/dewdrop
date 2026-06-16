@@ -39,19 +39,106 @@ class BeachDecor extends StatefulWidget {
 
 const double _horizon = 0.50;
 
+// Ambient particle counts per variant — sparse, calm, always-on.
+const int _sprayCount = 38; // Jour: sea-spray droplets
+const int _fireflyCount = 32; // Coucher: golden fireflies
+
+/// One ambient particle, living in normalized [0,1] scene coordinates so it is
+/// resolution-independent (scaled to pixels at paint time, like the rest of the
+/// scene). Its meaning depends on the variant: a drifting sea-spray droplet
+/// (Jour) or a wandering golden firefly (Coucher). [phase] seeds the per-particle
+/// twinkle/wander so they are individually out of step; [seed] gives each one a
+/// stable size/brightness jitter.
+class _Ambient {
+  _Ambient({
+    required this.x,
+    required this.y,
+    required this.vx,
+    required this.vy,
+    required this.phase,
+    required this.seed,
+  });
+
+  double x;
+  double y;
+  final double vx; // base horizontal drift (normalized units / second)
+  final double vy; // base vertical drift
+  final double phase; // twinkle + wander offset
+  final double seed; // 0..1 stable per-particle size/brightness jitter
+}
+
 class _BeachDecorState extends State<BeachDecor>
     with SingleTickerProviderStateMixin {
   final _model = _BeachModel();
   late final Ticker _ticker;
 
+  // Ambient particle layer (drifting spray by day, fireflies at sunset). Built
+  // once for the active variant; advanced every frame in the ticker; drawn by
+  // the fx painter. Separate from — and far gentler than — the reception burst.
+  late final List<_Ambient> _ambient;
+  double _lastTime = 0;
+
   @override
   void initState() {
     super.initState();
+    _ambient = _buildAmbient(widget.variant);
     _ticker = createTicker((e) {
-      _model.time = e.inMicroseconds / 1e6;
+      final t = e.inMicroseconds / 1e6;
+      _advanceAmbient(t);
+      _model.time = t;
       _model.notify();
     })..start();
     widget.reception?.addListener(_onReception);
+  }
+
+  // Seed the ambient particles for a variant. Day spray hugs the lower sea/shore
+  // band and drifts gently; sunset fireflies roam the air above the water.
+  List<_Ambient> _buildAmbient(int variant) {
+    final rng = math.Random(variant == 0 ? 1207 : 2406);
+    final isDay = variant == 0;
+    final count = isDay ? _sprayCount : _fireflyCount;
+    return List<_Ambient>.generate(count, (_) {
+      // Spray lives low over the water; fireflies float across the dusk air.
+      final y = isDay
+          ? 0.52 + rng.nextDouble() * 0.30 // sea / wet-sand band
+          : 0.18 + rng.nextDouble() * 0.52; // air above the horizon
+      return _Ambient(
+        x: rng.nextDouble(),
+        y: y,
+        vx: (rng.nextDouble() - 0.5) * (isDay ? 0.05 : 0.012),
+        vy: isDay
+            ? -0.010 - rng.nextDouble() * 0.012 // spray lifts faintly upward
+            : (rng.nextDouble() - 0.5) * 0.010, // fireflies bob both ways
+        phase: rng.nextDouble() * math.pi * 2,
+        seed: rng.nextDouble(),
+      );
+    });
+  }
+
+  // Advance every ambient particle by the real frame delta, adding a slow sine
+  // wander so motion reads organic rather than linear, and wrapping at the
+  // scene edges so the layer is seamless and perpetual.
+  void _advanceAmbient(double t) {
+    final dt = (t - _lastTime).clamp(0.0, 0.05); // guard first frame / hitches
+    _lastTime = t;
+    if (dt == 0) return;
+    final isDay = widget.variant == 0;
+    for (final p in _ambient) {
+      // Gentle horizontal wander velocity; fireflies meander more than spray.
+      final wanderV = math.cos(t * 0.6 + p.phase) * (isDay ? 0.012 : 0.05);
+      p.x += (p.vx + wanderV) * dt;
+      p.y += p.vy * dt;
+      // Wrap around — keep the field continuous and bounded to its band.
+      if (p.x < -0.02) p.x += 1.04;
+      if (p.x > 1.02) p.x -= 1.04;
+      if (isDay) {
+        // Spray that floated up re-enters low, like fresh mist off a wave.
+        if (p.y < 0.50) p.y = 0.82;
+      } else {
+        if (p.y < 0.16) p.y = 0.70;
+        if (p.y > 0.72) p.y = 0.18;
+      }
+    }
   }
 
   @override
@@ -98,7 +185,14 @@ class _BeachDecorState extends State<BeachDecor>
         ),
         Positioned.fill(
           child: RepaintBoundary(
-            child: CustomPaint(painter: _BeachFxPainter(model: _model, cfg: cfg)),
+            child: CustomPaint(
+              painter: _BeachFxPainter(
+                model: _model,
+                cfg: cfg,
+                ambient: _ambient,
+                variant: widget.variant,
+              ),
+            ),
           ),
         ),
         Positioned.fill(
@@ -515,10 +609,17 @@ class _BeachBgPainter extends CustomPainter {
 }
 
 class _BeachFxPainter extends CustomPainter {
-  _BeachFxPainter({required this.model, required this.cfg}) : super(repaint: model);
+  _BeachFxPainter({
+    required this.model,
+    required this.cfg,
+    required this.ambient,
+    required this.variant,
+  }) : super(repaint: model);
 
   final _BeachModel model;
   final _BeachConfig cfg;
+  final List<_Ambient> ambient;
+  final int variant;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -576,6 +677,11 @@ class _BeachFxPainter extends CustomPainter {
     );
 
     _paintBirds(canvas, w, h, time);
+
+    // Ambient particle layer — the always-on, low-density mood layer. Genuinely
+    // different per variant: a fine pale sea spray by day, warm twinkling
+    // fireflies at sunset. Sits beneath the tap/reception bursts.
+    _paintAmbient(canvas, w, h, time);
 
     // Tap sparkle across the water.
     final sp = (1 - (time - model.sparkle) / 1.4).clamp(0.0, 1.0);
@@ -657,6 +763,58 @@ class _BeachFxPainter extends CustomPainter {
       final s = w * 0.018;
       canvas.drawLine(Offset(bx, by), Offset(bx - s, by - s * flap), paint);
       canvas.drawLine(Offset(bx, by), Offset(bx + s, by - s * flap), paint);
+    }
+  }
+
+  // The ambient layer, dispatched by variant. Both share the same particle
+  // list and drift, but the look and twinkle are deliberately distinct:
+  //  - Jour: pale misty water droplets — small, faint, steady, a fine spray.
+  //  - Coucher: golden fireflies — warm glowing points that twinkle on/off
+  //    with a soft halo, evoking magical dusk.
+  void _paintAmbient(Canvas canvas, double w, double h, double time) {
+    if (variant == 0) {
+      _paintSpray(canvas, w, h, time);
+    } else {
+      _paintFireflies(canvas, w, h, time);
+    }
+  }
+
+  // Sea spray / water droplets: small pale-white dots drifting up off the
+  // waves. A gentle, near-uniform shimmer — misty, not sparkly.
+  void _paintSpray(Canvas canvas, double w, double h, double time) {
+    for (var i = 0; i < ambient.length; i++) {
+      final p = ambient[i];
+      // Slow breathing opacity so the mist softly pulses without twinkling.
+      final breathe = 0.5 + 0.5 * math.sin(time * 1.4 + p.phase);
+      final a = (0.18 + 0.22 * breathe).clamp(0.0, 1.0);
+      final r = 0.8 + p.seed * 1.4;
+      final c = Offset(p.x * w, p.y * h);
+      // Faint halo for a misty bloom, then a crisp pale core.
+      canvas.drawCircle(c, r * 2.2, Paint()..color = Colors.white.withValues(alpha: a * 0.18));
+      canvas.drawCircle(c, r, Paint()..color = Colors.white.withValues(alpha: a * 0.85));
+    }
+  }
+
+  // Golden fireflies: warm glowing motes that wander and twinkle on and off,
+  // each with a soft glow. Tinted with the sunset's warm sun colours so they
+  // belong to the scene's palette.
+  void _paintFireflies(Canvas canvas, double w, double h, double time) {
+    final glow = cfg.sunGlow; // warm orange bloom
+    final core = cfg.sun; // bright warm gold
+    for (var i = 0; i < ambient.length; i++) {
+      final p = ambient[i];
+      // Per-firefly twinkle: a slow on/off cycle that dips toward dark, so they
+      // appear to blink rather than merely fade.
+      final blink = math.sin(time * (1.6 + p.seed) + p.phase * 3);
+      final lit = (blink * 0.5 + 0.5); // 0 (off) .. 1 (full glow)
+      final a = (lit * lit).clamp(0.0, 1.0); // ease so "off" lingers darker
+      if (a < 0.02) continue;
+      final r = 1.1 + p.seed * 1.6;
+      final c = Offset(p.x * w, p.y * h);
+      // Soft warm halo + a bright gold core — a tiny glowing lantern.
+      canvas.drawCircle(c, r * 3.0, Paint()..color = glow.withValues(alpha: a * 0.22));
+      canvas.drawCircle(c, r * 1.6, Paint()..color = glow.withValues(alpha: a * 0.35));
+      canvas.drawCircle(c, r, Paint()..color = core.withValues(alpha: a * 0.95));
     }
   }
 

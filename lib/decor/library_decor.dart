@@ -9,10 +9,16 @@ import 'package:flutter/services.dart';
 /// Immersive "bibliothèque" decor — a warm reading sanctuary. Two variants:
 ///  - 0 "Cosy": a night reading nook — a window onto a lamplit street, a tall
 ///    bookshelf, a crackling fireplace, a green armchair with a blanket and a
-///    glowing table lamp. Flickering fire, drifting dust motes, rising embers.
+///    glowing table lamp. Flickering fire and warm embers that rise off the
+///    hearth, twinkling as they climb.
 ///  - 1 "Ancienne": a grand old hall — a vaulted ceiling, a tall arched gothic
 ///    window casting a cool light shaft, bookshelves along the walls and a long
-///    table with an open book and a single candle.
+///    table with an open book and a single candle. Cold pale dust hangs
+///    suspended in the light beam, drifting almost imperceptibly.
+///
+/// The ambient particle layer is the same [_Mote] system driven two different
+/// ways by [variant]: rising warm embers vs slow cool suspended dust. Distinct
+/// in TYPE, not just recoloured.
 ///
 /// Walls, furniture, shelves and windows are static; the fire / candle flames,
 /// the warm glow pulse and the dust motes animate on top. A "pensée" (tap)
@@ -33,7 +39,7 @@ class _LibraryDecorState extends State<LibraryDecor>
   final _model = _LibraryModel();
   final math.Random _rng = math.Random(29);
   late final Ticker _ticker;
-  late final List<_Mote> _motes = _genMotes();
+  late final List<_Mote> _motes = _genMotes(widget.variant == 0);
 
   // Ephemeral burst sparks spawned on a reception (a swell of drifting motes
   // that rise, sway and fade out). Ambient [_motes] keep looping untouched.
@@ -76,16 +82,43 @@ class _LibraryDecorState extends State<LibraryDecor>
     _model.notify();
   }
 
-  List<_Mote> _genMotes() => List.generate(40, (_) {
-        return _Mote(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          r: 0.6 + _rng.nextDouble() * 1.6,
-          speed: 0.005 + _rng.nextDouble() * 0.012,
-          phase: _rng.nextDouble() * math.pi * 2,
-          drift: 0.01 + _rng.nextDouble() * 0.03,
-        );
-      });
+  /// Ambient particles, distinct in TYPE per variant:
+  ///  - Cosy (0): warm fireplace embers — glowing points that RISE off the
+  ///    hearth (so [speed] drives upward travel), twinkle, and cluster toward
+  ///    the lower-right fire. Sparse (~38), bright core + additive glow.
+  ///  - Ancienne (1): cold dust motes suspended in the light shaft — pale cool
+  ///    specks drifting almost imperceptibly (slow sink + sway), concentrated
+  ///    in the central beam. Sparse (~36), soft and dim.
+  List<_Mote> _genMotes(bool cosy) {
+    final count = cosy ? 38 : 36;
+    return List.generate(count, (_) {
+      // Spawn position biased to where each particle "belongs": embers low
+      // near the hearth, dust spread through the central shaft band.
+      final x = cosy
+          ? 0.58 + _rng.nextDouble() * 0.40 // hearth side (right)
+          : 0.28 + _rng.nextDouble() * 0.44; // central light shaft
+      final y = cosy
+          ? 0.55 + _rng.nextDouble() * 0.42 // lower part (the fire)
+          : 0.15 + _rng.nextDouble() * 0.68; // along the beam
+      return _Mote(
+        x: x,
+        y: y,
+        // Embers a touch larger so the glow reads; dust tiny and faint.
+        r: cosy
+            ? 0.8 + _rng.nextDouble() * 1.4
+            : 0.5 + _rng.nextDouble() * 1.1,
+        // Embers rise briskly; dust barely sinks (almost suspended).
+        speed: cosy
+            ? 0.030 + _rng.nextDouble() * 0.055
+            : 0.002 + _rng.nextDouble() * 0.005,
+        phase: _rng.nextDouble() * math.pi * 2,
+        // Embers sway a little as they rise; dust drifts very slowly sideways.
+        drift: cosy
+            ? 0.012 + _rng.nextDouble() * 0.03
+            : 0.006 + _rng.nextDouble() * 0.02,
+      );
+    });
+  }
 
   /// Light manual preview: a single flame flare, like before.
   void _tap() {
@@ -172,6 +205,11 @@ class _LibraryModel extends ChangeNotifier {
   void notify() => notifyListeners();
 }
 
+/// An ambient particle. Its motion is reinterpreted per variant by the fx
+/// painter: in Cosy (0) it's a fireplace ember that RISES ([speed] = upward
+/// travel) and glows; in Ancienne (1) it's a cold dust mote that sinks almost
+/// imperceptibly ([speed] = very slow downward drift) and just catches light.
+/// [drift] is the sideways sway amplitude; [phase] desyncs twinkle/sway.
 class _Mote {
   const _Mote({required this.x, required this.y, required this.r, required this.speed, required this.phase, required this.drift});
   final double x;
@@ -618,16 +656,73 @@ class _LibraryFxPainter extends CustomPainter {
       _paintCandle(canvas, Offset(w * 0.606, h * 0.73), time, flare);
     }
 
-    // Dust motes (warm in cosy, cool in the shaft for ancienne).
-    final moteColor = cosy ? const Color(0xFFFFE0A8) : const Color(0xFFDCE8F2);
-    for (final m in motes) {
-      final y = (m.y - time * m.speed) % 1.0;
-      final x = (m.x + math.sin(time * 0.3 + m.phase) * m.drift) % 1.0;
-      final a = 0.10 + 0.10 * (0.5 + 0.5 * math.sin(time * 1.2 + m.phase));
-      canvas.drawCircle(Offset(x * w, y * h), m.r, Paint()..color = moteColor.withValues(alpha: a));
+    // Ambient particle layer — distinct TYPE per variant. Gentler than the
+    // reception burst (_paintSparks), but continuously alive.
+    if (cosy) {
+      _paintEmbers(canvas, w, h, time);
+    } else {
+      _paintColdDust(canvas, w, h, time);
     }
 
     _paintSparks(canvas, w, h, time);
+  }
+
+  // Ambient variant 0 — fireplace embers. Warm glowing points that RISE off
+  // the hearth (subtract `time * speed` from y so they travel upward), twinkle,
+  // and sway a touch. Additive glow + bright core so they read as live sparks.
+  void _paintEmbers(Canvas canvas, double w, double h, double time) {
+    const core = Color(0xFFFFC766); // warm amber core
+    const halo = Color(0xFFFF8A3A); // orange glow
+    for (final m in motes) {
+      // Rise from the spawn band toward the top, looping in the lower-2/3 so
+      // embers stay biased to the fire rather than filling the whole ceiling.
+      final travel = (time * m.speed) % 0.95;
+      final y = m.y - travel;
+      if (y < 0.02) continue; // faded out above the hearth's reach
+      final x = m.x + math.sin(time * 0.7 + m.phase) * m.drift;
+      // Twinkle, and dim as the ember climbs (cools as it rises).
+      final twinkle = 0.5 + 0.5 * math.sin(time * 3.0 + m.phase);
+      final climbFade = (1.0 - travel / 0.95).clamp(0.0, 1.0);
+      final a = (0.22 + 0.30 * twinkle) * climbFade;
+      final px = x * w;
+      final py = y * h;
+      // Soft halo.
+      canvas.drawCircle(
+        Offset(px, py),
+        m.r * 2.2,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = halo.withValues(alpha: 0.22 * a),
+      );
+      // Bright core.
+      canvas.drawCircle(
+        Offset(px, py),
+        m.r * 0.9,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = core.withValues(alpha: a),
+      );
+    }
+  }
+
+  // Ambient variant 1 — cold dust in the light shaft. Pale cool specks drifting
+  // almost imperceptibly: a very slow sink plus a faint sideways sway, dim and
+  // suspended. No additive blend — they just catch the light softly.
+  void _paintColdDust(Canvas canvas, double w, double h, double time) {
+    const dustColor = Color(0xFFEAF2FA); // pale cool
+    for (final m in motes) {
+      // Barely sinks; wraps over the shaft band so density stays where the
+      // beam is rather than streaming off the floor.
+      final y = (m.y + time * m.speed) % 1.0;
+      final x = m.x + math.sin(time * 0.18 + m.phase) * m.drift;
+      // Slow shimmer; overall faint so it reads as suspended motes, not snow.
+      final a = 0.07 + 0.07 * (0.5 + 0.5 * math.sin(time * 0.8 + m.phase));
+      canvas.drawCircle(
+        Offset(x * w, y * h),
+        m.r,
+        Paint()..color = dustColor.withValues(alpha: a),
+      );
+    }
   }
 
   // Reception burst: a swell of drifting, fading glints. Reuses the per-variant
