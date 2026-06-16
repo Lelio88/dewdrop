@@ -12,9 +12,13 @@ import 'package:go_router/go_router.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authRepositoryProvider);
-  return GoRouter(
+  // Owned here so they can be torn down when the provider is disposed/rebuilt
+  // (e.g. authRepositoryProvider is invalidated). Without this, every rebuild
+  // would leak the previous refresh-stream subscription and GoRouter instance.
+  final refresh = GoRouterRefreshStream(auth.authStateChanges());
+  final router = GoRouter(
     initialLocation: '/home',
-    refreshListenable: GoRouterRefreshStream(auth.authStateChanges()),
+    refreshListenable: refresh,
     redirect: (context, state) {
       final loggedIn = auth.currentSession != null;
       final loggingIn = state.matchedLocation == '/sign-in';
@@ -30,6 +34,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
     ],
   );
+  ref.onDispose(() {
+    router.dispose();
+    refresh.dispose();
+  });
+  return router;
 });
 
 /// Bridges a [Stream] to a [Listenable] so GoRouter re-evaluates redirects when

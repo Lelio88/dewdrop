@@ -67,3 +67,4 @@ firebase-service-account.json
 
 # Audio working dir (raw downloads; final loops live in assets/audio)
 tools/sounds/
+tools/_*.png
