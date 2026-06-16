@@ -15,7 +15,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 /// and [dispose] it. Only the *active* decor is mounted, so there is at most one
 /// live sensor subscription at a time.
 class TiltController {
-  TiltController({this.sensitivity = 0.08}) {
+  TiltController({this.sensitivity = 0.13}) {
     _sub = accelerometerEventStream().listen(_onAccel);
   }
 
