@@ -4,6 +4,7 @@ import 'package:dewdrop/src/features/profile/application/profile_providers.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:go_router/go_router.dart';
 
 /// In-app settings: default anonymity + quiet hours. Persisted to the profile
 /// (quiet hours will gate push notifications once FCM is wired).
@@ -142,6 +143,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'À propos'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('À propos & crédits'),
+                  subtitle: Text('Mentions légales, attributions, licences',
+                      style: TextStyle(color: w.withValues(alpha: 0.5))),
+                  trailing: Icon(Icons.chevron_right,
+                      color: w.withValues(alpha: 0.4)),
+                  onTap: () => context.push('/about'),
                 ),
               ),
             ],

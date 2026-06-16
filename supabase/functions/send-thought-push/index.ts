@@ -128,7 +128,7 @@ async function sendFcm(
           // Route to the water-drop "Pensées" channel (Android 8+ takes the
           // sound from the channel; `sound` covers older versions).
           android: {
-            notification: { channel_id: "thoughts_v2", sound: "drop" },
+            notification: { channel_id: "thoughts_v3", sound: "drop" },
           },
         },
       }),

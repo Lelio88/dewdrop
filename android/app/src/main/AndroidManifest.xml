@@ -32,7 +32,7 @@
              routes them to the water-drop "Pensées" channel created at startup. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="thoughts_v2" />
+            android:value="thoughts_v3" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
