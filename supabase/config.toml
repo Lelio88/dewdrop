@@ -238,15 +238,17 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Production SMTP via Brevo (free tier). The "From" is the verified Brevo
+# sender; `user` is Brevo's SMTP login (not the From). The actual SMTP key is
+# NEVER committed — it's read from the BREVO_SMTP_KEY env var at `config push`.
+[auth.email.smtp]
+enabled = true
+host = "smtp-relay.brevo.com"
+port = 587
+user = "aefaa9001@smtp-brevo.com"
+pass = "env(BREVO_SMTP_KEY)"
+admin_email = "heianenterpriseyt@gmail.com"
+sender_name = "DewDrop"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
