@@ -24,8 +24,10 @@ MODEL = "depth-anything/Depth-Anything-V2-Small-hf"
 
 
 def build_pipe():
-    """Load the depth-estimation pipeline once (reuse it across images)."""
+    """Load the depth-estimation pipeline once (reuse it across images). Uses the
+    GPU when a CUDA build of torch is installed, else CPU."""
     try:
+        import torch
         from transformers import pipeline
     except ImportError:
         sys.exit(
@@ -33,7 +35,8 @@ def build_pipe():
             "  pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
             "  pip install -r requirements.txt"
         )
-    return pipeline("depth-estimation", model=MODEL)
+    device = 0 if torch.cuda.is_available() else -1
+    return pipeline("depth-estimation", model=MODEL, device=device)
 
 
 def estimate_depth(image: Image.Image, pipe) -> np.ndarray:
@@ -42,20 +45,52 @@ def estimate_depth(image: Image.Image, pipe) -> np.ndarray:
     return np.array(out["depth"].convert("L"), dtype=np.float32) / 255.0
 
 
+def build_lama():
+    """Load the LaMa inpainting model once (reuse it across images)."""
+    try:
+        from simple_lama_inpainting import SimpleLama
+    except ImportError:
+        sys.exit(
+            "simple-lama-inpainting missing. Install it (deps already present):\n"
+            "  pip install simple-lama-inpainting --no-deps"
+        )
+    return SimpleLama()
+
+
+def _lama_inpaint(lama, rgb: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Inpaint the masked (255) region of `rgb` with LaMa, leaving the rest of
+    the pixels exact. LaMa reconstructs a plausible background behind removed
+    foreground far better than classical cv2.inpaint (no smeared "trace")."""
+    out = np.array(
+        lama(Image.fromarray(rgb, "RGB"), Image.fromarray(mask, "L")).convert("RGB")
+    )
+    if out.shape[:2] != rgb.shape[:2]:
+        out = cv2.resize(out, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_LINEAR)
+    keep = (mask == 0)[:, :, None]
+    return np.where(keep, rgb, out).astype(np.uint8)
+
+
 def split_image(input_path, layers=4, feather=10, invert=False, radius=None,
-                out=None, pipe=None):
+                out=None, pipe=None, lama=None, max_width=1280):
     """Write N parallax layers next to (or into --out) the input. Returns (dir, n).
 
     Each layer's RGB is the photo with everything *nearer* than that layer
-    inpainted away, so the layer's feathered edge fades into a plausible
-    background (no hard cut-out seam) when it parallax-shifts. The band mask is
-    eroded a touch (drop the background halo around the object) then feathered
-    generously, and the back layer (0) is a fully-opaque inpainted plate.
+    inpainted away (with LaMa), so the layer's feathered edge fades into a
+    plausible reconstructed background (no smeared "trace") when it parallax-
+    shifts. The band mask is eroded a touch (drop the background halo around the
+    object) then feathered generously, and the back layer (0) is a fully-opaque
+    inpainted plate. The source is downscaled to [max_width] first — it matches
+    the shipped WebP resolution and keeps LaMa tractable on CPU.
     """
     if pipe is None:
         pipe = build_pipe()
+    if lama is None:
+        lama = build_lama()
 
     img = Image.open(input_path).convert("RGB")
+    if img.width > max_width:
+        nh = round(img.height * max_width / img.width)
+        img = img.resize((max_width, nh), Image.LANCZOS)
     rgb = np.array(img)
     h, w = rgb.shape[:2]
 
@@ -72,8 +107,6 @@ def split_image(input_path, layers=4, feather=10, invert=False, radius=None,
     os.makedirs(out_dir, exist_ok=True)
     feather = max(1, feather)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    if radius is None:
-        radius = max(6, w // 220)  # inpaint reach scales with image size
 
     for li in range(n):
         lo, hi = bounds[li], bounds[li + 1]
@@ -82,7 +115,7 @@ def split_image(input_path, layers=4, feather=10, invert=False, radius=None,
         nearer = (depth >= hi).astype(np.uint8) * 255
         if nearer.any():
             mask = cv2.dilate(nearer, kernel, iterations=2)
-            plane_rgb = cv2.inpaint(rgb, mask, radius, cv2.INPAINT_TELEA)
+            plane_rgb = _lama_inpaint(lama, rgb, mask)
         else:
             plane_rgb = rgb.copy()
 

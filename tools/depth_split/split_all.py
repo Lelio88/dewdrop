@@ -18,7 +18,7 @@ Usage:
 import argparse
 import os
 
-from split_layers import build_pipe, split_image
+from split_layers import build_lama, build_pipe, split_image
 
 DEFAULT_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "assets", "photo")
@@ -72,8 +72,9 @@ def main():
         print(f"No base.png found under {args.root}")
         return
 
-    print(f"Found {len(bases)} base image(s). Loading model once...", flush=True)
+    print(f"Found {len(bases)} base image(s). Loading models once...", flush=True)
     pipe = build_pipe()
+    lama = build_lama()
     for b in bases:
         rel = os.path.relpath(b, args.root)
         env = rel.replace("\\", "/").split("/")[0]
@@ -83,7 +84,7 @@ def main():
         feather = args.feather if args.feather is not None else s["feather"]
         print(f"-> {rel}  (env={env}, layers={n}, feather={feather})", flush=True)
         split_image(b, layers=n, feather=feather, invert=s["invert"],
-                    radius=s["radius"], pipe=pipe)
+                    radius=s["radius"], pipe=pipe, lama=lama)
     print(f"All done: {len(bases)} scene(s) split.", flush=True)
 
 
