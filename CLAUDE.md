@@ -58,6 +58,8 @@ supabase start                         # backend local (Docker)
 flutter run -d emulator-5554           # app sur émulateur Android (auto 10.0.2.2)
 flutter run -d windows                 # app desktop (itération rapide)
 flutter analyze                        # lint (doit être vert)
+flutter test                           # tests unitaires + widgets (doit être vert)
+bash tools/test/push_chain_test.sh     # test d'intégration chaîne push (stack local requis)
 supabase migration new <slug>          # nouvelle migration
 supabase migration up                  # appliquer en local  (prod : supabase db push)
 python tools/depth_split/split_all.py  # (dans le venv) couches photo (réglages par scène)
