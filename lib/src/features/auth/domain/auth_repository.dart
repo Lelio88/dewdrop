@@ -15,4 +15,9 @@ abstract interface class AuthRepository {
   Future<bool> signUp(String email, String password);
   Future<void> signIn(String email, String password);
   Future<void> signOut();
+
+  /// Deletes the current user's account and all their data (profile,
+  /// friendships, thoughts, devices via FK cascade), then signs out. Backed by
+  /// the `delete-account` Edge Function (only the service role can do this).
+  Future<void> deleteAccount();
 }

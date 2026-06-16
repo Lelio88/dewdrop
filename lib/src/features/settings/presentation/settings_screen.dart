@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -159,11 +160,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () => context.push('/about'),
                 ),
               ),
+              const SizedBox(height: 24),
+              _section(w, 'Compte'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.delete_outline,
+                      color: Color(0xFFFF6B5A)),
+                  title: const Text('Supprimer mon compte',
+                      style: TextStyle(color: Color(0xFFFF6B5A))),
+                  subtitle: Text(
+                      'Efface définitivement ton compte et tes données',
+                      style: TextStyle(color: w.withValues(alpha: 0.5))),
+                  onTap: _confirmDelete,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer ton compte ?'),
+        content: const Text(
+            'Cette action est irréversible : ton compte, tes amis et toutes '
+            'tes pensées seront définitivement supprimés.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Supprimer',
+                  style: TextStyle(color: Color(0xFFFF6B5A)))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    // Capture before the await so we never touch a disposed ref/context.
+    final auth = ref.read(authRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await auth.deleteAccount();
+      // The router redirect handles navigation once the session is gone.
+    } on Exception catch (_) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Suppression impossible pour le moment.')));
+    }
   }
 
   Widget _section(Color w, String t) => Padding(
