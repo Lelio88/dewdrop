@@ -5,6 +5,7 @@ import 'package:dewdrop/decor/forest_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
 import 'package:dewdrop/decor/photo_decor.dart';
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/space_decor.dart';
 import 'package:dewdrop/decor/underwater_decor.dart';
 import 'package:flutter/material.dart';
@@ -33,12 +34,14 @@ enum Environment {
 }
 
 /// Builds the decor widget for [env] + [variant] in render [mode], floating
-/// [child] over it.
+/// [child] over it. When [reception] is provided, the decor plays an amplified
+/// burst each time it pulses (a pensée was received).
 Widget buildDecor(
   Environment env,
   int variant,
   RenderMode mode, {
   Widget? child,
+  ReceptionSignal? reception,
 }) {
   final v = variant.clamp(0, env.variantCount - 1);
   if (mode == RenderMode.photo) {
@@ -48,7 +51,8 @@ Widget buildDecor(
     Environment.space =>
       SpaceDecor(variant: SpaceVariant.values[v], child: child),
     Environment.underwater => UnderwaterDecor(variant: v, child: child),
-    Environment.forest => ForestDecor(variant: v, child: child),
+    Environment.forest =>
+      ForestDecor(variant: v, reception: reception, child: child),
     Environment.beach => BeachDecor(variant: v, child: child),
     Environment.library => LibraryDecor(variant: v, child: child),
     Environment.mountain => MountainDecor(variant: v, child: child),

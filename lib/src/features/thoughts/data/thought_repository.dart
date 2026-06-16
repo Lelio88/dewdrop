@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
@@ -57,6 +59,27 @@ class SupabaseThoughtRepository implements ThoughtRepository {
     final profiles = await _profilesByIds(senderIds);
 
     return mapReceivedThoughts(rows, profiles);
+  }
+
+  @override
+  Stream<void> watchIncoming() {
+    // RLS still applies to Realtime, but we also filter server-side so the
+    // socket only carries this user's incoming pensées.
+    final controller = StreamController<void>();
+    final channel = _client.channel('thoughts:incoming:$_uid').onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'thoughts',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'recipient_id',
+            value: _uid,
+          ),
+          callback: (_) => controller.add(null),
+        );
+    channel.subscribe();
+    controller.onCancel = () => _client.removeChannel(channel);
+    return controller.stream;
   }
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {

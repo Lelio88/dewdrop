@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:dewdrop/decor/forest_tree.dart';
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -18,9 +19,10 @@ import 'package:flutter/services.dart';
 /// leaves, light and water shimmer animate on top. A "pensée" (tap) sends a
 /// gust. Rendered entirely on the Canvas.
 class ForestDecor extends StatefulWidget {
-  const ForestDecor({super.key, this.variant = 0, this.child});
+  const ForestDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -81,6 +83,39 @@ class _ForestDecorState extends State<ForestDecor>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(ForestDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
+  }
+
+  /// A pensée arrived: a curtain of leaves cascades in — many particles seeded
+  /// across the width and staggered above the top so they fall in a wave. They
+  /// are variant-flavoured for free (the fx painter colours every particle by
+  /// variant: gold leaves / pink petals / pale spores).
+  void _onReception() {
+    for (var i = 0; i < 44; i++) {
+      _leaves.add(
+        _Leaf(
+          x: _rng.nextDouble(),
+          y: -0.05 - _rng.nextDouble() * 0.9,
+          size: 3 + _rng.nextDouble() * 5,
+          fall: 0.06 + _rng.nextDouble() * 0.08,
+          swayAmp: 0.02 + _rng.nextDouble() * 0.05,
+          rot: _rng.nextDouble() * math.pi * 2,
+          rotSpeed: (_rng.nextDouble() - 0.5) * 3,
+          phase: _rng.nextDouble() * math.pi * 2,
+          ephemeral: true,
+        ),
+      );
+    }
+    HapticFeedback.mediumImpact();
   }
 
   void _onTick(Duration elapsed) {
@@ -216,6 +251,7 @@ class _ForestDecorState extends State<ForestDecor>
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
