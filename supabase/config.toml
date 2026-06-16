@@ -250,6 +250,17 @@ pass = "env(BREVO_SMTP_KEY)"
 admin_email = "heianenterpriseyt@gmail.com"
 sender_name = "DewDrop"
 
+# Custom FR email templates (branded "DewDrop"). The subjects carry "DewDrop"
+# so inbox filters can catch every app email; the bodies keep
+# {{ .ConfirmationURL }} (the verify/redirect link) — never remove it.
+[auth.email.template.confirmation]
+subject = "Confirme ton compte DewDrop"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Réinitialise ton mot de passe DewDrop"
+content_path = "./supabase/templates/recovery.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
