@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (!t?.recipient_id) return json({ ok: false, reason: "no record" });
 
     const recipient = (await rest(
-      `profiles?id=eq.${t.recipient_id}&select=quiet_start,quiet_end,quiet_tz`,
+      `profiles?id=eq.${t.recipient_id}&select=quiet_start,quiet_end,quiet_tz,last_thought_push_at`,
     ))[0];
     if (
       recipient &&
@@ -36,6 +36,16 @@ Deno.serve(async (req) => {
       )
     ) {
       return json({ skipped: "quiet hours" });
+    }
+
+    // Notification rate-limit: at most one push per recipient per cooldown
+    // window. Every thought is still recorded — this only throttles the push.
+    const COOLDOWN_MS = 60_000;
+    const last = recipient?.last_thought_push_at
+      ? Date.parse(recipient.last_thought_push_at as string)
+      : 0;
+    if (Date.now() - last < COOLDOWN_MS) {
+      return json({ skipped: "throttled" });
     }
 
     let name = "Quelqu'un";
@@ -51,6 +61,9 @@ Deno.serve(async (req) => {
     if (!FIREBASE_SERVICE_ACCOUNT) {
       return json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
     }
+
+    // Stamp the throttle now, so a burst within the window notifies only once.
+    await stampPush(t.recipient_id);
 
     const sa = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
     const accessToken = await getAccessToken(sa);
@@ -71,6 +84,21 @@ async function rest(query: string): Promise<Array<Record<string, unknown>>> {
     headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` },
   });
   return res.ok ? await res.json() : [];
+}
+
+// Stamp profiles.last_thought_push_at = now (the push throttle). Column-level
+// grant lets service_role touch only this column.
+async function stampPush(userId: string): Promise<void> {
+  await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+    method: "PATCH",
+    headers: {
+      apikey: SERVICE_ROLE,
+      Authorization: `Bearer ${SERVICE_ROLE}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ last_thought_push_at: new Date().toISOString() }),
+  });
 }
 
 function inQuietHours(
