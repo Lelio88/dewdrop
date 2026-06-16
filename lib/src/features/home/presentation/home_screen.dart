@@ -28,8 +28,10 @@ class HomeGate extends ConsumerWidget {
       loading: () => const _DecorLoading(),
       error: (_, _) => const Scaffold(
         body: Center(
-          child: Text('Une erreur est survenue.',
-              style: TextStyle(color: Colors.white70)),
+          child: Text(
+            'Une erreur est survenue.',
+            style: TextStyle(color: Colors.white70),
+          ),
         ),
       ),
       data: (p) {
@@ -51,7 +53,10 @@ class _DecorLoading extends StatelessWidget {
         0,
         RenderMode.drawn,
         child: const Center(
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white70,
+          ),
         ),
       ),
     );
@@ -128,7 +133,10 @@ class _HomeViewState extends ConsumerState<HomeView>
       if (!mounted) return;
       await prefs.setInt(key, nowMs);
       if (markerMs == null) return; // first run: nothing counts as new
-      final lastSeen = DateTime.fromMillisecondsSinceEpoch(markerMs, isUtc: true);
+      final lastSeen = DateTime.fromMillisecondsSinceEpoch(
+        markerMs,
+        isUtc: true,
+      );
       if (list.any((t) => t.createdAt.isAfter(lastSeen))) _reception.pulse();
     } on Exception catch (_) {
       // Offline / transient — no burst, marker left untouched.
@@ -136,8 +144,14 @@ class _HomeViewState extends ConsumerState<HomeView>
   }
 
   void _markSeenNow() {
-    unawaited(ref.read(sharedPreferencesProvider).setInt(
-        'reception_seen_at', DateTime.now().toUtc().millisecondsSinceEpoch));
+    unawaited(
+      ref
+          .read(sharedPreferencesProvider)
+          .setInt(
+            'reception_seen_at',
+            DateTime.now().toUtc().millisecondsSinceEpoch,
+          ),
+    );
   }
 
   void _openMenu() {
@@ -160,7 +174,8 @@ class _HomeViewState extends ConsumerState<HomeView>
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.18),
-      isScrollControlled: true, // tall content (decor list + sound panel) scrolls
+      isScrollControlled:
+          true, // tall content (decor list + sound panel) scrolls
       builder: (_) => DecorPicker(
         decor: _decor,
         mode: _mode,
@@ -208,9 +223,12 @@ class _HomeViewState extends ConsumerState<HomeView>
               Positioned(
                 right: 20,
                 bottom: 20,
-                child: _GlassCircleButton(
-                  icon: Icons.menu_rounded,
-                  onTap: _openMenu,
+                child: Opacity(
+                  opacity: 0.5,
+                  child: _GlassCircleButton(
+                    icon: Icons.menu_rounded,
+                    onTap: _openMenu,
+                  ),
                 ),
               ),
             ],
@@ -256,58 +274,108 @@ class _HomeMenu extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 4),
-                child: Text(
-                  'DewDrop',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: 2,
-                    color: white,
-                  ),
+              // Centered identity header — app name, then name + handle, no avatar.
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'DewDrop',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: 2,
+                        color: white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (profile.displayName?.isNotEmpty == true) ...[
+                      Text(
+                        profile.displayName!,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${profile.handle}',
+                        style: TextStyle(color: white.withValues(alpha: 0.55)),
+                      ),
+                    ] else
+                      Text(
+                        '@${profile.handle}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: white,
+                        ),
+                      ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 16),
+              Divider(color: white.withValues(alpha: 0.15), height: 1),
+              const SizedBox(height: 6),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.person_outline, color: white.withValues(alpha: 0.85)),
-                title: Text(profile.displayName?.isNotEmpty == true
-                    ? profile.displayName!
-                    : '@${profile.handle}'),
-                subtitle: Text('@${profile.handle}',
-                    style: TextStyle(color: white.withValues(alpha: 0.55))),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.auto_awesome_outlined, color: white.withValues(alpha: 0.85)),
+                leading: Icon(
+                  Icons.auto_awesome_outlined,
+                  color: white.withValues(alpha: 0.85),
+                ),
                 title: const Text('Pensées reçues'),
-                trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
                 onTap: () => Navigator.of(context).pop('thoughts'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.group_outlined, color: white.withValues(alpha: 0.85)),
+                leading: Icon(
+                  Icons.group_outlined,
+                  color: white.withValues(alpha: 0.85),
+                ),
                 title: const Text('Amis'),
-                trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
                 onTap: () => Navigator.of(context).pop('friends'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.palette_outlined, color: white.withValues(alpha: 0.85)),
+                leading: Icon(
+                  Icons.palette_outlined,
+                  color: white.withValues(alpha: 0.85),
+                ),
                 title: const Text('Univers'),
-                trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
                 onTap: () => Navigator.of(context).pop('decor'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.tune_rounded, color: white.withValues(alpha: 0.85)),
+                leading: Icon(
+                  Icons.tune_rounded,
+                  color: white.withValues(alpha: 0.85),
+                ),
                 title: const Text('Réglages'),
-                trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
                 onTap: () => Navigator.of(context).pop('settings'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.logout_rounded, color: white.withValues(alpha: 0.85)),
+                leading: Icon(
+                  Icons.logout_rounded,
+                  color: white.withValues(alpha: 0.85),
+                ),
                 title: const Text('Se déconnecter'),
                 onTap: () async {
                   // Capture before popping — the sheet's `ref` is gone after pop.

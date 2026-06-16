@@ -9,15 +9,6 @@ final thoughtRepositoryProvider = Provider<ThoughtRepository>((ref) {
   return SupabaseThoughtRepository(Supabase.instance.client);
 });
 
-final receivedThoughtsProvider = FutureProvider<List<ReceivedThought>>((ref) {
-  ref.watch(authStateChangesProvider); // refetch on sign in/out
-  // Avoid hitting the repo (and its currentUser!) when signed out.
-  if (ref.watch(authRepositoryProvider).currentSession == null) {
-    return <ReceivedThought>[];
-  }
-  return ref.watch(thoughtRepositoryProvider).receivedThoughts();
-});
-
 /// Emits a tick each time a pensée is received **live** (while the app is open),
 /// so the active decor can play its reception burst and the received list can
 /// refresh. Empty stream when signed out.
@@ -27,4 +18,14 @@ final incomingThoughtPulseProvider = StreamProvider<int>((ref) {
     return const Stream<int>.empty();
   }
   return ref.watch(thoughtRepositoryProvider).watchIncoming();
+});
+
+final receivedThoughtsProvider = FutureProvider<List<ReceivedThought>>((ref) {
+  ref.watch(authStateChangesProvider); // refetch on sign in/out
+  // Avoid hitting the repo (and its currentUser!) when signed out.
+  if (ref.watch(authRepositoryProvider).currentSession == null) {
+    return <ReceivedThought>[];
+  }
+  ref.watch(incomingThoughtPulseProvider); // refetch live on each new pensée
+  return ref.watch(thoughtRepositoryProvider).receivedThoughts();
 });

@@ -80,17 +80,6 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
-    // Live refresh: a friendship change (request/accept/remove) refetches the
-    // friends + requests lists; a new pensée refetches the received list. These
-    // streams stay subscribed app-wide because this root widget watches them.
-    ref.listen(friendshipChangesProvider, (_, _) {
-      ref.invalidate(friendsProvider);
-      ref.invalidate(incomingRequestsProvider);
-    });
-    ref.listen(incomingThoughtPulseProvider, (_, _) {
-      ref.invalidate(receivedThoughtsProvider);
-    });
-
     ref.listen(authStateChangesProvider, (_, next) {
       final state = next.value;
       if (state == null) return;

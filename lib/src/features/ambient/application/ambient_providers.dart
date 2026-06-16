@@ -10,7 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// The app's [SharedPreferences]. Overridden at the composition root (main.dart)
 /// with the resolved instance so the rest of the app reads it synchronously.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
-  (_) => throw UnimplementedError('sharedPreferencesProvider must be overridden'),
+  (_) =>
+      throw UnimplementedError('sharedPreferencesProvider must be overridden'),
 );
 
 /// A secondary (one-shot) category for a decor — fired at random intervals over
@@ -50,10 +51,18 @@ class DecorAudio {
 }
 
 const List<String> _whales = [
-  'underwater_whale_01', 'underwater_whale_02', 'underwater_whale_03',
-  'underwater_whale_04', 'underwater_whale_05', 'underwater_whale_06',
-  'underwater_whale_07', 'underwater_whale_08', 'underwater_whale_09',
-  'underwater_whale_10', 'underwater_whale_11', 'underwater_whale_12',
+  'underwater_whale_01',
+  'underwater_whale_02',
+  'underwater_whale_03',
+  'underwater_whale_04',
+  'underwater_whale_05',
+  'underwater_whale_06',
+  'underwater_whale_07',
+  'underwater_whale_08',
+  'underwater_whale_09',
+  'underwater_whale_10',
+  'underwater_whale_11',
+  'underwater_whale_12',
   'underwater_whale_13',
 ];
 
@@ -174,7 +183,6 @@ class SoundscapeNotifier extends Notifier<bool> {
   String? _musAsset;
   String? _musLoaded;
   final Map<String, Timer> _catTimers = {};
-  int _applyGen = 0; // serializes concurrent _apply() calls (last one wins)
   bool _disposed = false;
 
   @override
@@ -214,8 +222,9 @@ class SoundscapeNotifier extends Notifier<bool> {
 
   DecorAudio? get _cfg => _env == null ? null : kDecorAudio[_env];
 
-  EnvSoundPref get _pref =>
-      _env == null ? const EnvSoundPref() : ref.read(soundPrefsProvider).forEnv(_env!);
+  EnvSoundPref get _pref => _env == null
+      ? const EnvSoundPref()
+      : ref.read(soundPrefsProvider).forEnv(_env!);
 
   /// Switches the soundscape to [environment] (e.g. 'forest'). Picks a fresh
   /// random music variant and restarts the secondary schedulers.
@@ -248,48 +257,75 @@ class SoundscapeNotifier extends Notifier<bool> {
   /// Lifecycle: app resumed — restore the layers that should play.
   Future<void> resumeAll() async => _apply();
 
-  /// Reconciles the players + per-category timers against [state], [_env] and
-  /// the current [SoundPrefs]. Safe to call on any change (idempotent).
-  ///
-  /// Three callers (`setEnvironment`, `toggleMaster`, the prefs `ref.listen`)
-  /// can fire this concurrently. A generation counter makes the latest call win:
-  /// an older invocation bails after its next await instead of issuing a
-  /// `resume()`/`setVolume()` against a player a newer call already replaced.
+  // Serialize + coalesce all reconciliations. `setEnvironment`, `toggleMaster`,
+  // the prefs `ref.listen` and lifecycle resumes all call _apply, often in rapid
+  // bursts (slider drags). Running their bodies concurrently let an old `play()`
+  // finish *after* a newer `pause()`, leaving a loop stuck on — and worse, at
+  // full volume (the "couldn't stop the sound, had to force-quit" bug). So only
+  // one reconciliation runs at a time, start to finish; any requests that arrive
+  // while one is running collapse into a single trailing run with the latest
+  // prefs.
+  bool _applyRunning = false;
+  bool _applyPending = false;
+  bool _pendingFreshMusic = false;
+
+  /// Requests a reconciliation of the players + per-category timers against
+  /// [state], [_env] and the current [SoundPrefs]. Coalesced; safe to spam.
   Future<void> _apply({bool freshMusic = false}) async {
-    final gen = ++_applyGen;
-    bool stale() => _disposed || gen != _applyGen;
+    _applyPending = true;
+    if (freshMusic) _pendingFreshMusic = true;
+    if (_applyRunning) return; // the in-flight run will pick up this request
+    _applyRunning = true;
+    try {
+      while (_applyPending && !_disposed) {
+        _applyPending = false;
+        final fm = _pendingFreshMusic;
+        _pendingFreshMusic = false;
+        await _applyInner(freshMusic: fm);
+      }
+    } finally {
+      _applyRunning = false;
+    }
+  }
+
+  Future<void> _applyInner({required bool freshMusic}) async {
     final cfg = _cfg;
     final pref = _pref;
     final wantAmb = state && cfg != null && pref.amb.on;
     final wantMus = state && _musAsset != null && pref.mus.on;
+    final ambVol = pref.amb.vol.clamp(0.0, 1.0);
+    final musVol = pref.mus.vol.clamp(0.0, 1.0);
 
     if (wantAmb) {
       if (_ambLoaded != _env) {
-        await _amb?.play(AssetSource('audio/${cfg.ambiance}.ogg'));
+        // Start the loop AT the target volume so it never blares at the default
+        // 1.0 before a follow-up setVolume.
+        await _amb?.play(
+          AssetSource('audio/${cfg.ambiance}.ogg'),
+          volume: ambVol,
+        );
         _ambLoaded = _env;
       } else {
         await _amb?.resume();
+        await _amb?.setVolume(ambVol);
       }
-      if (stale()) return;
-      await _amb?.setVolume(pref.amb.vol.clamp(0.0, 1.0));
     } else {
       await _amb?.pause();
     }
-    if (stale()) return;
+    if (_disposed) return;
 
     if (wantMus) {
       if (freshMusic || _musLoaded != _musAsset) {
-        await _mus?.play(AssetSource('audio/$_musAsset.ogg'));
+        await _mus?.play(AssetSource('audio/$_musAsset.ogg'), volume: musVol);
         _musLoaded = _musAsset;
       } else {
         await _mus?.resume();
+        await _mus?.setVolume(musVol);
       }
-      if (stale()) return;
-      await _mus?.setVolume(pref.mus.vol.clamp(0.0, 1.0));
     } else {
       await _mus?.pause();
     }
-    if (stale()) return;
+    if (_disposed) return;
 
     _rescheduleSecondaries();
   }
@@ -327,7 +363,10 @@ class SoundscapeNotifier extends Notifier<bool> {
           final player = _shots[_shotIdx];
           _shotIdx = (_shotIdx + 1) % _shots.length;
           try {
-            await player.play(AssetSource('audio/oneshot/$clip.ogg'), volume: vol);
+            await player.play(
+              AssetSource('audio/oneshot/$clip.ogg'),
+              volume: vol,
+            );
           } on Exception catch (_) {
             // A failed one-shot must never break the schedule.
           }
@@ -340,8 +379,9 @@ class SoundscapeNotifier extends Notifier<bool> {
   }
 }
 
-final soundscapeProvider =
-    NotifierProvider<SoundscapeNotifier, bool>(SoundscapeNotifier.new);
+final soundscapeProvider = NotifierProvider<SoundscapeNotifier, bool>(
+  SoundscapeNotifier.new,
+);
 
 /// The live, editable per-decor soundscape customization. Seeded once from the
 /// user's profile, mutated instantly by the decor picker (so changes apply
@@ -368,10 +408,13 @@ class SoundPrefsNotifier extends Notifier<SoundPrefs> {
   void _scheduleSave() {
     _save?.cancel();
     _save = Timer(const Duration(milliseconds: 700), () {
-      unawaited(ref.read(profileRepositoryProvider).updateSoundPrefs(state.toJson()));
+      unawaited(
+        ref.read(profileRepositoryProvider).updateSoundPrefs(state.toJson()),
+      );
     });
   }
 }
 
-final soundPrefsProvider =
-    NotifierProvider<SoundPrefsNotifier, SoundPrefs>(SoundPrefsNotifier.new);
+final soundPrefsProvider = NotifierProvider<SoundPrefsNotifier, SoundPrefs>(
+  SoundPrefsNotifier.new,
+);

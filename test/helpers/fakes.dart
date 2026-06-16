@@ -17,8 +17,11 @@ class FakeAuthRepository implements AuthRepository {
   String? lastResetEmail;
   String? lastUpdatedPassword;
 
+  /// Set to simulate a signed-in user (gates the friends/thoughts providers).
+  Session? session;
+
   @override
-  Session? get currentSession => null;
+  Session? get currentSession => session;
   @override
   User? get currentUser => null;
   @override
