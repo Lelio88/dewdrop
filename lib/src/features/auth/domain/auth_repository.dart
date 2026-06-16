@@ -16,6 +16,13 @@ abstract interface class AuthRepository {
   Future<void> signIn(String email, String password);
   Future<void> signOut();
 
+  /// Sends a password-reset email. The link opens the app in recovery mode
+  /// (a temporary session), where [updatePassword] can be called.
+  Future<void> sendPasswordReset(String email);
+
+  /// Sets a new password for the current (recovery or signed-in) session.
+  Future<void> updatePassword(String newPassword);
+
   /// Deletes the current user's account and all their data (profile,
   /// friendships, thoughts, devices via FK cascade), then signs out. Backed by
   /// the `delete-account` Edge Function (only the service role can do this).

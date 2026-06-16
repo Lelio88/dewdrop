@@ -1,4 +1,6 @@
+import 'package:dewdrop/src/common/deep_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -24,7 +26,7 @@ void showMyQrSheet(BuildContext context, String handle) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: const Color(0xFF12162A),
-    builder: (_) => SafeArea(
+    builder: (sheetContext) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
         child: Column(
@@ -53,6 +55,24 @@ void showMyQrSheet(BuildContext context, String handle) {
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+            // Loin du QR : un lien partageable (SMS, messagerie) qui rouvre
+            // l'app sur une demande d'ami. Ne marche que si l'app est installée.
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: DeepLinks.invite(handle)),
+                );
+                if (sheetContext.mounted) {
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    const SnackBar(content: Text("Lien d'invitation copié ✨")),
+                  );
+                }
+              },
+              icon: const Icon(Icons.link_rounded, color: Colors.white70),
+              label: const Text('Copier mon lien d\'invitation',
+                  style: TextStyle(color: Colors.white70)),
+            ),
           ],
         ),
       ),

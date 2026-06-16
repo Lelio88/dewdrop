@@ -4,6 +4,7 @@ import 'package:dewdrop/src/features/auth/application/auth_error.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Email + password sign in / sign up, over a calm decor background.
 class SignInScreen extends ConsumerStatefulWidget {
@@ -230,6 +231,22 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         loading: _loading,
                         onTap: _submit,
                       ),
+                      if (!_isSignUp) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _loading
+                              ? null
+                              : () => context.push('/forgot-password'),
+                          child: Text(
+                            'Mot de passe oublié ?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: white.withValues(alpha: 0.55),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       GestureDetector(
                         onTap: _loading

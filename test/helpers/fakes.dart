@@ -14,6 +14,8 @@ class FakeAuthRepository implements AuthRepository {
   Object? signUpError;
   int signInCount = 0;
   bool signUpNeedsConfirm = false;
+  String? lastResetEmail;
+  String? lastUpdatedPassword;
 
   @override
   Session? get currentSession => null;
@@ -36,6 +38,16 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    lastResetEmail = email;
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    lastUpdatedPassword = newPassword;
+  }
 
   @override
   Future<void> deleteAccount() async {}

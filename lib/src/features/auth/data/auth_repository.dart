@@ -1,3 +1,4 @@
+import 'package:dewdrop/src/common/deep_links.dart';
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,7 +19,14 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<bool> signUp(String email, String password) async {
-    final res = await _client.auth.signUp(email: email, password: password);
+    final res = await _client.auth.signUp(
+      email: email,
+      password: password,
+      // When confirmation is on, the email's link redirects here; the custom
+      // scheme reopens the app and supabase_flutter exchanges the PKCE code,
+      // signing the user in. Must be allow-listed in Supabase auth config.
+      emailRedirectTo: DeepLinks.loginCallback,
+    );
     // No session means email confirmation is required before signing in.
     return res.session == null;
   }
@@ -29,6 +37,17 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _client.auth.signOut();
+
+  @override
+  Future<void> sendPasswordReset(String email) =>
+      _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: DeepLinks.resetPassword,
+      );
+
+  @override
+  Future<void> updatePassword(String newPassword) =>
+      _client.auth.updateUser(UserAttributes(password: newPassword));
 
   @override
   Future<void> deleteAccount() async {
