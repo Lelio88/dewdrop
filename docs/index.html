@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DewDrop — Confidentialité &amp; CGU</title>
+  <meta name="description" content="Politique de confidentialité et conditions d'utilisation de DewDrop." />
+  <style>
+    :root {
+      --bg-top: #12162a;
+      --bg-bottom: #06070e;
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.72);
+      --faint: rgba(255, 255, 255, 0.45);
+      --accent: #8fb7ff;
+      --card: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom)) fixed;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 56px 22px 80px; }
+    header { margin-bottom: 8px; }
+    .logo {
+      font-size: 30px; font-weight: 300; letter-spacing: 2px; margin: 0;
+    }
+    .updated { color: var(--faint); font-size: 13px; margin-top: 6px; }
+    h2 {
+      font-size: 24px; font-weight: 500; margin: 44px 0 14px;
+      padding-top: 10px;
+    }
+    h3 {
+      font-size: 16px; font-weight: 600; margin: 26px 0 8px;
+      color: var(--text);
+    }
+    p { color: var(--muted); margin: 0 0 12px; }
+    ul { color: var(--muted); margin: 0 0 12px; padding-left: 20px; }
+    li { margin: 6px 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 4px 22px 18px;
+    }
+    footer {
+      margin-top: 48px; color: var(--faint); font-size: 13px; text-align: center;
+    }
+    @media (max-width: 520px) {
+      .wrap { padding: 40px 18px 64px; }
+      h2 { font-size: 21px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1 class="logo">DewDrop</h1>
+      <p class="updated">Dernière mise à jour : juin 2026</p>
+    </header>
+
+    <section class="card">
+      <h2>Politique de confidentialité</h2>
+      <p>
+        DewDrop te permet d'envoyer un signal «&nbsp;j'ai pensé à toi&nbsp;» à
+        tes amis. On collecte le minimum pour faire fonctionner ce service, rien
+        de plus.
+      </p>
+
+      <h3>Données que l'on traite</h3>
+      <ul>
+        <li><strong>Compte&nbsp;:</strong> ton adresse email et ton mot de passe (chiffré).</li>
+        <li><strong>Profil&nbsp;:</strong> ton @handle, ton pseudo, et tes préférences (décor, sons, heures calmes&nbsp;+ fuseau horaire).</li>
+        <li><strong>Social&nbsp;:</strong> tes amitiés (demandes, amis), tes blocages.</li>
+        <li><strong>Pensées&nbsp;:</strong> qui a pensé à qui et quand, et si c'était anonyme. Une pensée ne contient <strong>aucun texte</strong> — c'est un simple signal.</li>
+        <li><strong>Notifications&nbsp;:</strong> un identifiant d'appareil (jeton FCM) pour t'envoyer les notifications push.</li>
+      </ul>
+
+      <h3>Pourquoi</h3>
+      <p>
+        Uniquement pour faire marcher l'app&nbsp;: créer ton compte, gérer tes
+        amis, transmettre les pensées et t'avertir quand on pense à toi. Pas de
+        publicité, pas de revente de données, pas de pistage publicitaire tiers.
+      </p>
+
+      <h3>Sous-traitants</h3>
+      <ul>
+        <li><strong>Supabase</strong> — hébergement de la base de données et authentification (serveurs en Union européenne).</li>
+        <li><strong>Google Firebase Cloud Messaging</strong> — livraison des notifications push.</li>
+      </ul>
+      <p>
+        Ils traitent ces données pour notre compte, selon leurs propres
+        engagements de sécurité.
+      </p>
+
+      <h3>Anonymat</h3>
+      <p>
+        Si tu envoies une pensée en mode anonyme, le destinataire voit
+        «&nbsp;Quelqu'un a pensé à toi&nbsp;» sans ton nom. Ton identité reste
+        néanmoins enregistrée côté serveur (pour la sécurité et la modération)
+        et n'est jamais montrée au destinataire.
+      </p>
+
+      <h3>Conservation &amp; suppression</h3>
+      <p>
+        On garde tes données tant que ton compte existe. Tu peux supprimer ton
+        compte à tout moment (Réglages → Supprimer mon compte)&nbsp;: ton compte,
+        tes amis et toutes tes pensées sont alors effacés définitivement.
+      </p>
+
+      <h3>Tes droits (RGPD)</h3>
+      <p>
+        Tu peux demander l'accès, la rectification, l'effacement ou la
+        portabilité de tes données en écrivant à
+        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>.
+      </p>
+
+      <h3>Âge</h3>
+      <p>
+        DewDrop n'est pas destiné aux enfants de moins de 13 ans (ou l'âge
+        minimum légal dans ton pays).
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Conditions d'utilisation</h2>
+
+      <h3>Le service</h3>
+      <p>
+        DewDrop sert à envoyer de douces «&nbsp;pensées&nbsp;» à des amis qui
+        t'ont accepté. C'est un signal bienveillant, sans contenu.
+      </p>
+
+      <h3>Ton compte</h3>
+      <p>
+        Tu es responsable de la confidentialité de ton mot de passe et de
+        l'activité sur ton compte. Donne des informations exactes à
+        l'inscription.
+      </p>
+
+      <h3>Bon usage</h3>
+      <p>
+        Pas de harcèlement ni d'usage abusif — y compris via le mode anonyme.
+        Tu peux bloquer ou signaler quelqu'un à tout moment (appui long sur un
+        ami). On peut suspendre un compte qui enfreint ces règles.
+      </p>
+
+      <h3>Disponibilité</h3>
+      <p>
+        Le service est fourni «&nbsp;tel quel&nbsp;», sans garantie de
+        disponibilité continue. On fait de notre mieux pour qu'il marche bien.
+      </p>
+
+      <h3>Résiliation</h3>
+      <p>
+        Tu peux arrêter et supprimer ton compte quand tu veux. On peut faire
+        évoluer ces conditions&nbsp;; les changements importants seront signalés
+        dans l'app.
+      </p>
+
+      <h3>Contact</h3>
+      <p>
+        Une question&nbsp;? Écris-nous à
+        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>.
+      </p>
+    </section>
+
+    <footer>
+      DewDrop · <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>
+    </footer>
+  </main>
+</body>
+</html>

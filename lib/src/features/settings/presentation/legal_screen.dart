@@ -6,16 +6,16 @@ import 'package:flutter/material.dart';
 /// FCM token; Supabase + Firebase as processors; no ads/tracking/resale).
 ///
 /// IMPORTANT (not user-facing): this is a sound starting draft, not legal
-/// advice — have it reviewed and fill the contact email + hosted URL before a
-/// public store release (stores also require the policy at a public URL).
+/// advice — have it reviewed before a public store release. A public copy is
+/// hosted via GitHub Pages (`docs/index.html`) for the store listing; keep the
+/// two in sync (same `_updated`, same `_contact`, same text).
 class LegalScreen extends StatelessWidget {
   const LegalScreen({super.key});
 
-  /// Update when the text changes. Keep in sync with any hosted copy.
+  /// Update when the text changes. Keep in sync with the hosted copy.
   static const String _updated = 'juin 2026';
 
-  /// TODO: replace with the real support address before launch.
-  static const String _contact = 'contact@dewdrop.app';
+  static const String _contact = 'heianenterpriseyt@gmail.com';
 
   @override
   Widget build(BuildContext context) {
