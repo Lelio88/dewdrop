@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/sky_clock.dart';
+import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -73,8 +74,8 @@ class _SpaceDecorState extends State<SpaceDecor>
   late final List<_Orbit> _orbits = _generateOrbits();
 
   double _lastTick = 0;
-  Size _size = Size.zero;
-  Offset _pointerLook = Offset.zero;
+  // Tilt the phone to look around the scene (gyroscope-style, drift-free).
+  final TiltController _tilt = TiltController();
 
   @override
   void initState() {
@@ -104,19 +105,12 @@ class _SpaceDecorState extends State<SpaceDecor>
       math.sin(now * 0.05) * 0.006,
       math.cos(now * 0.04) * 0.005,
     );
-    final target = auto + _pointerLook;
+    final target = auto + _tilt.look;
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
     _model.shooting.removeWhere((s) => s.isDead(now));
     _model.notify();
-  }
-
-  void _updatePointer(PointerEvent event) {
-    if (_size == Size.zero) return;
-    final nx = (event.localPosition.dx / _size.width) * 2 - 1;
-    final ny = (event.localPosition.dy / _size.height) * 2 - 1;
-    _pointerLook = Offset(-nx * 0.10, -ny * 0.08);
   }
 
   /// A tap on the open sky: rain a light, staggered shower of shooting stars.
@@ -267,6 +261,7 @@ class _SpaceDecorState extends State<SpaceDecor>
   @override
   void dispose() {
     widget.reception?.removeListener(_onReception);
+    _tilt.dispose();
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -275,48 +270,39 @@ class _SpaceDecorState extends State<SpaceDecor>
   @override
   Widget build(BuildContext context) {
     final config = _configFor(widget.variant);
-    return Listener(
-      onPointerHover: _updatePointer,
-      onPointerMove: _updatePointer,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          _size = constraints.biggest;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _SpacePainter(
-                      model: _model,
-                      stars: _stars,
-                      nebulae: _nebulae,
-                      planets: _planets,
-                      debris: _debris,
-                      orbits: _orbits,
-                      config: config,
-                    ),
-                  ),
-                ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _SpacePainter(
+                model: _model,
+                stars: _stars,
+                nebulae: _nebulae,
+                planets: _planets,
+                debris: _debris,
+                orbits: _orbits,
+                config: config,
               ),
-              // Tap anywhere on the open sky to send a "pensée".
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _spawnThoughtShower,
-                ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: RepaintBoundary(
-                    child: CustomPaint(painter: _ShootingStarPainter(_model)),
-                  ),
-                ),
-              ),
-              if (widget.child != null) Positioned.fill(child: widget.child!),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        ),
+        // Tap anywhere on the open sky to send a "pensée".
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _spawnThoughtShower,
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(painter: _ShootingStarPainter(_model)),
+            ),
+          ),
+        ),
+        if (widget.child != null) Positioned.fill(child: widget.child!),
+      ],
     );
   }
 }
