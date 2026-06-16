@@ -7,6 +7,7 @@ environment:
   sdk: ^3.11.5
 
 dependencies:
+  app_links: ^7.0.0
   audioplayers: ^6.7.1
   firebase_core: ^4.10.0
   firebase_crashlytics: ^5.2.3

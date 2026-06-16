@@ -29,6 +29,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Custom-scheme deep links: auth callbacks (login-callback,
+                 reset-password) consumed by supabase_flutter, plus invite links
+                 (dewdrop://invite?handle=...) handled in-app. Scheme-only match
+                 catches every dewdrop:// host. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="dewdrop"/>
+            </intent-filter>
         </activity>
         <!-- Default FCM channel for system-built notifications (app killed):
              routes them to the water-drop "Pensées" channel created at startup. -->

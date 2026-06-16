@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
+import 'package:dewdrop/src/features/auth/presentation/forgot_password_screen.dart';
+import 'package:dewdrop/src/features/auth/presentation/reset_password_screen.dart';
 import 'package:dewdrop/src/features/auth/presentation/sign_in_screen.dart';
 import 'package:dewdrop/src/features/friends/presentation/friends_screen.dart';
 import 'package:dewdrop/src/features/home/presentation/home_screen.dart';
@@ -23,13 +25,24 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final loggedIn = auth.currentSession != null;
-      final loggingIn = state.matchedLocation == '/sign-in';
-      if (!loggedIn) return loggingIn ? null : '/sign-in';
-      if (loggingIn) return '/home';
+      final loc = state.matchedLocation;
+      // Auth routes reachable while logged out (the reset link itself reopens
+      // the app *with* a recovery session, so it doesn't need to be here).
+      const publicAuth = {'/sign-in', '/forgot-password'};
+      if (!loggedIn) return publicAuth.contains(loc) ? null : '/sign-in';
+      if (loc == '/sign-in') return '/home';
       return null;
     },
     routes: [
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, _) => const ResetPasswordScreen(),
+      ),
       GoRoute(path: '/home', builder: (_, _) => const HomeGate()),
       GoRoute(path: '/friends', builder: (_, _) => const FriendsScreen()),
       GoRoute(path: '/thoughts', builder: (_, _) => const ThoughtsScreen()),
