@@ -1,12 +1,11 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:dewdrop/decor/environment.dart';
+import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 /// Photo scenes live under `assets/photo/{env}/{variant}/`, files named
 /// `0.png` (farthest background) … `N.png` (closest foreground). Layers are
@@ -42,18 +41,11 @@ class _PhotoDecorState extends State<PhotoDecor>
   late final Ticker _ticker;
   late _Overlay _overlay;
   late List<_Particle> _particles;
-  StreamSubscription<AccelerometerEvent>? _accelSub;
+  // Tilt the phone to look around the scene (gyroscope-style, drift-free).
+  final TiltController _tilt = TiltController();
 
   List<String> _layers = const [];
   double _lastTick = 0;
-  // Tilt-driven "look around": low-passed gravity with a neutral baseline taken
-  // on the first reading, so look = 0 at whatever angle you hold the phone and
-  // offsets as you tilt it. Drift-free (absolute gravity, no integration).
-  // Replaces the old finger/pointer control — the parallax now follows motion.
-  Offset _tiltLook = Offset.zero;
-  double _gx = 0, _gz = 0;
-  bool _gravityInit = false;
-  double _baseGx = 0, _baseGz = 0;
 
   @override
   void initState() {
@@ -61,24 +53,7 @@ class _PhotoDecorState extends State<PhotoDecor>
     _overlay = _overlayFor(widget.environment, widget.variant);
     _particles = _genParticles();
     _ticker = createTicker(_onTick)..start();
-    _accelSub = accelerometerEventStream().listen(_onAccel);
     _loadLayers();
-  }
-
-  /// Map device tilt (gravity) to a gentle "look" offset for the parallax.
-  void _onAccel(AccelerometerEvent e) {
-    const a = 0.18; // low-pass toward the gravity vector
-    _gx = _gravityInit ? _gx + a * (e.x - _gx) : e.x;
-    _gz = _gravityInit ? _gz + a * (e.z - _gz) : e.z;
-    if (!_gravityInit) {
-      _gravityInit = true;
-      _baseGx = _gx;
-      _baseGz = _gz;
-    }
-    const scale = 0.16; // tilt sensitivity
-    final lx = ((_gx - _baseGx) * scale).clamp(-1.0, 1.0);
-    final ly = ((_gz - _baseGz) * scale).clamp(-1.0, 1.0);
-    _tiltLook = Offset(-lx, ly);
   }
 
   @override
@@ -117,7 +92,7 @@ class _PhotoDecorState extends State<PhotoDecor>
     _model.time = now;
 
     final auto = Offset(math.sin(now * 0.06) * 0.05, math.cos(now * 0.05) * 0.03);
-    final target = auto + _tiltLook;
+    final target = auto + _tilt.look;
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
@@ -194,7 +169,7 @@ class _PhotoDecorState extends State<PhotoDecor>
 
   @override
   void dispose() {
-    _accelSub?.cancel();
+    _tilt.dispose();
     _ticker.dispose();
     _model.dispose();
     super.dispose();

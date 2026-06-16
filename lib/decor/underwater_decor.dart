@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:dewdrop/decor/reception_signal.dart';
+import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -45,10 +46,10 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   late final List<_Weed> _weeds = _genWeeds();
   late final List<_Rock> _rocks = _genRocks();
   late final List<_Fish> _fish = _genFish();
+  // Tilt the phone to look around the scene (gyroscope-style, drift-free).
+  final TiltController _tilt = TiltController();
 
   double _lastTick = 0;
-  Size _size = Size.zero;
-  Offset _pointerLook = Offset.zero;
 
   @override
   void initState() {
@@ -108,19 +109,12 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     }
 
     final auto = Offset(math.sin(now * 0.05) * 0.005, 0);
-    final target = auto + _pointerLook;
+    final target = auto + _tilt.look;
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
     _model.glows.removeWhere((g) => g.life(now) >= 1);
     _model.notify();
-  }
-
-  void _updatePointer(PointerEvent event) {
-    if (_size == Size.zero) return;
-    final nx = (event.localPosition.dx / _size.width) * 2 - 1;
-    final ny = (event.localPosition.dy / _size.height) * 2 - 1;
-    _pointerLook = Offset(-nx * 0.06, -ny * 0.04);
   }
 
   /// Tap preview: a light, modest burst rising from the bottom edge — the
@@ -284,6 +278,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   @override
   void dispose() {
     widget.reception?.removeListener(_onReception);
+    _tilt.dispose();
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -292,41 +287,32 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   @override
   Widget build(BuildContext context) {
     final config = widget.variant == 0 ? _seabed : _openWater;
-    return Listener(
-      onPointerHover: _updatePointer,
-      onPointerMove: _updatePointer,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          _size = constraints.biggest;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _UWPainter(
-                      model: _model,
-                      snow: _snow,
-                      bubbles: _bubbles,
-                      rays: _rays,
-                      weeds: _weeds,
-                      rocks: _rocks,
-                      fish: _fish,
-                      config: config,
-                    ),
-                  ),
-                ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              painter: _UWPainter(
+                model: _model,
+                snow: _snow,
+                bubbles: _bubbles,
+                rays: _rays,
+                weeds: _weeds,
+                rocks: _rocks,
+                fish: _fish,
+                config: config,
               ),
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _spawnBubbleBurst,
-                ),
-              ),
-              if (widget.child != null) Positioned.fill(child: widget.child!),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _spawnBubbleBurst,
+          ),
+        ),
+        if (widget.child != null) Positioned.fill(child: widget.child!),
+      ],
     );
   }
 }
