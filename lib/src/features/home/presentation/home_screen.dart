@@ -11,6 +11,7 @@ import 'package:dewdrop/src/features/profile/application/profile_providers.dart'
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_picker.dart';
+import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -202,6 +203,7 @@ class _HomeViewState extends ConsumerState<HomeView>
   @override
   Widget build(BuildContext context) {
     final (env, variant) = parseDecor(_decor);
+    final parallax = ref.watch(parallaxEnabledProvider);
 
     // Live: a pensée arrives while the app is open -> burst now.
     ref.listen(incomingThoughtPulseProvider, (_, next) {
@@ -217,6 +219,7 @@ class _HomeViewState extends ConsumerState<HomeView>
         variant,
         _mode,
         reception: _reception,
+        parallax: parallax,
         child: SafeArea(
           child: Stack(
             children: [

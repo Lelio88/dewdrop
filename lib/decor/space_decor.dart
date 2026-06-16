@@ -50,11 +50,13 @@ class SpaceDecor extends StatefulWidget {
     super.key,
     this.variant = SpaceVariant.cosmos,
     this.reception,
+    this.parallax = true,
     this.child,
   });
 
   final SpaceVariant variant;
   final ReceptionSignal? reception;
+  final bool parallax;
   final Widget? child;
 
   @override
@@ -105,7 +107,7 @@ class _SpaceDecorState extends State<SpaceDecor>
       math.sin(now * 0.05) * 0.006,
       math.cos(now * 0.04) * 0.005,
     );
-    final target = auto + _tilt.look;
+    final target = auto + (widget.parallax ? _tilt.look : Offset.zero);
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 

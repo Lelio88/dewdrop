@@ -22,11 +22,13 @@ class PhotoDecor extends StatefulWidget {
     super.key,
     required this.environment,
     this.variant = 0,
+    this.parallax = true,
     this.child,
   });
 
   final Environment environment;
   final int variant;
+  final bool parallax;
   final Widget? child;
 
   @override
@@ -97,7 +99,7 @@ class _PhotoDecorState extends State<PhotoDecor>
       math.sin(now * 0.06) * 0.05,
       math.cos(now * 0.05) * 0.03,
     );
-    final target = auto + _tilt.look;
+    final target = auto + (widget.parallax ? _tilt.look : Offset.zero);
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
