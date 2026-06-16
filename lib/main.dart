@@ -6,6 +6,7 @@ import 'package:dewdrop/src/common/provider_error_logger.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
 import 'package:dewdrop/src/supabase/supabase_config.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -37,6 +38,26 @@ Future<void> main() async {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
+    // Let the soundscape's layers (ambiance + music + one-shots) play TOGETHER.
+    // audioplayers' default requests exclusive audio focus per player, so each
+    // new sound stole focus from the others — only the last one to start was
+    // audible (music drowned the ambiance; one-shots never came through).
+    // `none` focus = no exclusive grab → all six players mix.
+    await AudioPlayer.global.setAudioContext(
+      AudioContext(
+        android: const AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: false,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: const {AVAudioSessionOptions.mixWithOthers},
+        ),
+      ),
+    );
   }
   await Supabase.initialize(
     url: SupabaseConfig.url,

@@ -42,20 +42,28 @@ Widget buildDecor(
   RenderMode mode, {
   Widget? child,
   ReceptionSignal? reception,
+  bool parallax = true,
 }) {
   final v = variant.clamp(0, env.variantCount - 1);
   if (mode == RenderMode.photo) {
-    return PhotoDecor(environment: env, variant: v, child: child);
+    return PhotoDecor(
+      environment: env,
+      variant: v,
+      parallax: parallax,
+      child: child,
+    );
   }
   return switch (env) {
     Environment.space => SpaceDecor(
       variant: SpaceVariant.values[v],
       reception: reception,
+      parallax: parallax,
       child: child,
     ),
     Environment.underwater => UnderwaterDecor(
       variant: v,
       reception: reception,
+      parallax: parallax,
       child: child,
     ),
     Environment.forest => ForestDecor(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
+import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -111,6 +112,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: const Text('Envoyer anonymement par défaut'),
                   subtitle: Text(
                     "Tes amis verront « Quelqu'un a pensé à toi ».",
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'Affichage'),
+              _card(
+                w,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: ref.watch(parallaxEnabledProvider),
+                  onChanged: (v) =>
+                      ref.read(parallaxEnabledProvider.notifier).set(v),
+                  title: const Text('Parallaxe (gyroscope)'),
+                  subtitle: Text(
+                    'Le décor suit les mouvements du téléphone.',
                     style: TextStyle(color: w.withValues(alpha: 0.5)),
                   ),
                 ),

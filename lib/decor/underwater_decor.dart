@@ -27,11 +27,13 @@ class UnderwaterDecor extends StatefulWidget {
     super.key,
     this.variant = 0,
     this.reception,
+    this.parallax = true,
     this.child,
   });
 
   final int variant;
   final ReceptionSignal? reception;
+  final bool parallax;
   final Widget? child;
 
   @override
@@ -113,7 +115,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     }
 
     final auto = Offset(math.sin(now * 0.05) * 0.005, 0);
-    final target = auto + _tilt.look;
+    final target = auto + (widget.parallax ? _tilt.look : Offset.zero);
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
