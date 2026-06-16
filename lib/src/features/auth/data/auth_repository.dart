@@ -29,4 +29,12 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _client.auth.signOut();
+
+  @override
+  Future<void> deleteAccount() async {
+    // The Edge Function deletes the auth user (cascades to all their data);
+    // invoke() forwards the current session's JWT so it deletes only the caller.
+    await _client.functions.invoke('delete-account');
+    await _client.auth.signOut();
+  }
 }
