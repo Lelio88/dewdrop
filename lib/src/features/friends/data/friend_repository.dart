@@ -92,6 +92,30 @@ class SupabaseFriendRepository implements FriendRepository {
   Future<void> removeFriendship(String friendshipId) =>
       _client.from('friendships').delete().eq('id', friendshipId);
 
+  @override
+  Future<void> block(String userId) async {
+    // Remove the friendship both ways, then record the block (RLS then stops
+    // them sending thoughts/requests).
+    await _client.from('friendships').delete().or(
+        'and(requester_id.eq.$_uid,addressee_id.eq.$userId),'
+        'and(requester_id.eq.$userId,addressee_id.eq.$_uid)');
+    await _client
+        .from('blocks')
+        .insert({'blocker_id': _uid, 'blocked_id': userId});
+  }
+
+  @override
+  Future<void> unblock(String userId) => _client
+      .from('blocks')
+      .delete()
+      .eq('blocker_id', _uid)
+      .eq('blocked_id', userId);
+
+  @override
+  Future<void> report(String userId, {String? reason}) =>
+      _client.from('reports').insert(
+          {'reporter_id': _uid, 'reported_id': userId, 'reason': reason});
+
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {
     if (ids.isEmpty) return {};
     final rows = await _client.from('profiles').select().inFilter('id', ids);
