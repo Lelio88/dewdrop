@@ -16,6 +16,7 @@ class SignInScreen extends ConsumerStatefulWidget {
 class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirm = TextEditingController();
   final _passwordFocus = FocusNode();
   bool _isSignUp = false;
   bool _loading = false;
@@ -27,6 +28,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _confirm.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
@@ -36,6 +38,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final password = _password.text;
     if (email.isEmpty || password.isEmpty) {
       setState(() => _error = 'Renseigne ton email et ton mot de passe.');
+      return;
+    }
+    if (_isSignUp && password != _confirm.text) {
+      setState(() => _error = 'Les mots de passe ne correspondent pas.');
       return;
     }
     setState(() {
@@ -167,6 +173,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                               : 'Afficher le mot de passe',
                         ),
                       ),
+                      if (_isSignUp) ...[
+                        const SizedBox(height: 12),
+                        GlassTextField(
+                          controller: _confirm,
+                          hint: 'Confirme le mot de passe',
+                          icon: Icons.lock_outline,
+                          obscure: !_showPassword,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                        ),
+                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 14),
                         Container(
