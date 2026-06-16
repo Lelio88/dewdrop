@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// "À propos & crédits" — surfaces the notices legally required to publish on the
 /// app stores, in-app and visible to users:
@@ -111,6 +112,21 @@ class AboutScreen extends StatelessWidget {
                     applicationVersion: _appVersion,
                     applicationLegalese: '© 2026 DewDrop',
                   ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'Légal'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Confidentialité & CGU',
+                      style: TextStyle(color: w)),
+                  subtitle: Text('Politique de confidentialité et conditions',
+                      style: TextStyle(color: w.withValues(alpha: 0.5))),
+                  trailing: Icon(Icons.chevron_right,
+                      color: w.withValues(alpha: 0.4)),
+                  onTap: () => context.push('/legal'),
                 ),
               ),
             ],
