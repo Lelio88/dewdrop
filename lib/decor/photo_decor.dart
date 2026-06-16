@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
@@ -5,6 +6,7 @@ import 'package:dewdrop/decor/environment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 /// Photo scenes live under `assets/photo/{env}/{variant}/`, files named
 /// `0.png` (farthest background) … `N.png` (closest foreground). Layers are
@@ -40,11 +42,18 @@ class _PhotoDecorState extends State<PhotoDecor>
   late final Ticker _ticker;
   late _Overlay _overlay;
   late List<_Particle> _particles;
+  StreamSubscription<AccelerometerEvent>? _accelSub;
 
   List<String> _layers = const [];
   double _lastTick = 0;
-  Size _size = Size.zero;
-  Offset _pointerLook = Offset.zero;
+  // Tilt-driven "look around": low-passed gravity with a neutral baseline taken
+  // on the first reading, so look = 0 at whatever angle you hold the phone and
+  // offsets as you tilt it. Drift-free (absolute gravity, no integration).
+  // Replaces the old finger/pointer control — the parallax now follows motion.
+  Offset _tiltLook = Offset.zero;
+  double _gx = 0, _gz = 0;
+  bool _gravityInit = false;
+  double _baseGx = 0, _baseGz = 0;
 
   @override
   void initState() {
@@ -52,7 +61,24 @@ class _PhotoDecorState extends State<PhotoDecor>
     _overlay = _overlayFor(widget.environment, widget.variant);
     _particles = _genParticles();
     _ticker = createTicker(_onTick)..start();
+    _accelSub = accelerometerEventStream().listen(_onAccel);
     _loadLayers();
+  }
+
+  /// Map device tilt (gravity) to a gentle "look" offset for the parallax.
+  void _onAccel(AccelerometerEvent e) {
+    const a = 0.18; // low-pass toward the gravity vector
+    _gx = _gravityInit ? _gx + a * (e.x - _gx) : e.x;
+    _gz = _gravityInit ? _gz + a * (e.z - _gz) : e.z;
+    if (!_gravityInit) {
+      _gravityInit = true;
+      _baseGx = _gx;
+      _baseGz = _gz;
+    }
+    const scale = 0.16; // tilt sensitivity
+    final lx = ((_gx - _baseGx) * scale).clamp(-1.0, 1.0);
+    final ly = ((_gz - _baseGz) * scale).clamp(-1.0, 1.0);
+    _tiltLook = Offset(-lx, ly);
   }
 
   @override
@@ -91,7 +117,7 @@ class _PhotoDecorState extends State<PhotoDecor>
     _model.time = now;
 
     final auto = Offset(math.sin(now * 0.06) * 0.05, math.cos(now * 0.05) * 0.03);
-    final target = auto + _pointerLook;
+    final target = auto + _tiltLook;
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
 
@@ -112,13 +138,6 @@ class _PhotoDecorState extends State<PhotoDecor>
     }
     if (remove.isNotEmpty) _particles.removeWhere(remove.contains);
     _model.notify();
-  }
-
-  void _updatePointer(PointerEvent event) {
-    if (_size == Size.zero) return;
-    final nx = (event.localPosition.dx / _size.width) * 2 - 1;
-    final ny = (event.localPosition.dy / _size.height) * 2 - 1;
-    _pointerLook = Offset(-nx, -ny);
   }
 
   void _onTap() {
@@ -175,6 +194,7 @@ class _PhotoDecorState extends State<PhotoDecor>
 
   @override
   void dispose() {
+    _accelSub?.cancel();
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -182,47 +202,38 @@ class _PhotoDecorState extends State<PhotoDecor>
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerHover: _updatePointer,
-      onPointerMove: _updatePointer,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          _size = constraints.biggest;
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: _layers.isEmpty
-                    ? _PlaceholderScene(
-                        model: _model,
-                        environment: widget.environment,
-                        variant: widget.variant,
-                      )
-                    : _ImageParallax(
-                        layers: _layers,
-                        model: _model,
-                        strength: _depthStrengthFor(widget.environment),
-                      ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: RepaintBoundary(
-                    child: CustomPaint(
-                      painter: _OverlayPainter(_model, _particles, _overlay),
-                    ),
-                  ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: _layers.isEmpty
+              ? _PlaceholderScene(
+                  model: _model,
+                  environment: widget.environment,
+                  variant: widget.variant,
+                )
+              : _ImageParallax(
+                  layers: _layers,
+                  model: _model,
+                  strength: _depthStrengthFor(widget.environment),
                 ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _OverlayPainter(_model, _particles, _overlay),
               ),
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _onTap,
-                ),
-              ),
-              if (widget.child != null) Positioned.fill(child: widget.child!),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onTap,
+          ),
+        ),
+        if (widget.child != null) Positioned.fill(child: widget.child!),
+      ],
     );
   }
 }
@@ -473,7 +484,7 @@ class _InfoCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 18, fontWeight: FontWeight.w600, color: white)),
               const SizedBox(height: 4),
-              Text('${environment.label} · Var ${variant + 1}',
+              Text('${environment.label} · V${variant + 1}',
                   style:
                       TextStyle(fontSize: 13, color: white.withValues(alpha: 0.7))),
               const SizedBox(height: 14),
