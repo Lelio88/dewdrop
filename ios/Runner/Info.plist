@@ -4,6 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- mobile_scanner: scanning a friend's QR invite. iOS crashes without this. -->
+	<key>NSCameraUsageDescription</key>
+	<string>DewDrop utilise la caméra pour scanner le QR code d'un ami et l'ajouter.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
