@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DewDrop — Réinitialise ton mot de passe</title>
+</head>
+<body style="margin:0;padding:0;background:#0e1020;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0e1020;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:#161a2e;border-radius:18px;">
+          <tr>
+            <td style="padding:36px 32px 30px;text-align:center;">
+              <div style="font-size:26px;font-weight:300;letter-spacing:2px;color:#ffffff;">DewDrop</div>
+              <div style="height:1px;background:rgba(255,255,255,0.08);margin:22px 0;line-height:1px;font-size:0;">&nbsp;</div>
+              <div style="font-size:19px;font-weight:500;color:#ffffff;margin-bottom:12px;">Réinitialise ton mot de passe DewDrop</div>
+              <div style="font-size:15px;line-height:1.6;color:rgba(255,255,255,0.72);margin-bottom:28px;">
+                Tu as demandé à réinitialiser ton mot de passe. Clique sur le bouton pour en choisir un nouveau.
+              </div>
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#8fb7ff;color:#0e1020;text-decoration:none;font-size:15px;font-weight:600;padding:14px 30px;border-radius:12px;">Choisir un nouveau mot de passe</a>
+              <div style="font-size:13px;line-height:1.6;color:rgba(255,255,255,0.45);margin-top:26px;">
+                Si le bouton ne marche pas, copie ce lien&nbsp;:<br />
+                <a href="{{ .ConfirmationURL }}" style="color:#8fb7ff;word-break:break-all;">{{ .ConfirmationURL }}</a>
+              </div>
+              <div style="font-size:12px;line-height:1.6;color:rgba(255,255,255,0.35);margin-top:24px;">
+                Tu n'es pas à l'origine de cette demande&nbsp;? Ignore cet email — ton mot de passe reste inchangé.
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:18px;">DewDrop · heianenterpriseyt@gmail.com</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
