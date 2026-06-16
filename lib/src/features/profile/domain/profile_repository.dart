@@ -10,8 +10,15 @@ abstract interface class ProfileRepository {
   /// Persists the per-decor soundscape customization (synced across devices).
   Future<void> updateSoundPrefs(Map<String, dynamic> soundPrefs);
 
-  Future<void> updateSettings({
-    required bool defaultAnonymous,
+  /// Persists the style applied to the notifications this user sends.
+  Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle);
+
+  /// Default for the per-send "anonymous" toggle.
+  Future<void> updateDefaultAnonymous(bool value);
+
+  /// Quiet hours are hours 0-23 (null = disabled); [quietTz] is the user's IANA
+  /// timezone so the push function evaluates the window in local time.
+  Future<void> updateQuietHours({
     int? quietStart,
     int? quietEnd,
     String? quietTz,

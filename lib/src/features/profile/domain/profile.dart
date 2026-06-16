@@ -1,4 +1,5 @@
 import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
+import 'package:dewdrop/src/features/thoughts/domain/thought_style.dart';
 
 /// A user's public profile + app settings (mirrors `public.profiles`).
 class Profile {
@@ -13,6 +14,7 @@ class Profile {
     this.quietTz,
     this.defaultAnonymous = false,
     this.soundPrefsRaw = const {},
+    this.thoughtStyleRaw = const {},
   });
 
   final String id;
@@ -26,11 +28,15 @@ class Profile {
   final bool defaultAnonymous;
   final Map<String, dynamic>
   soundPrefsRaw; // per-decor soundscape customization
+  final Map<String, dynamic> thoughtStyleRaw; // sent-notification style
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
 
   /// Parsed per-decor soundscape customization.
   SoundPrefs get soundPrefs => SoundPrefs.fromJson(soundPrefsRaw);
+
+  /// Parsed style applied to the notifications this user sends.
+  ThoughtStyle get thoughtStyle => ThoughtStyle.fromJson(thoughtStyleRaw);
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
     id: m['id'] as String,
@@ -44,5 +50,7 @@ class Profile {
     defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
     soundPrefsRaw:
         (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
+    thoughtStyleRaw:
+        (m['thought_style'] as Map?)?.cast<String, dynamic>() ?? const {},
   );
 }

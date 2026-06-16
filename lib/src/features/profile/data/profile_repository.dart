@@ -60,11 +60,26 @@ class SupabaseProfileRepository implements ProfileRepository {
         .eq('id', uid);
   }
 
-  /// Quiet hours are hours 0-23 (null = disabled). [quietTz] is the user's IANA
-  /// timezone, so the push function evaluates the window in local time.
   @override
-  Future<void> updateSettings({
-    required bool defaultAnonymous,
+  Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'thought_style': thoughtStyle})
+        .eq('id', uid);
+  }
+
+  @override
+  Future<void> updateDefaultAnonymous(bool value) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'default_anonymous': value})
+        .eq('id', uid);
+  }
+
+  @override
+  Future<void> updateQuietHours({
     int? quietStart,
     int? quietEnd,
     String? quietTz,
@@ -73,7 +88,6 @@ class SupabaseProfileRepository implements ProfileRepository {
     await _client
         .from('profiles')
         .update({
-          'default_anonymous': defaultAnonymous,
           'quiet_start': quietStart,
           'quiet_end': quietEnd,
           'quiet_tz': quietTz,

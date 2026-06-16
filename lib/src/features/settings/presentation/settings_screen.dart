@@ -18,7 +18,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _anonymous = false;
   bool _quiet = false;
   int _start = 22;
   int _end = 7;
@@ -29,7 +28,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     final p = ref.read(myProfileProvider).value;
     if (p != null) {
-      _anonymous = p.defaultAnonymous;
       _quiet = p.quietStart != null && p.quietEnd != null;
       _start = p.quietStart ?? 22;
       _end = p.quietEnd ?? 7;
@@ -53,8 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final tz = _quiet ? await _deviceTz() : null;
     await ref
         .read(profileRepositoryProvider)
-        .updateSettings(
-          defaultAnonymous: _anonymous,
+        .updateQuietHours(
           quietStart: _quiet ? _start : null,
           quietEnd: _quiet ? _end : null,
           quietTz: tz,
@@ -102,18 +99,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _section(w, 'Pensées'),
               _card(
                 w,
-                child: SwitchListTile(
+                child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  value: _anonymous,
-                  onChanged: (v) {
-                    setState(() => _anonymous = v);
-                    unawaited(_persist());
-                  },
-                  title: const Text('Envoyer anonymement par défaut'),
+                  title: const Text('Personnaliser tes pensées'),
                   subtitle: Text(
-                    "Tes amis verront « Quelqu'un a pensé à toi ».",
+                    'Anonymat + le style de ta notification.',
                     style: TextStyle(color: w.withValues(alpha: 0.5)),
                   ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => context.push('/thought-settings'),
                 ),
               ),
               const SizedBox(height: 24),
