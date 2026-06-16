@@ -1,6 +1,8 @@
 import 'package:dewdrop/src/common/glass.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
+import 'package:dewdrop/src/features/friends/presentation/qr_invite.dart';
+import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/presentation/send_thought_sheet.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +45,33 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  Future<void> _scan() async {
+    final handle = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const ScanQrScreen()),
+    );
+    if (handle == null || !mounted) return;
+    setState(() => _adding = true);
+    try {
+      await ref.read(friendRepositoryProvider).sendRequest(handle);
+      _snack('Demande envoyée à @${handle.toLowerCase()} ✨');
+    } on FriendException catch (e) {
+      _snack(e.message);
+    } on Exception catch (_) {
+      _snack('Une erreur est survenue.');
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  void _showMyQr() {
+    final handle = ref.read(myProfileProvider).value?.handle;
+    if (handle == null) {
+      _snack('Profil indisponible.');
+      return;
+    }
+    showMyQrSheet(context, handle);
   }
 
   Future<void> _accept(String id) async {
@@ -93,6 +122,18 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text('Amis'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scanner un QR',
+            onPressed: _scan,
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            tooltip: 'Mon QR code',
+            onPressed: _showMyQr,
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
