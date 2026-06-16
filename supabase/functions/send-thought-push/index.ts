@@ -48,12 +48,15 @@ Deno.serve(async (req) => {
       return json({ skipped: "throttled" });
     }
 
+    // Always read the sender's profile: even an anonymous thought keeps the
+    // sender's chosen style (lead emoji / phrasing / tail emoji), just with
+    // « Quelqu'un » instead of their name.
+    const sender = (await rest(
+      `profiles?id=eq.${t.sender_id}&select=display_name,handle,thought_style`,
+    ))[0];
     let name = "Quelqu'un";
-    if (!t.is_anonymous) {
-      const s = (await rest(
-        `profiles?id=eq.${t.sender_id}&select=display_name,handle`,
-      ))[0];
-      if (s) name = s.display_name?.length ? s.display_name : `@${s.handle}`;
+    if (!t.is_anonymous && sender) {
+      name = sender.display_name?.length ? sender.display_name : `@${sender.handle}`;
     }
 
     const devices = await rest(`devices?user_id=eq.${t.recipient_id}&select=token`);
@@ -67,7 +70,18 @@ Deno.serve(async (req) => {
 
     const sa = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
     const accessToken = await getAccessToken(sa);
-    const body = `${name} a pensé à toi ✨`;
+    const style = (sender?.thought_style ?? {}) as {
+      lead?: string;
+      body?: string;
+      tail?: string;
+    };
+    const phrase = (style.body?.length ? style.body : "%s a pensé à toi").replace(
+      "%s",
+      name,
+    );
+    const body = [style.lead, phrase, style.tail ?? "✨"]
+      .filter((x) => x && x.length)
+      .join(" ");
 
     let sent = 0;
     for (const d of devices) {

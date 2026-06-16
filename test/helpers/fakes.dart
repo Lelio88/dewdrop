@@ -78,9 +78,21 @@ class FakeProfileRepository implements ProfileRepository {
     savedSoundPrefs = soundPrefs;
   }
 
+  Map<String, dynamic>? savedThoughtStyle;
+  bool? savedDefaultAnonymous;
+
   @override
-  Future<void> updateSettings({
-    required bool defaultAnonymous,
+  Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle) async {
+    savedThoughtStyle = thoughtStyle;
+  }
+
+  @override
+  Future<void> updateDefaultAnonymous(bool value) async {
+    savedDefaultAnonymous = value;
+  }
+
+  @override
+  Future<void> updateQuietHours({
     int? quietStart,
     int? quietEnd,
     String? quietTz,
