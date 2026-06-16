@@ -2,17 +2,21 @@
 
 ## Notification sound — `android/app/src/main/res/raw/drop.wav`
 
-- **"Water Drop Sound High"** by **Mike Koenig** — via [SoundBible](https://soundbible.com/) (sound id `1232`).
-- **License:** Creative Commons Attribution 3.0 ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)).
-- **Attribution (must be surfaced to users, e.g. an in-app "À propos / Crédits" screen):**
-  > Son de notification : « Water Drop Sound High » par Mike Koenig (soundbible.com), sous licence CC BY 3.0.
+- **"Water_drop_9.wav"** — [Freesound #166325](https://freesound.org/s/166325/).
+- **License:** Creative Commons 0 ([CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/))
+  — public domain, **no attribution required**.
+- **Channel:** changing this sound requires bumping `thoughtsChannelId`
+  (currently `thoughts_v3`) **and** the matching ids in `AndroidManifest.xml`
+  (`default_notification_channel_id`) and `supabase/functions/send-thought-push`
+  (`channel_id`) — an Android channel's sound is immutable once created.
 - **Processing (reproducible):**
   ```bash
-  curl -L "http://soundbible.com/grab.php?id=1232&type=wav" -o source.wav
-  ffmpeg -i source.wav -af \
-    "silenceremove=start_periods=1:start_duration=0.01:start_threshold=-45dB,\
-     atrim=0:1.4,afade=t=out:st=1.15:d=0.25,loudnorm=I=-15:TP=-1.0,\
-     aformat=channel_layouts=mono:sample_rates=44100" \
+  # source: Freesound 166325 preview (CC0)
+  ffmpeg -i 166325.mp3 -af \
+    "silenceremove=start_periods=1:start_duration=0.005:start_threshold=-50dB,\
+     atrim=0:0.9,afade=t=out:st=0.7:d=0.2,loudnorm=I=-15:TP=-1.0,\
+     aformat=channel_layouts=mono:sample_rates=44100" tmp.wav
+  ffmpeg -i tmp.wav -c:a pcm_s16le -ar 44100 -ac 1 \
     android/app/src/main/res/raw/drop.wav
   ```
 
@@ -49,8 +53,11 @@ adds a CC0 tropical layer (`268962`) over the waves.
 
 ## ⚠️ To finalize before a public release
 
-1. **Surface the CC BY notification-sound attribution in-app** (an "À propos /
-   Crédits" screen) — a repo file alone is not sufficient for CC BY.
-2. **Desert tumbleweed** (`assets/audio/oneshot/desert_tumble_*.ogg`) may be
-   **CC BY** — confirm the original author and add the attribution here, **or**
-   swap it for a CC0 take so no attribution is owed.
+1. **Desert tumbleweed** (`assets/audio/oneshot/desert_tumble_*.ogg`) is
+   **CC BY 4.0** — built from Freesound [#204028](https://freesound.org/s/204028/)
+   + [#204031](https://freesound.org/s/204031/) ("Tumbleweed_Impact" by
+   **duckduckpony**). Resolve before a public release by **either** surfacing this
+   attribution in-app (an "À propos / Crédits" screen — CC BY requires visible
+   credit), **or** rebuilding the one-shots from the CC0 takes already downloaded
+   (`tools/sounds/tumble/T1.mp3` = Freesound #666249, `T4.mp3` = #667738, both
+   CC0) so no attribution is owed.
