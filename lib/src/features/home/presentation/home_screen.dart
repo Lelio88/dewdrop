@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:dewdrop/decor/environment.dart';
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
@@ -10,6 +11,7 @@ import 'package:dewdrop/src/features/profile/application/profile_providers.dart'
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_picker.dart';
+import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -74,19 +76,26 @@ class _HomeViewState extends ConsumerState<HomeView>
   late RenderMode _mode = parseRenderMode(widget.profile.renderMode);
   // Cached at initState so dispose() never reads `ref` across teardown.
   late final SoundscapeNotifier _sound;
+  // Owned here; pulsed by realtime + on-open detection so the active decor
+  // bursts when a pensée is received. Disposed with the view.
+  final ReceptionSignal _reception = ReceptionSignal();
 
   @override
   void initState() {
     super.initState();
     _sound = ref.read(soundscapeProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncAmbient());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncAmbient();
+      unawaited(_checkUnseenOnOpen());
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_sound.pauseAll());
+    _reception.dispose();
     super.dispose();
   }
 
@@ -94,6 +103,8 @@ class _HomeViewState extends ConsumerState<HomeView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_sound.resumeAll());
+      // Realtime may have missed events while backgrounded — catch up.
+      unawaited(_checkUnseenOnOpen());
     } else if (state != AppLifecycleState.detached) {
       unawaited(_sound.pauseAll());
     }
@@ -103,6 +114,30 @@ class _HomeViewState extends ConsumerState<HomeView>
   void _syncAmbient() {
     final (env, _) = parseDecor(_decor);
     unawaited(_sound.setEnvironment(env.name));
+  }
+
+  /// Burst once if a pensée arrived while the app was closed/backgrounded. The
+  /// first ever run treats existing history as already seen (no burst for it).
+  Future<void> _checkUnseenOnOpen() async {
+    const key = 'reception_seen_at';
+    final prefs = ref.read(sharedPreferencesProvider);
+    final markerMs = prefs.getInt(key);
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    try {
+      final list = await ref.read(receivedThoughtsProvider.future);
+      if (!mounted) return;
+      await prefs.setInt(key, nowMs);
+      if (markerMs == null) return; // first run: nothing counts as new
+      final lastSeen = DateTime.fromMillisecondsSinceEpoch(markerMs, isUtc: true);
+      if (list.any((t) => t.createdAt.isAfter(lastSeen))) _reception.pulse();
+    } on Exception catch (_) {
+      // Offline / transient — no burst, marker left untouched.
+    }
+  }
+
+  void _markSeenNow() {
+    unawaited(ref.read(sharedPreferencesProvider).setInt(
+        'reception_seen_at', DateTime.now().toUtc().millisecondsSinceEpoch));
   }
 
   void _openMenu() {
@@ -155,11 +190,20 @@ class _HomeViewState extends ConsumerState<HomeView>
     final white = Colors.white;
     final soundOn = ref.watch(soundscapeProvider);
 
+    // Live: a pensée arrives while the app is open -> burst now.
+    ref.listen(incomingThoughtPulseProvider, (_, next) {
+      if (next is AsyncData) {
+        _reception.pulse();
+        _markSeenNow();
+      }
+    });
+
     return Scaffold(
       body: buildDecor(
         env,
         variant,
         _mode,
+        reception: _reception,
         child: SafeArea(
           child: Stack(
             children: [
