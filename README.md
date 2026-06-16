@@ -5,26 +5,47 @@ Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douc
 (espace, forêt, sous l'eau, plage, montagne, désert, bibliothèque, aurores boréales), en style
 **dessiné** ou **photo**, chacun avec son **ambiance sonore + musique** réglables par décor.
 
+> Confidentialité & CGU : <https://lelio88.github.io/dewdrop/>
+
 ## Stack
 
-- **App** : Flutter (Riverpod, GoRouter, freezed) — Android d'abord, iOS ensuite.
-- **Décors** : moteur Canvas maison (parallax gyroscope, particules) + un mode **photo** en
-  parallax multi-couches (inpainting + nb de plans par décor).
+- **App** : Flutter (Riverpod **sans codegen**, GoRouter, freezed) — Android d'abord, iOS ensuite.
+- **Décors** : moteur Canvas maison (parallax gyroscope à **neutre adaptatif**, particules par
+  variante, éclat à la réception) + un mode **photo** en parallax multi-couches (profondeur
+  **Depth Anything V2** + inpainting **LaMa**).
 - **Son** : 2 couches par décor (ambiance + musique en boucle) + sons ponctuels aléatoires
-  (baleines, tonnerre, virevoltants…) via `audioplayers` ; volumes/fréquences réglables par décor.
-- **Backend** : Supabase (Postgres + Auth + RLS), en **local via Docker** pour le développement.
+  (baleines, tonnerre, virevoltants…) via `audioplayers` ; volumes/fréquences réglables par décor,
+  synchronisés au profil.
+- **Backend** : **Supabase** (Postgres + Auth + RLS + Realtime) — cloud en prod, **local via
+  Docker** pour le dev.
+- **Push & crash** : **Firebase** — Cloud Messaging (notifs), Crashlytics (rapports), App
+  Distribution (diffusion aux testeurs).
+- **Emails** : **Brevo** (SMTP) pour les mails de confirmation / reset — templates FR brandés.
+
+## Fonctionnalités
+
+- **Comptes** email + **confirmation obligatoire** (anti-abus) + reset de mot de passe.
+- **Deep links** `dewdrop://` : confirmation d'inscription, reset, **invitation par lien**.
+- **Amis** : ajout par @handle / **QR** / **lien**, demandes en **temps réel**, **bloquer / signaler**.
+- **Pensées** : envoi (option **anonyme**), réception **live** (liste + éclat du décor),
+  **throttle** des notifs, **heures calmes**.
+- **Suppression de compte** (cascade) · **page légale** hébergée (GitHub Pages).
 
 ## Structure
 
 ```
 lib/
-├── decor/            # moteur de décors (espace, forêt, sous-l'eau… + mode photo)
+├── decor/            # moteur de décors (Canvas) + tilt.dart (parallax) + mode photo
 └── src/
-    ├── app.dart · routing/ · common/ · supabase/
-    └── features/     # auth · profile · friends · thoughts · settings · home
-supabase/migrations/  # schéma (profiles, friendships, thoughts) + RLS
-tools/depth_split/    # script Python : découpe une photo en plans de profondeur (Depth Anything V2)
-assets/photo/         # décors photo (base.png = source ; 0..N.png = couches parallax générées)
+    ├── app.dart · routing/ · common/ (deep_links, glass) · supabase/
+    └── features/     # auth · profile · friends · thoughts · settings · home · ambient · notifications
+supabase/
+├── migrations/       # schéma (profiles, friendships, thoughts, blocks…) + RLS + Realtime
+├── functions/        # Edge Functions (send-thought-push, delete-account)
+└── config.toml       # auth : SMTP Brevo, templates FR, redirections deep-link
+tools/depth_split/    # Python : photo → plans de profondeur (Depth Anything V2 + inpainting LaMa)
+docs/index.html       # page Confidentialité & CGU (servie par GitHub Pages)
+assets/photo/         # décors photo (0..N.webp = couches parallax) — sources hors-bundle dans tools/depth_split/_src/
 assets/audio/         # sons par décor (*_amb / *_mus en boucle ; oneshot/ = sons ponctuels)
 ```
 
@@ -36,32 +57,47 @@ Prérequis : [Flutter](https://flutter.dev), [Docker](https://www.docker.com/),
 ```bash
 cd dewdrop
 
-# 1. Backend local (Postgres/Auth/… via Docker)
+# 1. Backend local (Postgres / Auth / Realtime via Docker)
 supabase start
 
-# 2. App (desktop pour itérer vite ; gyroscope réel sur mobile)
+# 2. App — desktop pour itérer vite (le mobile a le gyroscope + FCM réels)
 flutter run -d windows
 ```
 
-- Supabase Studio : http://127.0.0.1:54323
-- Mails de test (Mailpit) : http://127.0.0.1:54324
+- Supabase Studio : <http://127.0.0.1:54323> · Mails de test (Mailpit) : <http://127.0.0.1:54324>
+
+### Build contre le cloud (pour les testeurs)
+
+```bash
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<clé publishable>
+```
+
+La **signature de release** lit `android/key.properties` (gitignoré). Sans ce fichier, le build
+retombe sur les clés debug. Diffusion aux testeurs via **Firebase App Distribution**.
 
 ### Décors photo (parallax)
 
-Génère une image `base.png` (IA), dépose-la dans `assets/photo/<env>/<variante>/`, puis :
+Source `Base.png` dans `tools/depth_split/_src/<env>/<variante>/`, puis :
 
 ```bash
 cd tools/depth_split
 python -m venv .venv
-.venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu
+# CPU : .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cpu
+# GPU NVIDIA (bien plus rapide) :
+#       .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cu128
 .venv/Scripts/pip install -r requirements.txt
-.venv/Scripts/python split_all.py     # couches parallax (nb de plans + feather par décor)
+.venv/Scripts/pip install simple-lama-inpainting --no-deps
+.venv/Scripts/python split_all.py _src   # profondeur + inpainting LaMa → couches PNG
+.venv/Scripts/python export_webp.py      # PNG → assets/photo/*.webp
 ```
 
 ## État
 
-✅ Comptes (email) · ✅ Profil + pseudo/handle · ✅ Décors (dessin + photo, persistés) ·
-✅ Amis (demandes accepter/refuser) · ✅ Envoyer une pensée (+ option anonyme) · ✅ Historique ·
-✅ Notifications push (FCM + heures calmes) · ✅ Son par décor (ambiance + musique, personnalisable).
+✅ Comptes + confirmation email · ✅ Profil/handle · ✅ Décors (dessin + photo, persistés) ·
+✅ Amis (QR / lien / handle, temps réel, bloquer/signaler) · ✅ Pensées (anonyme, live, throttle,
+heures calmes) · ✅ Push FCM · ✅ Son par décor · ✅ Deep links · ✅ SMTP Brevo · ✅ Crashlytics ·
+✅ Signature release · ✅ Page légale hébergée · ✅ Diffusion testeurs (Firebase App Distribution).
 
-🔜 Lien d'invitation, groupes/channels, cible iOS, déploiement prod.
+🔜 Cible **iOS** (Mac requis) · déploiement Play Store.
