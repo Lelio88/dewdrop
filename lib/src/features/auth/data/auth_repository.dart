@@ -17,8 +17,11 @@ class SupabaseAuthRepository implements AuthRepository {
   Stream<AuthState> authStateChanges() => _client.auth.onAuthStateChange;
 
   @override
-  Future<void> signUp(String email, String password) =>
-      _client.auth.signUp(email: email, password: password);
+  Future<bool> signUp(String email, String password) async {
+    final res = await _client.auth.signUp(email: email, password: password);
+    // No session means email confirmation is required before signing in.
+    return res.session == null;
+  }
 
   @override
   Future<void> signIn(String email, String password) =>

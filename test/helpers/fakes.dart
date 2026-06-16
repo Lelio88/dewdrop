@@ -13,6 +13,7 @@ class FakeAuthRepository implements AuthRepository {
   Object? signInError;
   Object? signUpError;
   int signInCount = 0;
+  bool signUpNeedsConfirm = false;
 
   @override
   Session? get currentSession => null;
@@ -28,8 +29,9 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signUp(String email, String password) async {
+  Future<bool> signUp(String email, String password) async {
     if (signUpError != null) throw signUpError!;
+    return signUpNeedsConfirm;
   }
 
   @override
