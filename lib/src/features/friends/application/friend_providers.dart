@@ -17,20 +17,22 @@ bool _signedIn(Ref ref) {
   return ref.watch(authRepositoryProvider).currentSession != null;
 }
 
+/// Ticks whenever a friendship involving the current user changes (a request
+/// arrives, is accepted, or is removed). The list providers watch this so they
+/// refetch **live** — no relaunch. Empty stream when signed out.
+final friendshipChangesProvider = StreamProvider<int>((ref) {
+  if (!_signedIn(ref)) return const Stream<int>.empty();
+  return ref.watch(friendRepositoryProvider).watchChanges();
+});
+
 final friendsProvider = FutureProvider<List<Friend>>((ref) {
   if (!_signedIn(ref)) return <Friend>[];
+  ref.watch(friendshipChangesProvider); // refetch on every friendship change
   return ref.watch(friendRepositoryProvider).friends();
 });
 
 final incomingRequestsProvider = FutureProvider<List<IncomingRequest>>((ref) {
   if (!_signedIn(ref)) return <IncomingRequest>[];
+  ref.watch(friendshipChangesProvider); // refetch on every friendship change
   return ref.watch(friendRepositoryProvider).incomingRequests();
-});
-
-/// Ticks whenever a friendship involving the current user changes, so the
-/// composition root can refresh the friends/requests lists live. Empty when
-/// signed out.
-final friendshipChangesProvider = StreamProvider<int>((ref) {
-  if (!_signedIn(ref)) return const Stream<int>.empty();
-  return ref.watch(friendRepositoryProvider).watchChanges();
 });
