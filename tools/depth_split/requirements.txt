@@ -1,6 +1,13 @@
-# Install torch separately (CPU build) first:
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Install torch separately FIRST.
+#   CPU build:  pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   NVIDIA GPU (much faster — depth + LaMa run on CUDA), e.g. cu128:
+#               pip install torch --index-url https://download.pytorch.org/whl/cu128
 transformers>=4.44
 pillow
 numpy
 opencv-python
+# LaMa inpainting (reconstructs the background behind removed foreground, far
+# cleaner than cv2.inpaint). Its dependency pins are stale on recent Python and
+# its runtime only needs torch+pillow+numpy (already above), so install it
+# WITHOUT deps:
+#   pip install simple-lama-inpainting --no-deps
