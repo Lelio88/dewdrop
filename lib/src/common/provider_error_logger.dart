@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,9 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// throws) are never *silently* swallowed. Wired into `ProviderScope.observers`
 /// at the composition root.
 ///
-/// Console-only for now (`debugPrint`, stripped in release). Swap the body for
-/// Sentry/Crashlytics when there's a backend for it. `ProviderObserver` is an
-/// `abstract base class`, hence the `final` subclass.
+/// Two sinks: `debugPrint` (stripped in release, useful for desktop decor dev)
+/// and Crashlytics as a *non-fatal* report on mobile. The platform guard is
+/// load-bearing — Crashlytics has no desktop backend and `Firebase` is only
+/// initialised on Android/iOS (see `main.dart`), so calling it elsewhere would
+/// itself throw. `ProviderObserver` is an `abstract base class`, hence `final`.
 final class ProviderErrorLogger extends ProviderObserver {
   const ProviderErrorLogger();
 
@@ -19,5 +24,13 @@ final class ProviderErrorLogger extends ProviderObserver {
     StackTrace stackTrace,
   ) {
     debugPrint('[provider error] ${context.provider}: $error');
+    if (Platform.isAndroid || Platform.isIOS) {
+      FirebaseCrashlytics.instance.recordError(
+        error,
+        stackTrace,
+        reason: 'provider ${context.provider}',
+        fatal: false,
+      );
+    }
   }
 }
