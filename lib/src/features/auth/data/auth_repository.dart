@@ -27,6 +27,15 @@ class SupabaseAuthRepository implements AuthRepository {
       // signing the user in. Must be allow-listed in Supabase auth config.
       emailRedirectTo: DeepLinks.loginCallback,
     );
+    // Supabase enforces unique emails, so a duplicate account is impossible.
+    // But with confirmation on, signing up an already-registered (confirmed)
+    // email doesn't error — to avoid leaking which emails exist, it returns an
+    // obfuscated user with an empty `identities` list. Detect that and raise
+    // the "already registered" error (mapped to a friendly message) instead of
+    // wrongly showing the "check your inbox" screen.
+    if (res.user?.identities?.isEmpty ?? false) {
+      throw const AuthException('User already registered');
+    }
     // No session means email confirmation is required before signing in.
     return res.session == null;
   }
