@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-"""Batch: split every `base.png` under assets/photo into parallax layers.
+"""Batch: split every `base.png` into parallax layers.
 
 Loads the depth model once, then processes all scenes. Case-insensitive on the
 `base.png` name. Re-run any time you add new base images.
+
+NOTE (asset pipeline): the shipped layers in `assets/photo/<env>/<variant>/` are
+**downscaled WebP** (`0.webp … N.webp`, ~1280px, alpha preserved) to keep the
+APK small — the full-res `base.png` sources now live OUT of the bundle under
+`tools/depth_split/_src/<env>/<variant>/base.png`. Pass that as the root, e.g.
+`python split_all.py tools/depth_split/_src`, then convert/downscale the emitted
+PNG layers to WebP into `assets/photo/...` (see CREDITS/build notes). TODO: fold
+the downscale+WebP export and the source→assets path mapping into split_layers.
 
 Usage:
     python split_all.py [photo_root] [--layers 3] [--feather 6]
