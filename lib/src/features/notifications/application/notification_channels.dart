@@ -31,7 +31,8 @@ const AndroidNotificationChannel _thoughtsChannel = AndroidNotificationChannel(
 Future<void> ensureThoughtsChannel() async {
   final android = FlutterLocalNotificationsPlugin()
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+        AndroidFlutterLocalNotificationsPlugin
+      >();
   // Remove superseded channels (a channel's sound is immutable once created)
   // so the current water-drop sound applies on devices that had an old one.
   for (final id in _supersededChannelIds) {

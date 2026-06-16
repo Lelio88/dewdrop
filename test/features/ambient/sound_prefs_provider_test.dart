@@ -21,9 +21,9 @@ void main() {
         },
       },
     });
-    final container = ProviderContainer(overrides: [
-      myProfileProvider.overrideWith((ref) async => profile),
-    ]);
+    final container = ProviderContainer(
+      overrides: [myProfileProvider.overrideWith((ref) async => profile)],
+    );
     addTearDown(container.dispose);
 
     await container.read(myProfileProvider.future); // resolve before seeding
@@ -34,9 +34,9 @@ void main() {
   });
 
   test('defaults to empty prefs when there is no profile', () async {
-    final container = ProviderContainer(overrides: [
-      myProfileProvider.overrideWith((ref) async => null),
-    ]);
+    final container = ProviderContainer(
+      overrides: [myProfileProvider.overrideWith((ref) async => null)],
+    );
     addTearDown(container.dispose);
     await container.read(myProfileProvider.future);
 
@@ -44,35 +44,35 @@ void main() {
   });
 
   test('setEnv updates the live state', () async {
-    final container = ProviderContainer(overrides: [
-      myProfileProvider.overrideWith((ref) async => null),
-    ]);
+    final container = ProviderContainer(
+      overrides: [myProfileProvider.overrideWith((ref) async => null)],
+    );
     addTearDown(container.dispose);
     await container.read(myProfileProvider.future);
     container.read(soundPrefsProvider); // build
 
-    container.read(soundPrefsProvider.notifier).setEnv(
-          'space',
-          const EnvSoundPref(amb: LayerPref(vol: 0.2)),
-        );
+    container
+        .read(soundPrefsProvider.notifier)
+        .setEnv('space', const EnvSoundPref(amb: LayerPref(vol: 0.2)));
 
     expect(container.read(soundPrefsProvider).forEnv('space').amb.vol, 0.2);
   });
 
   test('setEnv persists to the repository, debounced', () async {
     final repo = FakeProfileRepository();
-    final container = ProviderContainer(overrides: [
-      myProfileProvider.overrideWith((ref) async => null),
-      profileRepositoryProvider.overrideWithValue(repo),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        myProfileProvider.overrideWith((ref) async => null),
+        profileRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
     addTearDown(container.dispose);
     await container.read(myProfileProvider.future);
     container.read(soundPrefsProvider);
 
-    container.read(soundPrefsProvider.notifier).setEnv(
-          'desert',
-          const EnvSoundPref(mus: LayerPref(on: false)),
-        );
+    container
+        .read(soundPrefsProvider.notifier)
+        .setEnv('desert', const EnvSoundPref(mus: LayerPref(on: false)));
 
     expect(repo.savedSoundPrefs, isNull, reason: 'debounced — not saved yet');
     await Future.delayed(const Duration(milliseconds: 800));

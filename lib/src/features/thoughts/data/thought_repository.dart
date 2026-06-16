@@ -18,10 +18,13 @@ List<ReceivedThought> mapReceivedThoughts(
     for (final r in rows)
       ReceivedThought(
         id: r['id'] as String,
-        createdAt: DateTime.tryParse(r['created_at']?.toString() ?? '') ??
+        createdAt:
+            DateTime.tryParse(r['created_at']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         isAnonymous: r['is_anonymous'] == true,
-        sender: r['is_anonymous'] == true ? null : profilesBySenderId[r['sender_id']],
+        sender: r['is_anonymous'] == true
+            ? null
+            : profilesBySenderId[r['sender_id']],
       ),
   ];
 }
@@ -68,7 +71,9 @@ class SupabaseThoughtRepository implements ThoughtRepository {
     // (not null) so every event is a distinct value that re-notifies listeners.
     final controller = StreamController<int>();
     var tick = 0;
-    final channel = _client.channel('thoughts:incoming:$_uid').onPostgresChanges(
+    final channel = _client
+        .channel('thoughts:incoming:$_uid')
+        .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'thoughts',

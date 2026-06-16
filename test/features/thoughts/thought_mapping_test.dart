@@ -5,17 +5,23 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final bob = Profile.fromMap({'id': 's1', 'handle': 'bob'});
 
-  Map<String, dynamic> row(String id, String sender,
-          {required bool anon, Object? createdAt = '2026-06-16T10:00:00.000Z'}) =>
-      {
-        'id': id,
-        'sender_id': sender,
-        'is_anonymous': anon,
-        'created_at': createdAt,
-      };
+  Map<String, dynamic> row(
+    String id,
+    String sender, {
+    required bool anon,
+    Object? createdAt = '2026-06-16T10:00:00.000Z',
+  }) => {
+    'id': id,
+    'sender_id': sender,
+    'is_anonymous': anon,
+    'created_at': createdAt,
+  };
 
   test('a named thought keeps its sender', () {
-    final out = mapReceivedThoughts([row('t1', 's1', anon: false)], {'s1': bob});
+    final out = mapReceivedThoughts(
+      [row('t1', 's1', anon: false)],
+      {'s1': bob},
+    );
     expect(out.single.isAnonymous, false);
     expect(out.single.sender, bob);
   });
@@ -28,10 +34,22 @@ void main() {
   });
 
   test('masking is strict: only is_anonymous == true masks', () {
-    final out = mapReceivedThoughts([
-      {'id': 't1', 'sender_id': 's1', 'created_at': '2026-06-16T10:00:00Z'}, // absent
-      {'id': 't2', 'sender_id': 's1', 'is_anonymous': false, 'created_at': '2026-06-16T10:00:00Z'},
-    ], {'s1': bob});
+    final out = mapReceivedThoughts(
+      [
+        {
+          'id': 't1',
+          'sender_id': 's1',
+          'created_at': '2026-06-16T10:00:00Z',
+        }, // absent
+        {
+          'id': 't2',
+          'sender_id': 's1',
+          'is_anonymous': false,
+          'created_at': '2026-06-16T10:00:00Z',
+        },
+      ],
+      {'s1': bob},
+    );
     expect(out.every((t) => !t.isAnonymous), true);
     expect(out.every((t) => t.sender == bob), true);
   });
@@ -46,15 +64,21 @@ void main() {
       [row('t1', 's1', anon: false, createdAt: null)],
       {'s1': bob},
     );
-    expect(out.single.createdAt, DateTime.fromMillisecondsSinceEpoch(0, isUtc: true));
+    expect(
+      out.single.createdAt,
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
   });
 
   test('preserves row order', () {
-    final out = mapReceivedThoughts([
-      row('a', 's1', anon: false),
-      row('b', 's1', anon: true),
-      row('c', 's1', anon: false),
-    ], {'s1': bob});
+    final out = mapReceivedThoughts(
+      [
+        row('a', 's1', anon: false),
+        row('b', 's1', anon: true),
+        row('c', 's1', anon: false),
+      ],
+      {'s1': bob},
+    );
     expect(out.map((t) => t.id), ['a', 'b', 'c']);
   });
 }

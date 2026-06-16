@@ -50,7 +50,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _persist() async {
     final tz = _quiet ? await _deviceTz() : null;
-    await ref.read(profileRepositoryProvider).updateSettings(
+    await ref
+        .read(profileRepositoryProvider)
+        .updateSettings(
           defaultAnonymous: _anonymous,
           quietStart: _quiet ? _start : null,
           quietEnd: _quiet ? _end : null,
@@ -107,8 +109,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     unawaited(_persist());
                   },
                   title: const Text('Envoyer anonymement par défaut'),
-                  subtitle: Text("Tes amis verront « Quelqu'un a pensé à toi ».",
-                      style: TextStyle(color: w.withValues(alpha: 0.5))),
+                  subtitle: Text(
+                    "Tes amis verront « Quelqu'un a pensé à toi ».",
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -125,19 +129,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         unawaited(_persist());
                       },
                       title: const Text('Ne pas déranger'),
-                      subtitle: Text('Aucune notification pendant ce créneau.',
-                          style: TextStyle(color: w.withValues(alpha: 0.5))),
+                      subtitle: Text(
+                        'Aucune notification pendant ce créneau.',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
                     ),
                     if (_quiet)
                       Padding(
                         padding: const EdgeInsets.only(top: 4, bottom: 12),
                         child: Row(
                           children: [
-                            Text('De', style: TextStyle(color: w.withValues(alpha: 0.7))),
+                            Text(
+                              'De',
+                              style: TextStyle(color: w.withValues(alpha: 0.7)),
+                            ),
                             const SizedBox(width: 10),
                             _hourChip(w, _start, () => _pickHour(true)),
                             const SizedBox(width: 14),
-                            Text('à', style: TextStyle(color: w.withValues(alpha: 0.7))),
+                            Text(
+                              'à',
+                              style: TextStyle(color: w.withValues(alpha: 0.7)),
+                            ),
                             const SizedBox(width: 10),
                             _hourChip(w, _end, () => _pickHour(false)),
                           ],
@@ -153,10 +165,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('À propos & crédits'),
-                  subtitle: Text('Mentions légales, attributions, licences',
-                      style: TextStyle(color: w.withValues(alpha: 0.5))),
-                  trailing: Icon(Icons.chevron_right,
-                      color: w.withValues(alpha: 0.4)),
+                  subtitle: Text(
+                    'Mentions légales, attributions, licences',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.4),
+                  ),
                   onTap: () => context.push('/about'),
                 ),
               ),
@@ -166,13 +182,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 w,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.delete_outline,
-                      color: Color(0xFFFF6B5A)),
-                  title: const Text('Supprimer mon compte',
-                      style: TextStyle(color: Color(0xFFFF6B5A))),
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Color(0xFFFF6B5A),
+                  ),
+                  title: const Text(
+                    'Supprimer mon compte',
+                    style: TextStyle(color: Color(0xFFFF6B5A)),
+                  ),
                   subtitle: Text(
-                      'Efface définitivement ton compte et tes données',
-                      style: TextStyle(color: w.withValues(alpha: 0.5))),
+                    'Efface définitivement ton compte et tes données',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
                   onTap: _confirmDelete,
                 ),
               ),
@@ -189,16 +210,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer ton compte ?'),
         content: const Text(
-            'Cette action est irréversible : ton compte, tes amis et toutes '
-            'tes pensées seront définitivement supprimés.'),
+          'Cette action est irréversible : ton compte, tes amis et toutes '
+          'tes pensées seront définitivement supprimés.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Supprimer',
-                  style: TextStyle(color: Color(0xFFFF6B5A)))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(color: Color(0xFFFF6B5A)),
+            ),
+          ),
         ],
       ),
     );
@@ -210,42 +236,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await auth.deleteAccount();
       // The router redirect handles navigation once the session is gone.
     } on Exception catch (_) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Suppression impossible pour le moment.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Suppression impossible pour le moment.')),
+      );
     }
   }
 
   Widget _section(Color w, String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8, left: 4),
-        child: Text(t,
-            style: TextStyle(
-                fontSize: 13,
-                letterSpacing: 0.6,
-                fontWeight: FontWeight.w600,
-                color: w.withValues(alpha: 0.6))),
-      );
+    padding: const EdgeInsets.only(bottom: 8, left: 4),
+    child: Text(
+      t,
+      style: TextStyle(
+        fontSize: 13,
+        letterSpacing: 0.6,
+        fontWeight: FontWeight.w600,
+        color: w.withValues(alpha: 0.6),
+      ),
+    ),
+  );
 
   Widget _card(Color w, {required Widget child}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          color: w.withValues(alpha: 0.06),
-          border: Border.all(color: w.withValues(alpha: 0.12)),
-        ),
-        child: child,
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      color: w.withValues(alpha: 0.06),
+      border: Border.all(color: w.withValues(alpha: 0.12)),
+    ),
+    child: child,
+  );
 
   Widget _hourChip(Color w, int hour, VoidCallback onTap) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: w.withValues(alpha: 0.12),
-            border: Border.all(color: w.withValues(alpha: 0.2)),
-          ),
-          child: Text('${hour.toString().padLeft(2, '0')}h',
-              style: TextStyle(color: w, fontWeight: FontWeight.w600)),
-        ),
-      );
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: w.withValues(alpha: 0.12),
+        border: Border.all(color: w.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        '${hour.toString().padLeft(2, '0')}h',
+        style: TextStyle(color: w, fontWeight: FontWeight.w600),
+      ),
+    ),
+  );
 }

@@ -32,14 +32,19 @@ void showMyQrSheet(BuildContext context, String handle) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Mon QR code',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500)),
+            const Text(
+              'Mon QR code',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text("Fais-le scanner pour qu'on t'ajoute",
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+            Text(
+              "Fais-le scanner pour qu'on t'ajoute",
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+            ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
@@ -50,11 +55,14 @@ void showMyQrSheet(BuildContext context, String handle) {
               child: QrImageView(data: encodeInvite(handle), size: 220),
             ),
             const SizedBox(height: 16),
-            Text('@$handle',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              '@$handle',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
             // Loin du QR : un lien partageable (SMS, messagerie) qui rouvre
             // l'app sur une demande d'ami. Ne marche que si l'app est installée.
@@ -70,8 +78,10 @@ void showMyQrSheet(BuildContext context, String handle) {
                 }
               },
               icon: const Icon(Icons.link_rounded, color: Colors.white70),
-              label: const Text('Copier mon lien d\'invitation',
-                  style: TextStyle(color: Colors.white70)),
+              label: const Text(
+                'Copier mon lien d\'invitation',
+                style: TextStyle(color: Colors.white70),
+              ),
             ),
           ],
         ),

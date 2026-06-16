@@ -25,8 +25,7 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
   @override
   void initState() {
     super.initState();
-    _anonymous =
-        ref.read(myProfileProvider).value?.defaultAnonymous ?? false;
+    _anonymous = ref.read(myProfileProvider).value?.defaultAnonymous ?? false;
   }
 
   Future<void> _send() async {
@@ -39,8 +38,9 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
     } on Exception catch (_) {
       if (!mounted) return;
       setState(() => _sending = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Échec de l'envoi.")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Échec de l'envoi.")));
     }
   }
 
@@ -78,24 +78,41 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-              Icon(Icons.auto_awesome, color: w.withValues(alpha: 0.85), size: 30),
+              Icon(
+                Icons.auto_awesome,
+                color: w.withValues(alpha: 0.85),
+                size: 30,
+              ),
               const SizedBox(height: 12),
-              Text('Envoyer une pensée',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: w)),
+              Text(
+                'Envoyer une pensée',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                  color: w,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('à $name',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: w.withValues(alpha: 0.7))),
+              Text(
+                'à $name',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: w.withValues(alpha: 0.7)),
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(Icons.visibility_off_outlined,
-                      color: w.withValues(alpha: 0.7), size: 20),
+                  Icon(
+                    Icons.visibility_off_outlined,
+                    color: w.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Envoyer anonymement',
-                        style: TextStyle(color: w.withValues(alpha: 0.85))),
+                    child: Text(
+                      'Envoyer anonymement',
+                      style: TextStyle(color: w.withValues(alpha: 0.85)),
+                    ),
                   ),
                   Switch(
                     value: _anonymous,

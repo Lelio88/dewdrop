@@ -34,7 +34,9 @@ void main() {
 
     await svc.register('u1');
     repo.emitRefresh('tok-2');
-    await Future.delayed(const Duration(milliseconds: 10)); // let the listener fire
+    await Future.delayed(
+      const Duration(milliseconds: 10),
+    ); // let the listener fire
 
     expect(repo.saved, [('u1', 'tok-1'), ('u1', 'tok-2')]);
   });

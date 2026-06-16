@@ -66,19 +66,31 @@ TreeShape buildTree(math.Random rng, TreeStyle style) {
     segs.add(_Seg(start, end, width));
     if (-end.dy > maxUp) maxUp = -end.dy;
     if (d <= style.clusterDepth) {
-      clus.add(_Clu(end, len * style.clusterScale, rng.nextInt(style.foliage.length)));
+      clus.add(
+        _Clu(end, len * style.clusterScale, rng.nextInt(style.foliage.length)),
+      );
     }
     if (d <= 0) return;
     for (var i = 0; i < style.branches; i++) {
       final base = (i - (style.branches - 1) / 2) * style.spread;
       final jit = (rng.nextDouble() - 0.5) * style.jitter;
-      grow(end, angle + base + jit, len * style.lenDecay,
-          width * style.widthDecay, d - 1);
+      grow(
+        end,
+        angle + base + jit,
+        len * style.lenDecay,
+        width * style.widthDecay,
+        d - 1,
+      );
     }
   }
 
-  grow(Offset.zero, (rng.nextDouble() - 0.5) * 0.1, style.initialLen,
-      style.initialWidth, style.depth);
+  grow(
+    Offset.zero,
+    (rng.nextDouble() - 0.5) * 0.1,
+    style.initialLen,
+    style.initialWidth,
+    style.depth,
+  );
   return TreeShape(segs, clus, maxUp <= 0 ? 1 : maxUp);
 }
 
@@ -117,14 +129,21 @@ void drawTree(
     final center = tp(c.c);
     final r = (c.r * k).clamp(3.0, 400.0);
     final base0 = Color.lerp(style.foliage[c.shade], hazeColor, haze * 0.85)!;
-    canvas.drawCircle(center, r, Paint()..color = base0.withValues(alpha: 0.96));
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()..color = base0.withValues(alpha: 0.96),
+    );
     // soft top-left highlight for volume
     canvas.drawCircle(
       center.translate(-r * 0.28, -r * 0.28),
       r * 0.55,
       Paint()
-        ..color =
-            Color.lerp(base0, Colors.white, 0.16)!.withValues(alpha: 0.5 * (1 - haze)),
+        ..color = Color.lerp(
+          base0,
+          Colors.white,
+          0.16,
+        )!.withValues(alpha: 0.5 * (1 - haze)),
     );
   }
 }

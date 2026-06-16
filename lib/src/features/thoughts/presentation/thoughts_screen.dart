@@ -31,14 +31,19 @@ class ThoughtsScreen extends ConsumerWidget {
             onRefresh: () async => ref.invalidate(receivedThoughtsProvider),
             child: received.when(
               loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white54,
+                ),
               ),
               error: (_, _) => ListView(
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text('Impossible de charger tes pensées.',
-                        style: TextStyle(color: w.withValues(alpha: 0.6))),
+                    child: Text(
+                      'Impossible de charger tes pensées.',
+                      style: TextStyle(color: w.withValues(alpha: 0.6)),
+                    ),
                   ),
                 ],
               ),
@@ -59,42 +64,54 @@ class ThoughtsScreen extends ConsumerWidget {
   }
 
   Widget _emptyState(Color w) => ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 120),
-            child: Column(
-              children: [
-                Icon(Icons.auto_awesome_outlined,
-                    size: 48, color: w.withValues(alpha: 0.3)),
-                const SizedBox(height: 16),
-                Text('Aucune pensée pour le moment.',
-                    style: TextStyle(color: w.withValues(alpha: 0.5))),
-                const SizedBox(height: 6),
-                Text('Elles apparaîtront ici quand un ami pensera à toi.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: w.withValues(alpha: 0.35), fontSize: 13)),
-              ],
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 120),
+        child: Column(
+          children: [
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 48,
+              color: w.withValues(alpha: 0.3),
             ),
-          ),
-        ],
-      );
+            const SizedBox(height: 16),
+            Text(
+              'Aucune pensée pour le moment.',
+              style: TextStyle(color: w.withValues(alpha: 0.5)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Elles apparaîtront ici quand un ami pensera à toi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: w.withValues(alpha: 0.35), fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 
   Widget _tile(Color w, ReceivedThought t) {
     final who = t.isAnonymous
         ? "Quelqu'un"
         : (t.sender?.displayName?.isNotEmpty == true
-            ? t.sender!.displayName!
-            : '@${t.sender?.handle ?? '?'}');
+              ? t.sender!.displayName!
+              : '@${t.sender?.handle ?? '?'}');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       leading: CircleAvatar(
         backgroundColor: w.withValues(alpha: 0.12),
-        child: Icon(t.isAnonymous ? Icons.help_outline : Icons.favorite,
-            color: w.withValues(alpha: 0.8), size: 20),
+        child: Icon(
+          t.isAnonymous ? Icons.help_outline : Icons.favorite,
+          color: w.withValues(alpha: 0.8),
+          size: 20,
+        ),
       ),
       title: Text('$who a pensé à toi'),
-      subtitle: Text(_ago(t.createdAt),
-          style: TextStyle(color: w.withValues(alpha: 0.5))),
+      subtitle: Text(
+        _ago(t.createdAt),
+        style: TextStyle(color: w.withValues(alpha: 0.5)),
+      ),
     );
   }
 

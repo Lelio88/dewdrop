@@ -20,7 +20,12 @@ import 'package:flutter/services.dart';
 /// shower of staggered shooting stars (night) or a dense, multi-wave petal
 /// cascade (dawn). Pure Canvas.
 class MountainDecor extends StatefulWidget {
-  const MountainDecor({super.key, this.variant = 0, this.reception, this.child});
+  const MountainDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+  });
 
   final int variant;
   final ReceptionSignal? reception;
@@ -59,25 +64,25 @@ class _MountainDecorState extends State<MountainDecor>
   }
 
   List<_MStar> _genStars() => List.generate(150, (_) {
-        return _MStar(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble() * 0.5,
-          r: 0.4 + _rng.nextDouble() * 1.5,
-          phase: _rng.nextDouble() * math.pi * 2,
-          twinkle: 0.3 + _rng.nextDouble() * 0.7,
-        );
-      });
+    return _MStar(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble() * 0.5,
+      r: 0.4 + _rng.nextDouble() * 1.5,
+      phase: _rng.nextDouble() * math.pi * 2,
+      twinkle: 0.3 + _rng.nextDouble() * 0.7,
+    );
+  });
 
   List<_Flower> _genFlowers() => List.generate(90, (_) {
-        final t = _rng.nextDouble();
-        return _Flower(
-          x: _rng.nextDouble(),
-          y: 0.76 + t * 0.22,
-          r: 1.5 + (1 - t) * 1.0 + _rng.nextDouble() * 1.5,
-          color: _flowerColor(_rng),
-          phase: _rng.nextDouble() * math.pi * 2,
-        );
-      });
+    final t = _rng.nextDouble();
+    return _Flower(
+      x: _rng.nextDouble(),
+      y: 0.76 + t * 0.22,
+      r: 1.5 + (1 - t) * 1.0 + _rng.nextDouble() * 1.5,
+      color: _flowerColor(_rng),
+      phase: _rng.nextDouble() * math.pi * 2,
+    );
+  });
 
   void _tap() {
     _model.burst = _model.time;
@@ -115,12 +120,19 @@ class _MountainDecorState extends State<MountainDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(child: CustomPaint(painter: _MountainBgPainter(cfg, _flowers))),
+          child: RepaintBoundary(
+            child: CustomPaint(painter: _MountainBgPainter(cfg, _flowers)),
+          ),
         ),
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
-              painter: _MountainFxPainter(model: _model, cfg: cfg, stars: _stars, flowers: _flowers),
+              painter: _MountainFxPainter(
+                model: _model,
+                cfg: cfg,
+                stars: _stars,
+                flowers: _flowers,
+              ),
             ),
           ),
         ),
@@ -182,7 +194,11 @@ const _night = _MountainConfig(
 // across the width, and [seed] flavours its random scatter so each looks
 // distinct. The painter derives its own progress from `time - start`.
 class _ShowerBurst {
-  const _ShowerBurst({required this.start, required this.lane, required this.seed});
+  const _ShowerBurst({
+    required this.start,
+    required this.lane,
+    required this.seed,
+  });
   final double start;
   final int lane;
   final int seed;
@@ -197,7 +213,11 @@ class _MountainModel extends ChangeNotifier {
   // know when a burst can be dropped. Shooting stars live ~1.2s, petals ~1.6s.
   static const double burstLifetime = 1.6;
 
-  void addShowerBurst({required double start, required int lane, required int seed}) {
+  void addShowerBurst({
+    required double start,
+    required int lane,
+    required int seed,
+  }) {
     bursts.add(_ShowerBurst(start: start, lane: lane, seed: seed));
   }
 
@@ -211,7 +231,13 @@ class _MountainModel extends ChangeNotifier {
 }
 
 class _MStar {
-  const _MStar({required this.x, required this.y, required this.r, required this.phase, required this.twinkle});
+  const _MStar({
+    required this.x,
+    required this.y,
+    required this.r,
+    required this.phase,
+    required this.twinkle,
+  });
   final double x;
   final double y;
   final double r;
@@ -220,7 +246,13 @@ class _MStar {
 }
 
 class _Flower {
-  const _Flower({required this.x, required this.y, required this.r, required this.color, required this.phase});
+  const _Flower({
+    required this.x,
+    required this.y,
+    required this.r,
+    required this.color,
+    required this.phase,
+  });
   final double x;
   final double y;
   final double r;
@@ -237,13 +269,21 @@ double _tri(double x) {
 // Jagged mountain ridge across the width, peaks at vertical [baseY] (fraction
 // of h) reaching up by [amp]. [freq] scales how many peaks (and how sharp).
 // Layered triangle waves give pointed alpine crests rather than round humps.
-Path _peakPath(double w, double h, double baseY, double amp, double shift, double freq) {
+Path _peakPath(
+  double w,
+  double h,
+  double baseY,
+  double amp,
+  double shift,
+  double freq,
+) {
   final path = Path()..moveTo(0, h);
   path.lineTo(0, baseY * h);
   const steps = 96;
   for (var i = 0; i <= steps; i++) {
     final xN = i / steps;
-    final jag = 0.55 * _tri(xN * (3.0 * freq) + shift) +
+    final jag =
+        0.55 * _tri(xN * (3.0 * freq) + shift) +
         0.30 * _tri(xN * (6.0 * freq) + shift * 1.7) +
         0.15 * _tri(xN * (11.0 * freq) + shift * 0.6);
     final y = baseY - amp * jag;
@@ -287,18 +327,44 @@ class _MountainBgPainter extends CustomPainter {
         h * 0.26,
         Paint()
           ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.radial(
-            sunPos,
-            h * 0.26,
-            const [Color(0x66FFE0C0), Color(0x00FFE0C0)],
-          ),
+          ..shader = ui.Gradient.radial(sunPos, h * 0.26, const [
+            Color(0x66FFE0C0),
+            Color(0x00FFE0C0),
+          ]),
       );
     }
 
     // Mountain ranges, far (hazy) to near.
-    _paintRange(canvas, w, h, baseY: 0.46, amp: 0.20, shift: 0.5, sharp: 1.6, depth: 0.65);
-    _paintRange(canvas, w, h, baseY: 0.52, amp: 0.26, shift: 2.4, sharp: 1.3, depth: 0.30);
-    _paintRange(canvas, w, h, baseY: 0.58, amp: 0.22, shift: 4.1, sharp: 1.1, depth: 0.0);
+    _paintRange(
+      canvas,
+      w,
+      h,
+      baseY: 0.46,
+      amp: 0.20,
+      shift: 0.5,
+      sharp: 1.6,
+      depth: 0.65,
+    );
+    _paintRange(
+      canvas,
+      w,
+      h,
+      baseY: 0.52,
+      amp: 0.26,
+      shift: 2.4,
+      sharp: 1.3,
+      depth: 0.30,
+    );
+    _paintRange(
+      canvas,
+      w,
+      h,
+      baseY: 0.58,
+      amp: 0.22,
+      shift: 4.1,
+      sharp: 1.1,
+      depth: 0.0,
+    );
 
     if (!cfg.night) {
       // Sea of fog in the valley + a band of pine forest below the peaks.
@@ -317,14 +383,25 @@ class _MountainBgPainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset(w / 2, h * 0.45),
           size.longestSide * 0.82,
-          [const Color(0x00000000), cfg.night ? const Color(0x66060B20) : const Color(0x2E2A1E26)],
+          [
+            const Color(0x00000000),
+            cfg.night ? const Color(0x66060B20) : const Color(0x2E2A1E26),
+          ],
           const [0.5, 1.0],
         ),
     );
   }
 
-  void _paintRange(Canvas canvas, double w, double h,
-      {required double baseY, required double amp, required double shift, required double sharp, required double depth}) {
+  void _paintRange(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double baseY,
+    required double amp,
+    required double shift,
+    required double sharp,
+    required double depth,
+  }) {
     final path = _peakPath(w, h, baseY, amp, shift, sharp);
     final rock = Color.lerp(cfg.rock, cfg.skyHorizon, depth * 0.55)!;
     canvas.drawPath(
@@ -352,7 +429,13 @@ class _MountainBgPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _paintPineBand(Canvas canvas, double w, double h, double yN, Color color) {
+  void _paintPineBand(
+    Canvas canvas,
+    double w,
+    double h,
+    double yN,
+    Color color,
+  ) {
     final rng = math.Random(31);
     final y = yN * h;
     for (var i = 0; i < 60; i++) {
@@ -373,15 +456,18 @@ class _MountainBgPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTRB(0, 0.72 * h, w, h),
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, 0.72 * h),
-          Offset(0, h),
-          const [Color(0xFF4E7A3C), Color(0xFF2A4A24)],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, 0.72 * h), Offset(0, h), const [
+          Color(0xFF4E7A3C),
+          Color(0xFF2A4A24),
+        ]),
     );
     // Flowers are drawn statically here; the fx layer adds a gentle sway.
     for (final f in flowers) {
-      canvas.drawCircle(Offset(f.x * w, f.y * h), f.r, Paint()..color = f.color);
+      canvas.drawCircle(
+        Offset(f.x * w, f.y * h),
+        f.r,
+        Paint()..color = f.color,
+      );
     }
   }
 
@@ -391,7 +477,10 @@ class _MountainBgPainter extends CustomPainter {
       ..lineTo(0, 0.82 * h);
     for (var i = 0; i <= 20; i++) {
       final xN = i / 20;
-      final y = 0.82 - 0.06 * math.sin(xN * math.pi * 1.3 + 0.5) - 0.02 * math.sin(xN * 7);
+      final y =
+          0.82 -
+          0.06 * math.sin(xN * math.pi * 1.3 + 0.5) -
+          0.02 * math.sin(xN * 7);
       path.lineTo(xN * w, y * h);
     }
     path
@@ -400,11 +489,10 @@ class _MountainBgPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, 0.74 * h),
-          Offset(0, h),
-          const [Color(0xFFB8C8E4), Color(0xFF3A4866)],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, 0.74 * h), Offset(0, h), const [
+          Color(0xFFB8C8E4),
+          Color(0xFF3A4866),
+        ]),
     );
   }
 
@@ -444,7 +532,9 @@ class _MountainBgPainter extends CustomPainter {
         Paint()
           ..blendMode = BlendMode.plus
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
-          ..color = const Color(0xFFC2CEF2).withValues(alpha: 0.05 + rng.nextDouble() * 0.05),
+          ..color = const Color(
+            0xFFC2CEF2,
+          ).withValues(alpha: 0.05 + rng.nextDouble() * 0.05),
       );
     }
     canvas.restore();
@@ -455,8 +545,12 @@ class _MountainBgPainter extends CustomPainter {
 }
 
 class _MountainFxPainter extends CustomPainter {
-  _MountainFxPainter({required this.model, required this.cfg, required this.stars, required this.flowers})
-      : super(repaint: model);
+  _MountainFxPainter({
+    required this.model,
+    required this.cfg,
+    required this.stars,
+    required this.flowers,
+  }) : super(repaint: model);
 
   final _MountainModel model;
   final _MountainConfig cfg;
@@ -482,7 +576,14 @@ class _MountainFxPainter extends CustomPainter {
       _paintShootingStar(canvas, w, h, start: model.burst, lane: 2, seed: 0);
       // Reception shower: a staggered volley of stars across all lanes.
       for (final b in model.bursts) {
-        _paintShootingStar(canvas, w, h, start: b.start, lane: b.lane, seed: b.seed);
+        _paintShootingStar(
+          canvas,
+          w,
+          h,
+          start: b.start,
+          lane: b.lane,
+          seed: b.seed,
+        );
       }
     } else {
       // Drifting sea-of-fog ribbons in the valley.
@@ -491,9 +592,15 @@ class _MountainFxPainter extends CustomPainter {
         final drift = (time * (0.01 + i * 0.004) + i * 0.3) % 1.2 - 0.1;
         final cx = drift * w;
         canvas.drawOval(
-          Rect.fromCenter(center: Offset(cx, baseY), width: w * 0.7, height: h * 0.05),
+          Rect.fromCenter(
+            center: Offset(cx, baseY),
+            width: w * 0.7,
+            height: h * 0.05,
+          ),
           Paint()
-            ..color = Colors.white.withValues(alpha: 0.10 + 0.04 * math.sin(time * 0.5 + i))
+            ..color = Colors.white.withValues(
+              alpha: 0.10 + 0.04 * math.sin(time * 0.5 + i),
+            )
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
         );
       }
@@ -511,15 +618,29 @@ class _MountainFxPainter extends CustomPainter {
       // Reception shower: each staggered burst is a denser petal cascade,
       // its column offset by the lane so the waves don't stack into one blob.
       for (final b in model.bursts) {
-        _paintPetalFlurry(canvas, w, h, start: b.start, seed: b.seed, count: 40, lane: b.lane);
+        _paintPetalFlurry(
+          canvas,
+          w,
+          h,
+          start: b.start,
+          seed: b.seed,
+          count: 40,
+          lane: b.lane,
+        );
       }
     }
   }
 
   // One shooting star streaking from upper-left to mid-right. [lane] shifts the
   // trajectory across the sky and tilts its descent so a volley fans out.
-  void _paintShootingStar(Canvas canvas, double w, double h,
-      {required double start, required int lane, required int seed}) {
+  void _paintShootingStar(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double start,
+    required int lane,
+    required int seed,
+  }) {
     final t = (model.time - start) / 1.2;
     if (t < 0 || t > 1) return;
     final rng = math.Random(seed);
@@ -538,15 +659,24 @@ class _MountainFxPainter extends CustomPainter {
       Paint()
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
-        ..shader = ui.Gradient.linear(
-            tail, head, [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)]),
+        ..shader = ui.Gradient.linear(tail, head, [
+          const Color(0x00FFFFFF),
+          Color.fromRGBO(255, 255, 255, fade),
+        ]),
     );
   }
 
   // A flurry of falling petals fading over 1.6s. [count] controls density and
   // [lane] nudges the horizontal spread so successive shower waves don't align.
-  void _paintPetalFlurry(Canvas canvas, double w, double h,
-      {required double start, required int seed, required int count, int lane = 0}) {
+  void _paintPetalFlurry(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double start,
+    required int seed,
+    required int count,
+    int lane = 0,
+  }) {
     final sp = (1 - (model.time - start) / 1.6).clamp(0.0, 1.0);
     if (sp <= 0) return;
     final rng = math.Random(seed);

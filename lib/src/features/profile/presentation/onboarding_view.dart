@@ -58,10 +58,14 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
       if (!mounted) return;
       // TOCTOU: someone grabbed the handle between the check and the insert →
       // the unique-constraint violation (Postgres 23505) means "taken".
-      final taken = e.toString().contains('23505') ||
+      final taken =
+          e.toString().contains('23505') ||
           e.toString().toLowerCase().contains('duplicate');
-      setState(() =>
-          _error = taken ? 'Ce handle est déjà pris.' : 'Une erreur est survenue.');
+      setState(
+        () => _error = taken
+            ? 'Ce handle est déjà pris.'
+            : 'Une erreur est survenue.',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -88,13 +92,19 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
                       'Crée ton profil',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.w500, color: white),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
+                        color: white,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Ton pseudo est affiché ; ton @handle sert à te trouver.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: white.withValues(alpha: 0.7), fontSize: 13),
+                      style: TextStyle(
+                        color: white.withValues(alpha: 0.7),
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 22),
                     GlassTextField(
@@ -116,9 +126,13 @@ class _OnboardingViewState extends ConsumerState<OnboardingView> {
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),
-                      Text(_error!,
-                          style: const TextStyle(
-                              color: Color(0xFFFFB4A8), fontSize: 13)),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: Color(0xFFFFB4A8),
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 20),
                     GlassButton(

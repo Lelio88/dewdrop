@@ -9,6 +9,7 @@ abstract interface class AuthRepository {
   Session? get currentSession;
   User? get currentUser;
   Stream<AuthState> authStateChanges();
+
   /// Signs up. Returns `true` when the account still needs to confirm its email
   /// before it can sign in (no active session yet); `false` when it's signed in
   /// immediately (email confirmation disabled).
