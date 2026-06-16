@@ -19,6 +19,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _passwordFocus = FocusNode();
   bool _isSignUp = false;
   bool _loading = false;
+  bool _showPassword = false;
   String? _error;
 
   @override
@@ -105,10 +106,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       controller: _password,
                       hint: 'Mot de passe',
                       icon: Icons.lock_outline,
-                      obscure: true,
+                      obscure: !_showPassword,
                       focusNode: _passwordFocus,
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _submit(),
+                      suffix: IconButton(
+                        onPressed: () =>
+                            setState(() => _showPassword = !_showPassword),
+                        icon: Icon(
+                          _showPassword
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: white.withValues(alpha: 0.6),
+                          size: 20,
+                        ),
+                        tooltip: _showPassword
+                            ? 'Masquer le mot de passe'
+                            : 'Afficher le mot de passe',
+                      ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
