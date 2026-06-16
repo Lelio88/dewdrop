@@ -54,7 +54,9 @@ void main() {
   group('parseRenderMode', () {
     test('drawn', () => expect(parseRenderMode('drawn'), RenderMode.drawn));
     test('photo', () => expect(parseRenderMode('photo'), RenderMode.photo));
-    test('unknown defaults to photo', () =>
-        expect(parseRenderMode('whatever'), RenderMode.photo));
+    test(
+      'unknown defaults to photo',
+      () => expect(parseRenderMode('whatever'), RenderMode.photo),
+    );
   });
 }

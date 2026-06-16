@@ -59,7 +59,8 @@ class _PhotoDecorState extends State<PhotoDecor>
   @override
   void didUpdateWidget(PhotoDecor old) {
     super.didUpdateWidget(old);
-    if (old.environment != widget.environment || old.variant != widget.variant) {
+    if (old.environment != widget.environment ||
+        old.variant != widget.variant) {
       _overlay = _overlayFor(widget.environment, widget.variant);
       _particles = _genParticles();
       _layers = const [];
@@ -70,11 +71,12 @@ class _PhotoDecorState extends State<PhotoDecor>
   Future<void> _loadLayers() async {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final prefix = 'assets/photo/${widget.environment.name}/${widget.variant}/';
-    final layers = manifest
-        .listAssets()
-        .where((a) => a.startsWith(prefix) && _isLayer(a))
-        .toList()
-      ..sort();
+    final layers =
+        manifest
+            .listAssets()
+            .where((a) => a.startsWith(prefix) && _isLayer(a))
+            .toList()
+          ..sort();
     if (!mounted) return;
     setState(() => _layers = layers);
   }
@@ -91,7 +93,10 @@ class _PhotoDecorState extends State<PhotoDecor>
     _lastTick = now;
     _model.time = now;
 
-    final auto = Offset(math.sin(now * 0.06) * 0.05, math.cos(now * 0.05) * 0.03);
+    final auto = Offset(
+      math.sin(now * 0.06) * 0.05,
+      math.cos(now * 0.05) * 0.03,
+    );
     final target = auto + _tilt.look;
     final k = 1 - math.exp(-dt * 3);
     _model.look = Offset.lerp(_model.look, target, k)!;
@@ -122,7 +127,9 @@ class _PhotoDecorState extends State<PhotoDecor>
       _particles.add(
         _Particle(
           x: _rng.nextDouble(),
-          y: rise ? 1.05 + _rng.nextDouble() * 0.1 : -0.05 - _rng.nextDouble() * 0.18,
+          y: rise
+              ? 1.05 + _rng.nextDouble() * 0.1
+              : -0.05 - _rng.nextDouble() * 0.18,
           size: _pSize(_overlay.kind) * 1.1,
           speed: _pSpeed(_overlay.kind) * 1.8 + 0.05,
           phase: _rng.nextDouble() * math.pi * 2,
@@ -139,33 +146,33 @@ class _PhotoDecorState extends State<PhotoDecor>
   }
 
   List<_Particle> _genParticles() => List.generate(_overlay.count, (_) {
-        return _Particle(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          size: _pSize(_overlay.kind),
-          speed: _pSpeed(_overlay.kind),
-          phase: _rng.nextDouble() * math.pi * 2,
-          rot: _rng.nextDouble() * math.pi * 2,
-          rotSpeed: (_rng.nextDouble() - 0.5) * 1.6,
-          swayAmp: 0.005 + _rng.nextDouble() * 0.02,
-          twinkleSpeed: 0.5 + _rng.nextDouble() * 1.5,
-          fixed: _overlay.kind == _PKind.star,
-          ephemeral: false,
-        );
-      });
+    return _Particle(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble(),
+      size: _pSize(_overlay.kind),
+      speed: _pSpeed(_overlay.kind),
+      phase: _rng.nextDouble() * math.pi * 2,
+      rot: _rng.nextDouble() * math.pi * 2,
+      rotSpeed: (_rng.nextDouble() - 0.5) * 1.6,
+      swayAmp: 0.005 + _rng.nextDouble() * 0.02,
+      twinkleSpeed: 0.5 + _rng.nextDouble() * 1.5,
+      fixed: _overlay.kind == _PKind.star,
+      ephemeral: false,
+    );
+  });
 
   double _pSize(_PKind kind) => switch (kind) {
-        _PKind.bubble => 1.5 + _rng.nextDouble() * 4,
-        _PKind.leaf || _PKind.petal => 3 + _rng.nextDouble() * 5,
-        _PKind.star || _PKind.dust || _PKind.spore => 0.8 + _rng.nextDouble() * 1.8,
-      };
+    _PKind.bubble => 1.5 + _rng.nextDouble() * 4,
+    _PKind.leaf || _PKind.petal => 3 + _rng.nextDouble() * 5,
+    _PKind.star || _PKind.dust || _PKind.spore => 0.8 + _rng.nextDouble() * 1.8,
+  };
 
   double _pSpeed(_PKind kind) => switch (kind) {
-        _PKind.bubble => 0.04 + _rng.nextDouble() * 0.06,
-        _PKind.leaf || _PKind.petal => 0.03 + _rng.nextDouble() * 0.05,
-        _PKind.spore || _PKind.dust => 0.01 + _rng.nextDouble() * 0.03,
-        _PKind.star => 0,
-      };
+    _PKind.bubble => 0.04 + _rng.nextDouble() * 0.06,
+    _PKind.leaf || _PKind.petal => 0.03 + _rng.nextDouble() * 0.05,
+    _PKind.spore || _PKind.dust => 0.01 + _rng.nextDouble() * 0.03,
+    _PKind.star => 0,
+  };
 
   @override
   void dispose() {
@@ -232,20 +239,23 @@ class _Overlay {
 }
 
 _Overlay _overlayFor(Environment env, int variant) => switch (env) {
-      Environment.space => const _Overlay(_PKind.star, Color(0xFFFFFFFF), 70),
-      Environment.underwater =>
-        const _Overlay(_PKind.bubble, Color(0xFFCFEFFF), 16),
-      Environment.forest => switch (variant) {
-          0 => const _Overlay(_PKind.leaf, Color(0xFFB8A24E), 24),
-          1 => const _Overlay(_PKind.petal, Color(0xFFFFC2DC), 28),
-          _ => const _Overlay(_PKind.spore, Color(0xFFE8F0C0), 22),
-        },
-      Environment.beach => const _Overlay(_PKind.dust, Color(0xFFFFF2D8), 18),
-      Environment.library => const _Overlay(_PKind.dust, Color(0xFFFFE0A8), 30),
-      Environment.mountain => const _Overlay(_PKind.dust, Color(0xFFFFFFFF), 20),
-      Environment.desert => const _Overlay(_PKind.star, Color(0xFFEAF2FF), 40),
-      Environment.aurora => const _Overlay(_PKind.dust, Color(0xFFEAF6FF), 34),
-    };
+  Environment.space => const _Overlay(_PKind.star, Color(0xFFFFFFFF), 70),
+  Environment.underwater => const _Overlay(
+    _PKind.bubble,
+    Color(0xFFCFEFFF),
+    16,
+  ),
+  Environment.forest => switch (variant) {
+    0 => const _Overlay(_PKind.leaf, Color(0xFFB8A24E), 24),
+    1 => const _Overlay(_PKind.petal, Color(0xFFFFC2DC), 28),
+    _ => const _Overlay(_PKind.spore, Color(0xFFE8F0C0), 22),
+  },
+  Environment.beach => const _Overlay(_PKind.dust, Color(0xFFFFF2D8), 18),
+  Environment.library => const _Overlay(_PKind.dust, Color(0xFFFFE0A8), 30),
+  Environment.mountain => const _Overlay(_PKind.dust, Color(0xFFFFFFFF), 20),
+  Environment.desert => const _Overlay(_PKind.star, Color(0xFFEAF2FF), 40),
+  Environment.aurora => const _Overlay(_PKind.dust, Color(0xFFEAF6FF), 34),
+};
 
 class _Particle {
   _Particle({
@@ -276,7 +286,7 @@ class _Particle {
 
 class _OverlayPainter extends CustomPainter {
   _OverlayPainter(this.model, this.particles, this.overlay)
-      : super(repaint: model);
+    : super(repaint: model);
 
   final _PhotoModel model;
   final List<_Particle> particles;
@@ -299,10 +309,16 @@ class _OverlayPainter extends CustomPainter {
         case _PKind.spore:
           final tw = 0.5 + 0.5 * math.sin(time * p.twinkleSpeed + p.phase);
           final a = (0.7 * tw).clamp(0.0, 1.0);
-          canvas.drawCircle(Offset(px, py), p.size * 2.4,
-              Paint()..color = color.withValues(alpha: a * 0.18));
-          canvas.drawCircle(Offset(px, py), p.size,
-              Paint()..color = color.withValues(alpha: a));
+          canvas.drawCircle(
+            Offset(px, py),
+            p.size * 2.4,
+            Paint()..color = color.withValues(alpha: a * 0.18),
+          );
+          canvas.drawCircle(
+            Offset(px, py),
+            p.size,
+            Paint()..color = color.withValues(alpha: a),
+          );
         case _PKind.bubble:
           canvas.drawCircle(
             Offset(px, py),
@@ -312,8 +328,11 @@ class _OverlayPainter extends CustomPainter {
               ..strokeWidth = 1
               ..color = color.withValues(alpha: 0.55),
           );
-          canvas.drawCircle(Offset(px - p.size * 0.3, py - p.size * 0.3),
-              p.size * 0.28, Paint()..color = Colors.white.withValues(alpha: 0.6));
+          canvas.drawCircle(
+            Offset(px - p.size * 0.3, py - p.size * 0.3),
+            p.size * 0.28,
+            Paint()..color = Colors.white.withValues(alpha: 0.6),
+          );
         case _PKind.leaf:
         case _PKind.petal:
           canvas.save();
@@ -358,7 +377,8 @@ const Map<String, double> _depthStrengthByEnv = {
   'aurora': 0.9,
 };
 
-double _depthStrengthFor(Environment env) => _depthStrengthByEnv[env.name] ?? 1.0;
+double _depthStrengthFor(Environment env) =>
+    _depthStrengthByEnv[env.name] ?? 1.0;
 
 /// Each image layer shifts by an amount proportional to its depth (front
 /// layers move most), scaled by the decor's [strength]. Layers are slightly
@@ -387,7 +407,8 @@ class _ImageParallax extends StatelessWidget {
             for (var i = 0; i < layers.length; i++)
               Transform.translate(
                 // Back layer (0) stays anchored; front layers move the most.
-                offset: model.look *
+                offset:
+                    model.look *
                     (layers.length == 1 ? 0.4 : i / (layers.length - 1)) *
                     _maxShift *
                     strength,
@@ -421,8 +442,12 @@ class _PlaceholderScene extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CustomPaint(painter: _PlaceholderPainter(model, _paletteFor(environment))),
-        Center(child: _InfoCard(environment: environment, variant: variant)),
+        CustomPaint(
+          painter: _PlaceholderPainter(model, _paletteFor(environment)),
+        ),
+        Center(
+          child: _InfoCard(environment: environment, variant: variant),
+        ),
       ],
     );
   }
@@ -452,21 +477,37 @@ class _InfoCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.photo_library_outlined,
-                  color: white.withValues(alpha: 0.85), size: 26),
+              Icon(
+                Icons.photo_library_outlined,
+                color: white.withValues(alpha: 0.85),
+                size: 26,
+              ),
               const SizedBox(height: 12),
-              Text('Mode Photo',
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w600, color: white)),
+              Text(
+                'Mode Photo',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: white,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('${environment.label} · V${variant + 1}',
-                  style:
-                      TextStyle(fontSize: 13, color: white.withValues(alpha: 0.7))),
+              Text(
+                '${environment.label} · V${variant + 1}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: white.withValues(alpha: 0.7),
+                ),
+              ),
               const SizedBox(height: 14),
-              Text('Dépose 3–5 images (PNG, fond → avant) :',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 12.5, color: white.withValues(alpha: 0.8))),
+              Text(
+                'Dépose 3–5 images (PNG, fond → avant) :',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: white.withValues(alpha: 0.8),
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
                 'assets/photo/${environment.name}/$variant/',
@@ -511,8 +552,11 @@ class _PlaceholderPainter extends CustomPainter {
     final mid = Offset(lx * 16, ly * 10);
     for (var i = 0; i < 5; i++) {
       final cx = (i + 0.5) / 5 * w + mid.dx;
-      canvas.drawCircle(Offset(cx, h * 0.45 + mid.dy), h * 0.18,
-          Paint()..color = palette.mid.withValues(alpha: 0.5));
+      canvas.drawCircle(
+        Offset(cx, h * 0.45 + mid.dy),
+        h * 0.18,
+        Paint()..color = palette.mid.withValues(alpha: 0.5),
+      );
     }
 
     final fg = Offset(lx * 30, ly * 18);
@@ -538,20 +582,52 @@ class _Palette {
 }
 
 _Palette _paletteFor(Environment env) => switch (env) {
-      Environment.space => const _Palette(
-          Color(0xFF101830), Color(0xFF05050C), Color(0xFF3A3A6A), Color(0xFF02030A)),
-      Environment.underwater => const _Palette(
-          Color(0xFF1C7FA0), Color(0xFF02101A), Color(0xFF2E6E82), Color(0xFF021018)),
-      Environment.forest => const _Palette(
-          Color(0xFF6E8E4E), Color(0xFF16200E), Color(0xFF3C5A2A), Color(0xFF0C140A)),
-      Environment.beach => const _Palette(
-          Color(0xFF7EC8E3), Color(0xFFE3C48E), Color(0xFFBFA878), Color(0xFF8A6A44)),
-      Environment.library => const _Palette(
-          Color(0xFF3A2A1E), Color(0xFF140D08), Color(0xFF6A4A2A), Color(0xFF0A0604)),
-      Environment.mountain => const _Palette(
-          Color(0xFFE5A6A0), Color(0xFF243A52), Color(0xFF5A7088), Color(0xFF0E1622)),
-      Environment.desert => const _Palette(
-          Color(0xFF2A2440), Color(0xFF1A1208), Color(0xFF5A4A2A), Color(0xFF12100A)),
-      Environment.aurora => const _Palette(
-          Color(0xFF0A1530), Color(0xFF0E2240), Color(0xFF2A8CFF), Color(0xFF16263F)),
-    };
+  Environment.space => const _Palette(
+    Color(0xFF101830),
+    Color(0xFF05050C),
+    Color(0xFF3A3A6A),
+    Color(0xFF02030A),
+  ),
+  Environment.underwater => const _Palette(
+    Color(0xFF1C7FA0),
+    Color(0xFF02101A),
+    Color(0xFF2E6E82),
+    Color(0xFF021018),
+  ),
+  Environment.forest => const _Palette(
+    Color(0xFF6E8E4E),
+    Color(0xFF16200E),
+    Color(0xFF3C5A2A),
+    Color(0xFF0C140A),
+  ),
+  Environment.beach => const _Palette(
+    Color(0xFF7EC8E3),
+    Color(0xFFE3C48E),
+    Color(0xFFBFA878),
+    Color(0xFF8A6A44),
+  ),
+  Environment.library => const _Palette(
+    Color(0xFF3A2A1E),
+    Color(0xFF140D08),
+    Color(0xFF6A4A2A),
+    Color(0xFF0A0604),
+  ),
+  Environment.mountain => const _Palette(
+    Color(0xFFE5A6A0),
+    Color(0xFF243A52),
+    Color(0xFF5A7088),
+    Color(0xFF0E1622),
+  ),
+  Environment.desert => const _Palette(
+    Color(0xFF2A2440),
+    Color(0xFF1A1208),
+    Color(0xFF5A4A2A),
+    Color(0xFF12100A),
+  ),
+  Environment.aurora => const _Palette(
+    Color(0xFF0A1530),
+    Color(0xFF0E2240),
+    Color(0xFF2A8CFF),
+    Color(0xFF16263F),
+  ),
+};

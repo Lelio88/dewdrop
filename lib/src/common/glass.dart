@@ -82,8 +82,9 @@ class GlassTextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: w.withValues(alpha: 0.5)),
-        prefixIcon:
-            icon == null ? null : Icon(icon, color: w.withValues(alpha: 0.6), size: 20),
+        prefixIcon: icon == null
+            ? null
+            : Icon(icon, color: w.withValues(alpha: 0.6), size: 20),
         suffixIcon: suffix,
         filled: true,
         fillColor: w.withValues(alpha: 0.08),
@@ -130,7 +131,10 @@ class GlassButton extends StatelessWidget {
             ? const SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : Text(
                 label,

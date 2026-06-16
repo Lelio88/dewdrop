@@ -121,10 +121,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFF6B5A).withValues(alpha: 0.14),
+                          color: const Color(
+                            0xFFFF6B5A,
+                          ).withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFFFF6B5A).withValues(alpha: 0.4),
+                            color: const Color(
+                              0xFFFF6B5A,
+                            ).withValues(alpha: 0.4),
                           ),
                         ),
                         child: Row(

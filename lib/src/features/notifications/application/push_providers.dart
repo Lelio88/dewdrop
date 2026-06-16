@@ -8,7 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 final pushRepositoryProvider = Provider<PushRepository>((ref) {
   return FirebasePushRepository(
-      FirebaseMessaging.instance, Supabase.instance.client);
+    FirebaseMessaging.instance,
+    Supabase.instance.client,
+  );
 });
 
 final pushServiceProvider = Provider<PushService>((ref) {

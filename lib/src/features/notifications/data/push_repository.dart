@@ -35,10 +35,11 @@ class FirebasePushRepository implements PushRepository {
   /// `token` column so re-registration is idempotent.
   @override
   Future<void> saveToken(String userId, String token) =>
-      _client.from('devices').upsert(
-        {'user_id': userId, 'token': token, 'platform': _platform},
-        onConflict: 'token',
-      );
+      _client.from('devices').upsert({
+        'user_id': userId,
+        'token': token,
+        'platform': _platform,
+      }, onConflict: 'token');
 
   /// Removes this device's [token] so a signed-out account stops receiving
   /// pushes. Must be called while still authenticated (RLS).

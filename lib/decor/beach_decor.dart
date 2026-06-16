@@ -22,12 +22,7 @@ import 'package:flutter/services.dart';
 /// Fronds are built as explicit tapering polygons (not stroked spokes) so the
 /// palms read as full, lush leaves.
 class BeachDecor extends StatefulWidget {
-  const BeachDecor({
-    super.key,
-    this.variant = 0,
-    this.reception,
-    this.child,
-  });
+  const BeachDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
   final ReceptionSignal? reception;
@@ -100,14 +95,18 @@ class _BeachDecorState extends State<BeachDecor>
     return List<_Ambient>.generate(count, (_) {
       // Spray lives low over the water; fireflies float across the dusk air.
       final y = isDay
-          ? 0.52 + rng.nextDouble() * 0.30 // sea / wet-sand band
+          ? 0.52 +
+                rng.nextDouble() *
+                    0.30 // sea / wet-sand band
           : 0.18 + rng.nextDouble() * 0.52; // air above the horizon
       return _Ambient(
         x: rng.nextDouble(),
         y: y,
         vx: (rng.nextDouble() - 0.5) * (isDay ? 0.05 : 0.012),
         vy: isDay
-            ? -0.010 - rng.nextDouble() * 0.012 // spray lifts faintly upward
+            ? -0.010 -
+                  rng.nextDouble() *
+                      0.012 // spray lifts faintly upward
             : (rng.nextDouble() - 0.5) * 0.010, // fireflies bob both ways
         phase: rng.nextDouble() * math.pi * 2,
         seed: rng.nextDouble(),
@@ -181,7 +180,9 @@ class _BeachDecorState extends State<BeachDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(child: CustomPaint(painter: _BeachBgPainter(cfg))),
+          child: RepaintBoundary(
+            child: CustomPaint(painter: _BeachBgPainter(cfg)),
+          ),
         ),
         Positioned.fill(
           child: RepaintBoundary(
@@ -196,7 +197,10 @@ class _BeachDecorState extends State<BeachDecor>
           ),
         ),
         Positioned.fill(
-          child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: _sparkle),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _sparkle,
+          ),
         ),
         if (widget.child != null) Positioned.fill(child: widget.child!),
       ],
@@ -324,13 +328,16 @@ class _BeachBgPainter extends CustomPainter {
       h * 0.30,
       Paint()
         ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.radial(
-          sunPos,
-          h * 0.30,
-          [cfg.sunGlow.withValues(alpha: 0.6), cfg.sunGlow.withValues(alpha: 0)],
-        ),
+        ..shader = ui.Gradient.radial(sunPos, h * 0.30, [
+          cfg.sunGlow.withValues(alpha: 0.6),
+          cfg.sunGlow.withValues(alpha: 0),
+        ]),
     );
-    canvas.drawCircle(sunPos, h * (cfg.daytime ? 0.05 : 0.055), Paint()..color = cfg.sun);
+    canvas.drawCircle(
+      sunPos,
+      h * (cfg.daytime ? 0.05 : 0.055),
+      Paint()..color = cfg.sun,
+    );
 
     _paintClouds(canvas, w, h);
     _paintIsland(canvas, w, h, hy);
@@ -353,7 +360,10 @@ class _BeachBgPainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           Offset(0, shallowTop),
           Offset(0, sandLine(0) * h),
-          [cfg.shallow.withValues(alpha: 0), cfg.shallow.withValues(alpha: 0.7)],
+          [
+            cfg.shallow.withValues(alpha: 0),
+            cfg.shallow.withValues(alpha: 0.7),
+          ],
         ),
     );
 
@@ -384,10 +394,22 @@ class _BeachBgPainter extends CustomPainter {
     _paintFoliage(canvas, w, h, left: false);
 
     // Palms: a big one on the right, a smaller framing one on the left.
-    _paintCoconutPalm(canvas, w, h,
-        base: Offset(w * 0.84, h * 0.72), top: Offset(w * 0.68, h * 0.16), scale: 1.0);
-    _paintCoconutPalm(canvas, w, h,
-        base: Offset(w * 0.10, h * 0.74), top: Offset(w * 0.21, h * 0.28), scale: 0.6);
+    _paintCoconutPalm(
+      canvas,
+      w,
+      h,
+      base: Offset(w * 0.84, h * 0.72),
+      top: Offset(w * 0.68, h * 0.16),
+      scale: 1.0,
+    );
+    _paintCoconutPalm(
+      canvas,
+      w,
+      h,
+      base: Offset(w * 0.10, h * 0.74),
+      top: Offset(w * 0.21, h * 0.28),
+      scale: 0.6,
+    );
   }
 
   void _paintClouds(Canvas canvas, double w, double h) {
@@ -396,7 +418,11 @@ class _BeachBgPainter extends CustomPainter {
       final cx = (0.10 + i * 0.27) * w;
       final cy = (0.10 + (i.isEven ? 0.05 : 0.13)) * h;
       canvas.drawOval(
-        Rect.fromCenter(center: Offset(cx, cy), width: w * 0.32, height: h * 0.045),
+        Rect.fromCenter(
+          center: Offset(cx, cy),
+          width: w * 0.32,
+          height: h * 0.045,
+        ),
         Paint()
           ..color = col
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
@@ -423,7 +449,11 @@ class _BeachBgPainter extends CustomPainter {
       final top = Offset(px, base - h * 0.082);
       canvas.drawLine(Offset(px, base - h * 0.045), top, palm);
       for (var k = -2; k <= 2; k++) {
-        canvas.drawLine(top, top + Offset(k * w * 0.013, h * 0.006 + (k * k) * h * 0.0012), palm);
+        canvas.drawLine(
+          top,
+          top + Offset(k * w * 0.013, h * 0.006 + (k * k) * h * 0.0012),
+          palm,
+        );
       }
     }
   }
@@ -445,8 +475,18 @@ class _BeachBgPainter extends CustomPainter {
   // Beach props on the dry sand — a starfish and a couple of shells.
   void _paintProps(Canvas canvas, double w, double h) {
     _paintStarfish(canvas, Offset(w * 0.28, h * 0.88), w * 0.045);
-    _paintShell(canvas, Offset(w * 0.46, h * 0.93), w * 0.024, const Color(0xFFF2D6C0));
-    _paintShell(canvas, Offset(w * 0.55, h * 0.84), w * 0.018, const Color(0xFFE7C0CE));
+    _paintShell(
+      canvas,
+      Offset(w * 0.46, h * 0.93),
+      w * 0.024,
+      const Color(0xFFF2D6C0),
+    );
+    _paintShell(
+      canvas,
+      Offset(w * 0.55, h * 0.84),
+      w * 0.018,
+      const Color(0xFFE7C0CE),
+    );
   }
 
   void _paintStarfish(Canvas canvas, Offset c, double r) {
@@ -456,7 +496,9 @@ class _BeachBgPainter extends CustomPainter {
       final outer = c + Offset(math.cos(a), math.sin(a)) * r;
       final a2 = a + math.pi / 5;
       final inner = c + Offset(math.cos(a2), math.sin(a2)) * r * 0.45;
-      i == 0 ? path.moveTo(outer.dx, outer.dy) : path.lineTo(outer.dx, outer.dy);
+      i == 0
+          ? path.moveTo(outer.dx, outer.dy)
+          : path.lineTo(outer.dx, outer.dy);
       path.lineTo(inner.dx, inner.dy);
     }
     path.close();
@@ -465,7 +507,13 @@ class _BeachBgPainter extends CustomPainter {
   }
 
   void _paintShell(Canvas canvas, Offset c, double r, Color col) {
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), math.pi, math.pi, true, Paint()..color = col);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      math.pi,
+      math.pi,
+      true,
+      Paint()..color = col,
+    );
     final ribs = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8
@@ -477,11 +525,18 @@ class _BeachBgPainter extends CustomPainter {
 
   // A lush coconut palm: curved trunk, a cluster of coconuts and a crown of
   // feathered fronds.
-  void _paintCoconutPalm(Canvas canvas, double w, double h,
-      {required Offset base, required Offset top, required double scale}) {
+  void _paintCoconutPalm(
+    Canvas canvas,
+    double w,
+    double h, {
+    required Offset base,
+    required Offset top,
+    required double scale,
+  }) {
     final tw = w * 0.018 * scale;
     final flip = top.dx > base.dx;
-    final ctrlX = base.dx + (top.dx - base.dx) * 0.5 + (flip ? w * 0.03 : -w * 0.03);
+    final ctrlX =
+        base.dx + (top.dx - base.dx) * 0.5 + (flip ? w * 0.03 : -w * 0.03);
     final ctrlY = base.dy + (top.dy - base.dy) * 0.45;
     final trunk = Path()
       ..moveTo(base.dx + tw, base.dy)
@@ -492,11 +547,10 @@ class _BeachBgPainter extends CustomPainter {
     canvas.drawPath(
       trunk,
       Paint()
-        ..shader = ui.Gradient.linear(
-          base,
-          top,
-          [Color.lerp(cfg.trunk, Colors.black, 0.2)!, cfg.trunk],
-        ),
+        ..shader = ui.Gradient.linear(base, top, [
+          Color.lerp(cfg.trunk, Colors.black, 0.2)!,
+          cfg.trunk,
+        ]),
     );
     if (cfg.daytime) {
       final ring = Paint()
@@ -510,7 +564,8 @@ class _BeachBgPainter extends CustomPainter {
     }
 
     // Coconuts under the crown.
-    final coconut = Paint()..color = cfg.daytime ? const Color(0xFF6E4421) : cfg.trunk;
+    final coconut = Paint()
+      ..color = cfg.daytime ? const Color(0xFF6E4421) : cfg.trunk;
     for (final off in [
       Offset(-tw * 1.5, tw * 1.6),
       Offset(tw * 1.7, tw * 1.2),
@@ -535,7 +590,13 @@ class _BeachBgPainter extends CustomPainter {
 
   // One lush feathered frond as an explicit tapering polygon that arcs out and
   // droops, with leaflet strokes (daytime) for a feathered look.
-  void _paintFrond(Canvas canvas, Offset origin, double ang, double len, double droop) {
+  void _paintFrond(
+    Canvas canvas,
+    Offset origin,
+    double ang,
+    double len,
+    double droop,
+  ) {
     final dir = Offset(math.cos(ang), math.sin(ang));
     final perp = Offset(-dir.dy, dir.dx);
     const steps = 12;
@@ -544,9 +605,11 @@ class _BeachBgPainter extends CustomPainter {
     final spine = <Offset>[];
     for (var i = 0; i <= steps; i++) {
       final t = i / steps;
-      final p = origin + dir * (len * t) + Offset(0, len * droop * 0.55 * t * t);
+      final p =
+          origin + dir * (len * t) + Offset(0, len * droop * 0.55 * t * t);
       spine.add(p);
-      final width = len * (0.015 + 0.11 * math.sin(math.pi * math.min(t * 1.15, 1.0)));
+      final width =
+          len * (0.015 + 0.11 * math.sin(math.pi * math.min(t * 1.15, 1.0)));
       left.add(p + perp * width);
       right.add(p - perp * width);
     }
@@ -560,7 +623,11 @@ class _BeachBgPainter extends CustomPainter {
     blade.close();
     canvas.drawPath(
       blade,
-      Paint()..shader = ui.Gradient.linear(spine.first, spine.last, [cfg.frondLit, cfg.frondDark]),
+      Paint()
+        ..shader = ui.Gradient.linear(spine.first, spine.last, [
+          cfg.frondLit,
+          cfg.frondDark,
+        ]),
     );
     if (cfg.daytime) {
       final leaflet = Paint()
@@ -577,7 +644,14 @@ class _BeachBgPainter extends CustomPainter {
   }
 
   // A generic broad leaf polygon (used by the foliage tufts).
-  void _paintLeaf(Canvas canvas, Offset origin, double ang, double len, double maxW, List<Color> grad) {
+  void _paintLeaf(
+    Canvas canvas,
+    Offset origin,
+    double ang,
+    double len,
+    double maxW,
+    List<Color> grad,
+  ) {
     final dir = Offset(math.cos(ang), math.sin(ang));
     final perp = Offset(-dir.dy, dir.dx);
     const steps = 10;
@@ -640,7 +714,11 @@ class _BeachFxPainter extends CustomPainter {
         final wob = math.sin(time * 1.6 + i * 1.1) * (2 + t * 8);
         final a = (0.5 - t * 0.35) * (0.6 + 0.4 * math.sin(time * 3 + i));
         canvas.drawOval(
-          Rect.fromCenter(center: Offset(sunX + wob, y), width: width, height: 2.5 + t * 2),
+          Rect.fromCenter(
+            center: Offset(sunX + wob, y),
+            width: width,
+            height: 2.5 + t * 2,
+          ),
           Paint()..color = cfg.sunGlow.withValues(alpha: a.clamp(0.0, 1.0)),
         );
       }
@@ -689,7 +767,8 @@ class _BeachFxPainter extends CustomPainter {
       final rng = math.Random(3);
       for (var i = 0; i < 24; i++) {
         final x = rng.nextDouble() * w;
-        final y = hy + rng.nextDouble() * (_BeachBgPainter.sandLine(0) * h - hy);
+        final y =
+            hy + rng.nextDouble() * (_BeachBgPainter.sandLine(0) * h - hy);
         canvas.drawCircle(
           Offset(x, y),
           1.5 + rng.nextDouble() * 2,
@@ -790,8 +869,16 @@ class _BeachFxPainter extends CustomPainter {
       final r = 0.8 + p.seed * 1.4;
       final c = Offset(p.x * w, p.y * h);
       // Faint halo for a misty bloom, then a crisp pale core.
-      canvas.drawCircle(c, r * 2.2, Paint()..color = Colors.white.withValues(alpha: a * 0.18));
-      canvas.drawCircle(c, r, Paint()..color = Colors.white.withValues(alpha: a * 0.85));
+      canvas.drawCircle(
+        c,
+        r * 2.2,
+        Paint()..color = Colors.white.withValues(alpha: a * 0.18),
+      );
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()..color = Colors.white.withValues(alpha: a * 0.85),
+      );
     }
   }
 
@@ -812,9 +899,21 @@ class _BeachFxPainter extends CustomPainter {
       final r = 1.1 + p.seed * 1.6;
       final c = Offset(p.x * w, p.y * h);
       // Soft warm halo + a bright gold core — a tiny glowing lantern.
-      canvas.drawCircle(c, r * 3.0, Paint()..color = glow.withValues(alpha: a * 0.22));
-      canvas.drawCircle(c, r * 1.6, Paint()..color = glow.withValues(alpha: a * 0.35));
-      canvas.drawCircle(c, r, Paint()..color = core.withValues(alpha: a * 0.95));
+      canvas.drawCircle(
+        c,
+        r * 3.0,
+        Paint()..color = glow.withValues(alpha: a * 0.22),
+      );
+      canvas.drawCircle(
+        c,
+        r * 1.6,
+        Paint()..color = glow.withValues(alpha: a * 0.35),
+      );
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()..color = core.withValues(alpha: a * 0.95),
+      );
     }
   }
 

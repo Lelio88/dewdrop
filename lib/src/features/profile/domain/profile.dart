@@ -24,7 +24,8 @@ class Profile {
   final int? quietEnd;
   final String? quietTz; // IANA timezone for evaluating quiet hours locally
   final bool defaultAnonymous;
-  final Map<String, dynamic> soundPrefsRaw; // per-decor soundscape customization
+  final Map<String, dynamic>
+  soundPrefsRaw; // per-decor soundscape customization
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
 
@@ -32,16 +33,16 @@ class Profile {
   SoundPrefs get soundPrefs => SoundPrefs.fromJson(soundPrefsRaw);
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
-        id: m['id'] as String,
-        handle: m['handle'] as String?,
-        displayName: m['display_name'] as String?,
-        decor: (m['decor'] as String?) ?? 'space:0',
-        renderMode: (m['render_mode'] as String?) ?? 'photo',
-        quietStart: m['quiet_start'] as int?,
-        quietEnd: m['quiet_end'] as int?,
-        quietTz: m['quiet_tz'] as String?,
-        defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
-        soundPrefsRaw:
-            (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
-      );
+    id: m['id'] as String,
+    handle: m['handle'] as String?,
+    displayName: m['display_name'] as String?,
+    decor: (m['decor'] as String?) ?? 'space:0',
+    renderMode: (m['render_mode'] as String?) ?? 'photo',
+    quietStart: m['quiet_start'] as int?,
+    quietEnd: m['quiet_end'] as int?,
+    quietTz: m['quiet_tz'] as String?,
+    defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
+    soundPrefsRaw:
+        (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
+  );
 }

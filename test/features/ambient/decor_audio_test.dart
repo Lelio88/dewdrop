@@ -7,7 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('every environment has an audio recipe', () {
     for (final e in Environment.values) {
-      expect(kDecorAudio[e.name], isNotNull, reason: 'no audio recipe for ${e.name}');
+      expect(
+        kDecorAudio[e.name],
+        isNotNull,
+        reason: 'no audio recipe for ${e.name}',
+      );
     }
   });
 
@@ -23,8 +27,11 @@ void main() {
       entry.value.secondaries.forEach((key, cat) {
         expect(cat.label, isNotEmpty, reason: '${entry.key}.$key label');
         expect(cat.clips, isNotEmpty, reason: '${entry.key}.$key clips');
-        expect(cat.minGap <= cat.maxGap, true,
-            reason: '${entry.key}.$key minGap must be ≤ maxGap');
+        expect(
+          cat.minGap <= cat.maxGap,
+          true,
+          reason: '${entry.key}.$key minGap must be ≤ maxGap',
+        );
         expect(cat.volume, inInclusiveRange(0.0, 1.0));
       });
     }
@@ -50,6 +57,10 @@ void main() {
       }
     }
 
-    expect(missing, isEmpty, reason: 'missing audio assets:\n${missing.join('\n')}');
+    expect(
+      missing,
+      isEmpty,
+      reason: 'missing audio assets:\n${missing.join('\n')}',
+    );
   });
 }

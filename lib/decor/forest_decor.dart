@@ -67,10 +67,14 @@ class _ForestDecorState extends State<ForestDecor>
   final math.Random _rng = math.Random(31);
 
   late final Ticker _ticker;
-  late final List<TreeShape> _oaks =
-      List.generate(4, (_) => buildTree(_rng, _oakStyle));
-  late final List<TreeShape> _cherries =
-      List.generate(4, (_) => buildTree(_rng, _cherryStyle));
+  late final List<TreeShape> _oaks = List.generate(
+    4,
+    (_) => buildTree(_rng, _oakStyle),
+  );
+  late final List<TreeShape> _cherries = List.generate(
+    4,
+    (_) => buildTree(_rng, _cherryStyle),
+  );
   late final List<_Place> _places = _genPlaces();
   late final List<_Crown> _crowns = _genCrowns();
   late final List<_Leaf> _leaves = _genLeaves();
@@ -194,60 +198,60 @@ class _ForestDecorState extends State<ForestDecor>
   }
 
   List<_Crown> _genCrowns() => List.generate(48, (_) {
-        final y = _rng.nextDouble();
-        final bumps = List.generate(6 + _rng.nextInt(4), (_) {
-          final ang = _rng.nextDouble() * math.pi * 2;
-          final rad = 0.3 + _rng.nextDouble() * 0.5;
-          final dy = -0.2 + math.sin(ang) * rad * 0.7;
-          return _Bump(
-            math.cos(ang) * rad,
-            dy,
-            0.25 + _rng.nextDouble() * 0.3,
-            0.12 + (-dy).clamp(0.0, 1.0) * 0.3,
-          );
-        });
-        return _Crown(
-          x: _rng.nextDouble() * 1.1 - 0.05,
-          y: y,
-          r: 0.05 + y * 0.10 + _rng.nextDouble() * 0.04,
-          shade: _rng.nextDouble(),
-          bumps: bumps,
-        );
-      });
+    final y = _rng.nextDouble();
+    final bumps = List.generate(6 + _rng.nextInt(4), (_) {
+      final ang = _rng.nextDouble() * math.pi * 2;
+      final rad = 0.3 + _rng.nextDouble() * 0.5;
+      final dy = -0.2 + math.sin(ang) * rad * 0.7;
+      return _Bump(
+        math.cos(ang) * rad,
+        dy,
+        0.25 + _rng.nextDouble() * 0.3,
+        0.12 + (-dy).clamp(0.0, 1.0) * 0.3,
+      );
+    });
+    return _Crown(
+      x: _rng.nextDouble() * 1.1 - 0.05,
+      y: y,
+      r: 0.05 + y * 0.10 + _rng.nextDouble() * 0.04,
+      shade: _rng.nextDouble(),
+      bumps: bumps,
+    );
+  });
 
   List<_Leaf> _genLeaves() => List.generate(30, (_) {
-        return _Leaf(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          size: 3 + _rng.nextDouble() * 5,
-          fall: 0.03 + _rng.nextDouble() * 0.05,
-          swayAmp: 0.01 + _rng.nextDouble() * 0.03,
-          rot: _rng.nextDouble() * math.pi * 2,
-          rotSpeed: (_rng.nextDouble() - 0.5) * 2,
-          phase: _rng.nextDouble() * math.pi * 2,
-          ephemeral: false,
-        );
-      });
+    return _Leaf(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble(),
+      size: 3 + _rng.nextDouble() * 5,
+      fall: 0.03 + _rng.nextDouble() * 0.05,
+      swayAmp: 0.01 + _rng.nextDouble() * 0.03,
+      rot: _rng.nextDouble() * math.pi * 2,
+      rotSpeed: (_rng.nextDouble() - 0.5) * 2,
+      phase: _rng.nextDouble() * math.pi * 2,
+      ephemeral: false,
+    );
+  });
 
   List<_Ray> _genRays() => List.generate(5, (_) {
-        return _Ray(
-          x: _rng.nextDouble(),
-          width: 0.04 + _rng.nextDouble() * 0.07,
-          slant: (_rng.nextDouble() - 0.5) * 0.25,
-          phase: _rng.nextDouble() * math.pi * 2,
-        );
-      });
+    return _Ray(
+      x: _rng.nextDouble(),
+      width: 0.04 + _rng.nextDouble() * 0.07,
+      slant: (_rng.nextDouble() - 0.5) * 0.25,
+      phase: _rng.nextDouble() * math.pi * 2,
+    );
+  });
 
   List<_Bird> _genBirds() => List.generate(3, (_) {
-        return _Bird(
-          x: _rng.nextDouble(),
-          y: 0.08 + _rng.nextDouble() * 0.3,
-          dir: _rng.nextBool() ? 1.0 : -1.0,
-          speed: 0.04 + _rng.nextDouble() * 0.03,
-          size: 6 + _rng.nextDouble() * 5,
-          phase: _rng.nextDouble() * math.pi * 2,
-        );
-      });
+    return _Bird(
+      x: _rng.nextDouble(),
+      y: 0.08 + _rng.nextDouble() * 0.3,
+      dir: _rng.nextBool() ? 1.0 : -1.0,
+      speed: 0.04 + _rng.nextDouble() * 0.03,
+      size: 6 + _rng.nextDouble() * 5,
+      phase: _rng.nextDouble() * math.pi * 2,
+    );
+  });
 
   @override
   void dispose() {
@@ -425,7 +429,12 @@ class _Bird {
   final double phase;
 }
 
-const _foliageGreens = [Color(0xFF2E5A2A), Color(0xFF3E6E34), Color(0xFF1E4420), Color(0xFF4E8040)];
+const _foliageGreens = [
+  Color(0xFF2E5A2A),
+  Color(0xFF3E6E34),
+  Color(0xFF1E4420),
+  Color(0xFF4E8040),
+];
 
 class _ForestBgPainter extends CustomPainter {
   const _ForestBgPainter({
@@ -457,12 +466,15 @@ class _ForestBgPainter extends CustomPainter {
     final isCherry = variant == 1;
 
     final skyTop = isCherry ? const Color(0xFF5A3A4E) : const Color(0xFF2A4520);
-    final skyHorizon =
-        isCherry ? const Color(0xFFF2E2C8) : const Color(0xFFCBD89A);
-    final groundFar =
-        isCherry ? const Color(0xFF2E2230) : const Color(0xFF2E3A1E);
-    final groundNear =
-        isCherry ? const Color(0xFF140F18) : const Color(0xFF141C0C);
+    final skyHorizon = isCherry
+        ? const Color(0xFFF2E2C8)
+        : const Color(0xFFCBD89A);
+    final groundFar = isCherry
+        ? const Color(0xFF2E2230)
+        : const Color(0xFF2E3A1E);
+    final groundNear = isCherry
+        ? const Color(0xFF140F18)
+        : const Color(0xFF141C0C);
 
     // Sky (the bright distance seen between the trees).
     canvas.drawRect(
@@ -479,11 +491,10 @@ class _ForestBgPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTRB(0, _horizon * h, w, h),
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, _horizon * h),
-          Offset(0, h),
-          [groundFar, groundNear],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, _horizon * h), Offset(0, h), [
+          groundFar,
+          groundNear,
+        ]),
     );
 
     // The path (dirt) or stream (water base).
@@ -552,11 +563,10 @@ class _ForestBgPainter extends CustomPainter {
       h * 0.26,
       Paint()
         ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.radial(
-          Offset(gx, gy),
-          h * 0.26,
-          [glow.withValues(alpha: 0.5), glow.withValues(alpha: 0)],
-        ),
+        ..shader = ui.Gradient.radial(Offset(gx, gy), h * 0.26, [
+          glow.withValues(alpha: 0.5),
+          glow.withValues(alpha: 0),
+        ]),
     );
   }
 
@@ -564,12 +574,30 @@ class _ForestBgPainter extends CustomPainter {
   void _paintForegroundFrame(Canvas canvas, double w, double h, bool isCherry) {
     // Both oak and cherry photos have big mossy framing trunks.
     final bark = isCherry ? const Color(0xFF3A2E2A) : const Color(0xFF33251A);
-    _bigTrunk(canvas, w, h,
-        cxBottom: 0.13, cxTop: 0.05, wBottom: 0.17, wTop: 0.10,
-        bark: bark, moss: true, mossToward: 1);
-    _bigTrunk(canvas, w, h,
-        cxBottom: 0.9, cxTop: 0.99, wBottom: 0.21, wTop: 0.12,
-        bark: bark, moss: true, mossToward: -1);
+    _bigTrunk(
+      canvas,
+      w,
+      h,
+      cxBottom: 0.13,
+      cxTop: 0.05,
+      wBottom: 0.17,
+      wTop: 0.10,
+      bark: bark,
+      moss: true,
+      mossToward: 1,
+    );
+    _bigTrunk(
+      canvas,
+      w,
+      h,
+      cxBottom: 0.9,
+      cxTop: 0.99,
+      wBottom: 0.21,
+      wTop: 0.12,
+      bark: bark,
+      moss: true,
+      mossToward: -1,
+    );
     _ferns(canvas, w, h, 0.07);
     _ferns(canvas, w, h, 0.9);
   }
@@ -608,7 +636,8 @@ class _ForestBgPainter extends CustomPainter {
     if (moss) {
       for (var i = 0; i < 10; i++) {
         final t = 0.32 + i / 10 * 0.62;
-        final cx = (cb + (ct - cb) * t) +
+        final cx =
+            (cb + (ct - cb) * t) +
             mossToward * hb * 0.45 * (0.6 + 0.4 * math.sin(i * 1.7));
         final y = h * (1 - t);
         final r = hb * (0.32 + 0.26 * (0.5 + 0.5 * math.sin(i * 2.3)));
@@ -616,9 +645,11 @@ class _ForestBgPainter extends CustomPainter {
           Offset(cx, y),
           r,
           Paint()
-            ..color = Color.lerp(const Color(0xFF4E6B2C),
-                    const Color(0xFF6E8C3E), (i % 3) / 2)!
-                .withValues(alpha: 0.8),
+            ..color = Color.lerp(
+              const Color(0xFF4E6B2C),
+              const Color(0xFF6E8C3E),
+              (i % 3) / 2,
+            )!.withValues(alpha: 0.8),
         );
       }
     }
@@ -657,11 +688,10 @@ class _ForestBgPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTRB(0, 0, w, h * 0.5),
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, 0),
-          Offset(0, h * 0.5),
-          const [Color(0x55EAF6C8), Color(0x00EAF6C8)],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, 0), Offset(0, h * 0.5), const [
+          Color(0x55EAF6C8),
+          Color(0x00EAF6C8),
+        ]),
     );
 
     final sorted = [...crowns]..sort((a, b) => a.y.compareTo(b.y)); // far first
@@ -669,12 +699,17 @@ class _ForestBgPainter extends CustomPainter {
       final center = Offset(c.x * w, c.y * h);
       final r = c.r * w;
       final haze = (1 - c.y).clamp(0.0, 1.0) * 0.55;
-      final base =
-          Color.lerp(_foliageGreens[(c.shade * 4).floor().clamp(0, 3)],
-              const Color(0xFFB9D49A), haze)!;
+      final base = Color.lerp(
+        _foliageGreens[(c.shade * 4).floor().clamp(0, 3)],
+        const Color(0xFFB9D49A),
+        haze,
+      )!;
       // underside shadow
-      canvas.drawCircle(center.translate(0, r * 0.2), r,
-          Paint()..color = Color.lerp(base, Colors.black, 0.4)!);
+      canvas.drawCircle(
+        center.translate(0, r * 0.2),
+        r,
+        Paint()..color = Color.lerp(base, Colors.black, 0.4)!,
+      );
       // body
       canvas.drawCircle(center, r, Paint()..color = base);
       // lit bumps (treetop texture)
@@ -726,26 +761,50 @@ class _ForestBgPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTRB(0, h * 0.78, w, h),
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, h * 0.78),
-          Offset(0, h),
-          const [Color(0x000A1A06), Color(0xD607140A)],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, h * 0.78), Offset(0, h), const [
+          Color(0x000A1A06),
+          Color(0xD607140A),
+        ]),
     );
-    _canopyLeaf(canvas, Offset(w * 0.05, h * 0.99), w * 0.36, -0.45,
-        const Color(0xFF14320E));
-    _canopyLeaf(canvas, Offset(w * 0.18, h * 1.03), w * 0.30, -1.15,
-        const Color(0xFF1E4416));
-    _canopyLeaf(canvas, Offset(w * 0.97, h * 0.99), w * 0.38, math.pi + 0.5,
-        const Color(0xFF112E0C));
-    _canopyLeaf(canvas, Offset(w * 0.83, h * 1.03), w * 0.30, math.pi - 1.2,
-        const Color(0xFF1E4416));
+    _canopyLeaf(
+      canvas,
+      Offset(w * 0.05, h * 0.99),
+      w * 0.36,
+      -0.45,
+      const Color(0xFF14320E),
+    );
+    _canopyLeaf(
+      canvas,
+      Offset(w * 0.18, h * 1.03),
+      w * 0.30,
+      -1.15,
+      const Color(0xFF1E4416),
+    );
+    _canopyLeaf(
+      canvas,
+      Offset(w * 0.97, h * 0.99),
+      w * 0.38,
+      math.pi + 0.5,
+      const Color(0xFF112E0C),
+    );
+    _canopyLeaf(
+      canvas,
+      Offset(w * 0.83, h * 1.03),
+      w * 0.30,
+      math.pi - 1.2,
+      const Color(0xFF1E4416),
+    );
     _heliconia(canvas, Offset(w * 0.13, h * 1.0), h * 0.30, false);
     _heliconia(canvas, Offset(w * 0.25, h * 1.03), h * 0.23, true);
   }
 
   void _canopyLeaf(
-      Canvas canvas, Offset base, double len, double angle, Color color) {
+    Canvas canvas,
+    Offset base,
+    double len,
+    double angle,
+    Color color,
+  ) {
     canvas.save();
     canvas.translate(base.dx, base.dy);
     canvas.rotate(angle);
@@ -786,8 +845,11 @@ class _ForestBgPainter extends CustomPainter {
       final y = -height * (0.12 + t * 0.78);
       final side = i.isEven ? 1.0 : -1.0;
       final len = height * (0.34 - t * 0.12);
-      final col =
-          Color.lerp(const Color(0xFFE23A22), const Color(0xFFF59021), t)!;
+      final col = Color.lerp(
+        const Color(0xFFE23A22),
+        const Color(0xFFF59021),
+        t,
+      )!;
       final p = Path()
         ..moveTo(0, y)
         ..lineTo(side * len, y - height * 0.045)
@@ -847,8 +909,9 @@ class _ForestFxPainter extends CustomPainter {
   }
 
   void _paintRays(Canvas canvas, double w, double h, double time) {
-    final rayColor =
-        variant == 1 ? const Color(0xFFFFE0EC) : const Color(0xFFFFF2C0);
+    final rayColor = variant == 1
+        ? const Color(0xFFFFE0EC)
+        : const Color(0xFFFFF2C0);
     for (final r in rays) {
       final sway = math.sin(time * 0.1 + r.phase) * 0.03;
       final topX = (r.x + sway) * w;
@@ -923,10 +986,16 @@ class _ForestFxPainter extends CustomPainter {
       final px = (l.x + math.sin(time * 0.7 + l.phase) * l.swayAmp) * w;
       final py = l.y * h;
       if (kind == 2) {
-        canvas.drawCircle(Offset(px, py), l.size * 0.9,
-            Paint()..color = color.withValues(alpha: 0.18));
-        canvas.drawCircle(Offset(px, py), l.size * 0.4,
-            Paint()..color = color.withValues(alpha: 0.7));
+        canvas.drawCircle(
+          Offset(px, py),
+          l.size * 0.9,
+          Paint()..color = color.withValues(alpha: 0.18),
+        );
+        canvas.drawCircle(
+          Offset(px, py),
+          l.size * 0.4,
+          Paint()..color = color.withValues(alpha: 0.7),
+        );
       } else {
         canvas.save();
         canvas.translate(px, py);

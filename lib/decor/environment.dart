@@ -49,20 +49,44 @@ Widget buildDecor(
   }
   return switch (env) {
     Environment.space => SpaceDecor(
-        variant: SpaceVariant.values[v], reception: reception, child: child),
-    Environment.underwater =>
-      UnderwaterDecor(variant: v, reception: reception, child: child),
-    Environment.forest =>
-      ForestDecor(variant: v, reception: reception, child: child),
-    Environment.beach =>
-      BeachDecor(variant: v, reception: reception, child: child),
-    Environment.library =>
-      LibraryDecor(variant: v, reception: reception, child: child),
-    Environment.mountain =>
-      MountainDecor(variant: v, reception: reception, child: child),
-    Environment.desert =>
-      DesertDecor(variant: v, reception: reception, child: child),
-    Environment.aurora =>
-      AuroraDecor(variant: v, reception: reception, child: child),
+      variant: SpaceVariant.values[v],
+      reception: reception,
+      child: child,
+    ),
+    Environment.underwater => UnderwaterDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.forest => ForestDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.beach => BeachDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.library => LibraryDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.mountain => MountainDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.desert => DesertDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
+    Environment.aurora => AuroraDecor(
+      variant: v,
+      reception: reception,
+      child: child,
+    ),
   };
 }

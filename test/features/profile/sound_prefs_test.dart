@@ -77,8 +77,9 @@ void main() {
     });
 
     test('round-trips ambiance + secondaries through JSON', () {
-      final p = const EnvSoundPref(amb: LayerPref(vol: 0.5))
-          .withSecondary('t', const SecondaryPref(vol: 0.6, freq: 0.3));
+      final p = const EnvSoundPref(
+        amb: LayerPref(vol: 0.5),
+      ).withSecondary('t', const SecondaryPref(vol: 0.6, freq: 0.3));
       final r = EnvSoundPref.fromJson(p.toJson());
       expect(r.amb.vol, 0.5);
       expect(r.sec['t']!.vol, 0.6);
@@ -95,8 +96,10 @@ void main() {
     });
 
     test('withEnv stores per-env prefs without mutating the original', () {
-      final p = SoundPrefs.empty
-          .withEnv('space', const EnvSoundPref(mus: LayerPref(on: false)));
+      final p = SoundPrefs.empty.withEnv(
+        'space',
+        const EnvSoundPref(mus: LayerPref(on: false)),
+      );
       expect(p.forEnv('space').mus.on, false);
       expect(SoundPrefs.empty.byEnv, isEmpty);
     });
@@ -108,10 +111,14 @@ void main() {
     test('full round-trip preserves a customized secondary', () {
       final p = SoundPrefs.empty.withEnv(
         'desert',
-        const EnvSoundPref()
-            .withSecondary('thunder', const SecondaryPref(on: false, vol: 0.4, freq: 0.7)),
+        const EnvSoundPref().withSecondary(
+          'thunder',
+          const SecondaryPref(on: false, vol: 0.4, freq: 0.7),
+        ),
       );
-      final t = SoundPrefs.fromJson(p.toJson()).forEnv('desert').sec['thunder']!;
+      final t = SoundPrefs.fromJson(
+        p.toJson(),
+      ).forEnv('desert').sec['thunder']!;
       expect(t.on, false);
       expect(t.vol, 0.4);
       expect(t.freq, 0.7);

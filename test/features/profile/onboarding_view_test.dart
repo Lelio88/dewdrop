@@ -22,8 +22,11 @@ Future<void> _pump(WidgetTester tester, FakeProfileRepository repo) {
   );
 }
 
-Future<void> _submit(WidgetTester tester,
-    {required String pseudo, required String handle}) async {
+Future<void> _submit(
+  WidgetTester tester, {
+  required String pseudo,
+  required String handle,
+}) async {
   final fields = find.byType(EditableText);
   await tester.enterText(fields.at(0), pseudo); // pseudo
   await tester.enterText(fields.at(1), handle); // handle
@@ -33,8 +36,9 @@ Future<void> _submit(WidgetTester tester,
 }
 
 void main() {
-  testWidgets('rejects a too-short handle without touching the repo',
-      (tester) async {
+  testWidgets('rejects a too-short handle without touching the repo', (
+    tester,
+  ) async {
     final repo = FakeProfileRepository();
     await _pump(tester, repo);
     await _submit(tester, pseudo: 'Lélio', handle: 'ab');

@@ -16,12 +16,7 @@ import 'package:flutter/services.dart';
 /// the aurora curtains (waving) and the tap "flash" animate on top. A "pensée"
 /// (tap) makes the aurora surge brighter. Rendered entirely on the Canvas.
 class AuroraDecor extends StatefulWidget {
-  const AuroraDecor({
-    super.key,
-    this.variant = 0,
-    this.reception,
-    this.child,
-  });
+  const AuroraDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
   final ReceptionSignal? reception;
@@ -154,45 +149,45 @@ class _AuroraDecorState extends State<AuroraDecor>
   }
 
   List<_Star> _genStars() => List.generate(140, (_) {
-        final y = _rng.nextDouble();
-        return _Star(
-          x: _rng.nextDouble(),
-          y: y * 0.72, // stars only in the sky, not the snow
-          r: 0.4 + _rng.nextDouble() * 1.4,
-          phase: _rng.nextDouble() * math.pi * 2,
-          twinkle: 0.25 + _rng.nextDouble() * 0.7,
-        );
-      });
+    final y = _rng.nextDouble();
+    return _Star(
+      x: _rng.nextDouble(),
+      y: y * 0.72, // stars only in the sky, not the snow
+      r: 0.4 + _rng.nextDouble() * 1.4,
+      phase: _rng.nextDouble() * math.pi * 2,
+      twinkle: 0.25 + _rng.nextDouble() * 0.7,
+    );
+  });
 
   List<_Curtain> _genCurtains() => List.generate(5, (i) {
-        return _Curtain(
-          cx: 0.12 + i * 0.19 + _rng.nextDouble() * 0.04,
-          width: 0.16 + _rng.nextDouble() * 0.14,
-          top: 0.01 + _rng.nextDouble() * 0.06,
-          height: 0.40 + _rng.nextDouble() * 0.24,
-          speed: 0.12 + _rng.nextDouble() * 0.18,
-          phase: _rng.nextDouble() * math.pi * 2,
-          waviness: 0.02 + _rng.nextDouble() * 0.035,
-          bright: 0.55 + _rng.nextDouble() * 0.45,
-        );
-      });
+    return _Curtain(
+      cx: 0.12 + i * 0.19 + _rng.nextDouble() * 0.04,
+      width: 0.16 + _rng.nextDouble() * 0.14,
+      top: 0.01 + _rng.nextDouble() * 0.06,
+      height: 0.40 + _rng.nextDouble() * 0.24,
+      speed: 0.12 + _rng.nextDouble() * 0.18,
+      phase: _rng.nextDouble() * math.pi * 2,
+      waviness: 0.02 + _rng.nextDouble() * 0.035,
+      bright: 0.55 + _rng.nextDouble() * 0.45,
+    );
+  });
 
   // ~38 ambient particles — sparse and calm. The same particle data drives both
   // variants; only the tick direction (rise vs fall) and the paint differ, so
   // density and motion feel are shared while the look is genuinely distinct.
   List<_Ambient> _genAmbient() => List.generate(38, (_) {
-        return _Ambient(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          size: 0.8 + _rng.nextDouble() * 1.8,
-          speed: 0.012 + _rng.nextDouble() * 0.028, // fraction of height / sec
-          swayAmp: 0.006 + _rng.nextDouble() * 0.018,
-          swayFreq: 0.4 + _rng.nextDouble() * 0.9,
-          swayPhase: _rng.nextDouble() * math.pi * 2,
-          twPhase: _rng.nextDouble() * math.pi * 2,
-          twSpeed: 1.5 + _rng.nextDouble() * 2.5,
-        );
-      });
+    return _Ambient(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble(),
+      size: 0.8 + _rng.nextDouble() * 1.8,
+      speed: 0.012 + _rng.nextDouble() * 0.028, // fraction of height / sec
+      swayAmp: 0.006 + _rng.nextDouble() * 0.018,
+      swayFreq: 0.4 + _rng.nextDouble() * 0.9,
+      swayPhase: _rng.nextDouble() * math.pi * 2,
+      twPhase: _rng.nextDouble() * math.pi * 2,
+      twSpeed: 1.5 + _rng.nextDouble() * 2.5,
+    );
+  });
 
   @override
   void dispose() {
@@ -378,33 +373,51 @@ class _AuroraBgPainter extends CustomPainter {
     );
 
     // Distant snowy ridges.
-    _ridge(canvas, w, h, baseY: _snowLine, amp: 0.04, color: const Color(0xFF16263F));
-    _ridge(canvas, w, h, baseY: _snowLine + 0.015, amp: 0.025, color: const Color(0xFF22324C));
+    _ridge(
+      canvas,
+      w,
+      h,
+      baseY: _snowLine,
+      amp: 0.04,
+      color: const Color(0xFF16263F),
+    );
+    _ridge(
+      canvas,
+      w,
+      h,
+      baseY: _snowLine + 0.015,
+      amp: 0.025,
+      color: const Color(0xFF22324C),
+    );
 
     // Snowfield, softly lit by the aurora.
     canvas.drawRect(
       Rect.fromLTRB(0, _snowLine * h, w, h),
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, _snowLine * h),
-          Offset(0, h),
-          [
-            Color.lerp(const Color(0xFFAEC4DC), glow, 0.25)!,
-            const Color(0xFF2A3A52),
-          ],
-        ),
+        ..shader = ui.Gradient.linear(Offset(0, _snowLine * h), Offset(0, h), [
+          Color.lerp(const Color(0xFFAEC4DC), glow, 0.25)!,
+          const Color(0xFF2A3A52),
+        ]),
     );
   }
 
-  void _ridge(Canvas canvas, double w, double h,
-      {required double baseY, required double amp, required Color color}) {
+  void _ridge(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double baseY,
+    required double amp,
+    required Color color,
+  }) {
     final path = Path()..moveTo(0, h);
     path.lineTo(0, baseY * h);
     const steps = 14;
     for (var i = 0; i <= steps; i++) {
       final xN = i / steps;
-      final y = (baseY -
-              amp * (0.5 + 0.5 * math.sin(xN * math.pi * 3 + 1.2)) *
+      final y =
+          (baseY -
+              amp *
+                  (0.5 + 0.5 * math.sin(xN * math.pi * 3 + 1.2)) *
                   (0.6 + 0.4 * math.sin(xN * 9))) *
           h;
       path.lineTo(xN * w, y);
@@ -451,7 +464,9 @@ class _AuroraFxPainter extends CustomPainter {
     final starBoost = 1 + burst * 0.9;
     for (final s in stars) {
       final a =
-          s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase)) * starBoost;
+          s.twinkle *
+          (0.55 + 0.45 * math.sin(time * 1.5 + s.phase)) *
+          starBoost;
       canvas.drawCircle(
         Offset(s.x * w, s.y * h),
         s.r * (1 + burst * 0.4),
@@ -485,8 +500,15 @@ class _AuroraFxPainter extends CustomPainter {
     );
   }
 
-  void _paintCurtain(Canvas canvas, double w, double h, double time,
-      _Curtain c, List<Color> cols, double surge) {
+  void _paintCurtain(
+    Canvas canvas,
+    double w,
+    double h,
+    double time,
+    _Curtain c,
+    List<Color> cols,
+    double surge,
+  ) {
     const steps = 16;
     double waveX(double yN) =>
         c.cx +
@@ -508,9 +530,9 @@ class _AuroraFxPainter extends CustomPainter {
 
     final topY = c.top * h;
     final botY = (c.top + c.height) * h;
-    final intensity = (c.bright * (0.7 + 0.3 * math.sin(time * 0.5 + c.phase)) +
-            surge * 0.5)
-        .clamp(0.0, 1.0);
+    final intensity =
+        (c.bright * (0.7 + 0.3 * math.sin(time * 0.5 + c.phase)) + surge * 0.5)
+            .clamp(0.0, 1.0);
 
     canvas.drawPath(
       path,
@@ -539,7 +561,12 @@ class _AuroraFxPainter extends CustomPainter {
   // Kept low-alpha and small so it stays a calm background texture, never
   // competing with the curtains or the reception burst.
   void _paintAmbient(
-      Canvas canvas, double w, double h, double time, List<Color> cols) {
+    Canvas canvas,
+    double w,
+    double h,
+    double time,
+    List<Color> cols,
+  ) {
     if (variant == 1) {
       // Embers: warm magenta glow, additive, twinkling.
       final glow = cols[0]; // magenta
@@ -577,8 +604,9 @@ class _AuroraFxPainter extends CustomPainter {
       final py = p.y * h;
       // Fade flakes gently as they approach the very bottom so they melt into
       // the snowfield instead of popping out at the wrap line.
-      final fade =
-          p.y > _snowLine ? (1 - (p.y - _snowLine) / (1 - _snowLine)) : 1.0;
+      final fade = p.y > _snowLine
+          ? (1 - (p.y - _snowLine) / (1 - _snowLine))
+          : 1.0;
       final a = (0.55 * fade).clamp(0.0, 1.0);
       // Soft outer glow so the flake doesn't look like a hard dot.
       canvas.drawCircle(
@@ -599,7 +627,12 @@ class _AuroraFxPainter extends CustomPainter {
   // aurora colours toward a white-hot core, drawn additively to sit in the same
   // luminous register as the curtains.
   void _paintSparkles(
-      Canvas canvas, double w, double h, double time, List<Color> cols) {
+    Canvas canvas,
+    double w,
+    double h,
+    double time,
+    List<Color> cols,
+  ) {
     for (final s in sparkles) {
       final px = s.x * w;
       final py = s.y * h;

@@ -42,7 +42,8 @@ class SecondaryPref {
   final double vol;
   final double freq;
 
-  SecondaryPref copyWith({bool? on, double? vol, double? freq}) => SecondaryPref(
+  SecondaryPref copyWith({bool? on, double? vol, double? freq}) =>
+      SecondaryPref(
         on: on ?? this.on,
         vol: vol ?? this.vol,
         freq: freq ?? this.freq,
@@ -50,14 +51,16 @@ class SecondaryPref {
 
   Map<String, dynamic> toJson() => {'on': on, 'vol': vol, 'freq': freq};
 
-  factory SecondaryPref.fromJson(Map<String, dynamic>? m, {double defVol = 0.5}) =>
-      m == null
-          ? SecondaryPref(vol: defVol)
-          : SecondaryPref(
-              on: m['on'] as bool? ?? true,
-              vol: (m['vol'] as num?)?.toDouble() ?? defVol,
-              freq: (m['freq'] as num?)?.toDouble() ?? 0.5,
-            );
+  factory SecondaryPref.fromJson(
+    Map<String, dynamic>? m, {
+    double defVol = 0.5,
+  }) => m == null
+      ? SecondaryPref(vol: defVol)
+      : SecondaryPref(
+          on: m['on'] as bool? ?? true,
+          vol: (m['vol'] as num?)?.toDouble() ?? defVol,
+          freq: (m['freq'] as num?)?.toDouble() ?? 0.5,
+        );
 }
 
 /// The soundscape prefs for one environment.
@@ -76,30 +79,32 @@ class EnvSoundPref {
     LayerPref? amb,
     LayerPref? mus,
     Map<String, SecondaryPref>? sec,
-  }) =>
-      EnvSoundPref(amb: amb ?? this.amb, mus: mus ?? this.mus, sec: sec ?? this.sec);
+  }) => EnvSoundPref(
+    amb: amb ?? this.amb,
+    mus: mus ?? this.mus,
+    sec: sec ?? this.sec,
+  );
 
   /// Returns a copy with secondary [key] replaced by [pref].
   EnvSoundPref withSecondary(String key, SecondaryPref pref) =>
       copyWith(sec: {...sec, key: pref});
 
   Map<String, dynamic> toJson() => {
-        'amb': amb.toJson(),
-        'mus': mus.toJson(),
-        if (sec.isNotEmpty)
-          'sec': sec.map((k, v) => MapEntry(k, v.toJson())),
-      };
+    'amb': amb.toJson(),
+    'mus': mus.toJson(),
+    if (sec.isNotEmpty) 'sec': sec.map((k, v) => MapEntry(k, v.toJson())),
+  };
 
   factory EnvSoundPref.fromJson(Map<String, dynamic> m) => EnvSoundPref(
-        amb: LayerPref.fromJson((m['amb'] as Map?)?.cast<String, dynamic>()),
-        mus: LayerPref.fromJson((m['mus'] as Map?)?.cast<String, dynamic>()),
-        sec: ((m['sec'] as Map?)?.cast<String, dynamic>() ?? const {}).map(
-          (k, v) => MapEntry(
-            k,
-            SecondaryPref.fromJson((v as Map?)?.cast<String, dynamic>()),
-          ),
-        ),
-      );
+    amb: LayerPref.fromJson((m['amb'] as Map?)?.cast<String, dynamic>()),
+    mus: LayerPref.fromJson((m['mus'] as Map?)?.cast<String, dynamic>()),
+    sec: ((m['sec'] as Map?)?.cast<String, dynamic>() ?? const {}).map(
+      (k, v) => MapEntry(
+        k,
+        SecondaryPref.fromJson((v as Map?)?.cast<String, dynamic>()),
+      ),
+    ),
+  );
 }
 
 /// All per-decor soundscape prefs.
@@ -116,15 +121,16 @@ class SoundPrefs {
   SoundPrefs withEnv(String env, EnvSoundPref pref) =>
       SoundPrefs({...byEnv, env: pref});
 
-  Map<String, dynamic> toJson() =>
-      byEnv.map((k, v) => MapEntry(k, v.toJson()));
+  Map<String, dynamic> toJson() => byEnv.map((k, v) => MapEntry(k, v.toJson()));
 
   factory SoundPrefs.fromJson(Map<String, dynamic>? m) => m == null
       ? empty
-      : SoundPrefs(m.map(
-          (k, v) => MapEntry(
-            k,
-            EnvSoundPref.fromJson((v as Map).cast<String, dynamic>()),
+      : SoundPrefs(
+          m.map(
+            (k, v) => MapEntry(
+              k,
+              EnvSoundPref.fromJson((v as Map).cast<String, dynamic>()),
+            ),
           ),
-        ));
+        );
 }

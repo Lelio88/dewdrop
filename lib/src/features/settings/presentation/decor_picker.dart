@@ -78,15 +78,22 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Univers',
-                      style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w500, color: w)),
+                  Text(
+                    'Univers',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      color: w,
+                    ),
+                  ),
                   _modeToggle(w),
                 ],
               ),
               const SizedBox(height: 12),
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: media.size.height * 0.62),
+                constraints: BoxConstraints(
+                  maxHeight: media.size.height * 0.62,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,14 +132,21 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
         children: [
           Row(
             children: [
-              Icon(Icons.graphic_eq_rounded, size: 16, color: w.withValues(alpha: 0.7)),
+              Icon(
+                Icons.graphic_eq_rounded,
+                size: 16,
+                color: w.withValues(alpha: 0.7),
+              ),
               const SizedBox(width: 8),
-              Text('Son · ${env.label}',
-                  style: TextStyle(
-                      fontSize: 13,
-                      letterSpacing: 0.4,
-                      fontWeight: FontWeight.w600,
-                      color: w.withValues(alpha: 0.7))),
+              Text(
+                'Son · ${env.label}',
+                style: TextStyle(
+                  fontSize: 13,
+                  letterSpacing: 0.4,
+                  fontWeight: FontWeight.w600,
+                  color: w.withValues(alpha: 0.7),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -141,16 +155,24 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
             label: 'Ambiance',
             on: pref.amb.on,
             vol: pref.amb.vol,
-            onOn: (v) => _update(env.name, pref.copyWith(amb: pref.amb.copyWith(on: v))),
-            onVol: (v) => _update(env.name, pref.copyWith(amb: pref.amb.copyWith(vol: v))),
+            onOn: (v) =>
+                _update(env.name, pref.copyWith(amb: pref.amb.copyWith(on: v))),
+            onVol: (v) => _update(
+              env.name,
+              pref.copyWith(amb: pref.amb.copyWith(vol: v)),
+            ),
           ),
           _track(
             w,
             label: 'Musique',
             on: pref.mus.on,
             vol: pref.mus.vol,
-            onOn: (v) => _update(env.name, pref.copyWith(mus: pref.mus.copyWith(on: v))),
-            onVol: (v) => _update(env.name, pref.copyWith(mus: pref.mus.copyWith(vol: v))),
+            onOn: (v) =>
+                _update(env.name, pref.copyWith(mus: pref.mus.copyWith(on: v))),
+            onVol: (v) => _update(
+              env.name,
+              pref.copyWith(mus: pref.mus.copyWith(vol: v)),
+            ),
           ),
           if (cfg.secondaries.isNotEmpty) divider,
           for (final entry in cfg.secondaries.entries)
@@ -161,7 +183,12 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
   }
 
   Widget _secondaryTrack(
-      String env, String key, SecondaryCat cat, EnvSoundPref pref, Color w) {
+    String env,
+    String key,
+    SecondaryCat cat,
+    EnvSoundPref pref,
+    Color w,
+  ) {
     final sp = pref.sec[key] ?? SecondaryPref(vol: cat.volume);
     return _track(
       w,
@@ -171,7 +198,8 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
       freq: sp.freq,
       onOn: (v) => _update(env, pref.withSecondary(key, sp.copyWith(on: v))),
       onVol: (v) => _update(env, pref.withSecondary(key, sp.copyWith(vol: v))),
-      onFreq: (v) => _update(env, pref.withSecondary(key, sp.copyWith(freq: v))),
+      onFreq: (v) =>
+          _update(env, pref.withSecondary(key, sp.copyWith(freq: v))),
     );
   }
 
@@ -192,10 +220,13 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
           Row(
             children: [
               Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: 13.5,
-                        color: w.withValues(alpha: on ? 0.92 : 0.45))),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: w.withValues(alpha: on ? 0.92 : 0.45),
+                  ),
+                ),
               ),
               SizedBox(
                 height: 26,
@@ -219,10 +250,19 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
     );
   }
 
-  Widget _slider(Color w, IconData icon, double value, ValueChanged<double>? onChanged) {
+  Widget _slider(
+    Color w,
+    IconData icon,
+    double value,
+    ValueChanged<double>? onChanged,
+  ) {
     return Row(
       children: [
-        Icon(icon, size: 15, color: w.withValues(alpha: onChanged == null ? 0.25 : 0.5)),
+        Icon(
+          icon,
+          size: 15,
+          color: w.withValues(alpha: onChanged == null ? 0.25 : 0.5),
+        ),
         Expanded(
           child: SliderTheme(
             data: SliderThemeData(
@@ -271,11 +311,14 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
           borderRadius: BorderRadius.circular(16),
           color: sel ? w.withValues(alpha: 0.22) : Colors.transparent,
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 12.5,
-                color: w.withValues(alpha: sel ? 0.95 : 0.55),
-                fontWeight: sel ? FontWeight.w600 : FontWeight.w400)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            color: w.withValues(alpha: sel ? 0.95 : 0.55),
+            fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
       ),
     );
   }
@@ -291,9 +334,14 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
             child: Row(
               children: [
                 Flexible(
-                  child: Text(env.label,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15, color: w.withValues(alpha: 0.92))),
+                  child: Text(
+                    env.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: w.withValues(alpha: 0.92),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -301,8 +349,12 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
           for (var i = 0; i < env.variantCount; i++)
             Padding(
               padding: const EdgeInsets.only(left: 6),
-              child: _chip(w, 'V${i + 1}',
-                  _sel.$1 == env && _sel.$2 == i, () => _selectVariant(env, i)),
+              child: _chip(
+                w,
+                'V${i + 1}',
+                _sel.$1 == env && _sel.$2 == i,
+                () => _selectVariant(env, i),
+              ),
             ),
         ],
       ),
@@ -320,11 +372,14 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
             color: sel ? w.withValues(alpha: 0.24) : w.withValues(alpha: 0.06),
             border: Border.all(color: w.withValues(alpha: sel ? 0.5 : 0.16)),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 11.5,
-                  color: w.withValues(alpha: sel ? 0.95 : 0.55),
-                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400)),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              color: w.withValues(alpha: sel ? 0.95 : 0.55),
+              fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
         ),
       );
 }

@@ -25,8 +25,14 @@ void main() {
     });
 
     test('returns null for an auth callback link (left to Supabase)', () {
-      expect(DeepLinks.inviteHandle(Uri.parse(DeepLinks.loginCallback)), isNull);
-      expect(DeepLinks.inviteHandle(Uri.parse(DeepLinks.resetPassword)), isNull);
+      expect(
+        DeepLinks.inviteHandle(Uri.parse(DeepLinks.loginCallback)),
+        isNull,
+      );
+      expect(
+        DeepLinks.inviteHandle(Uri.parse(DeepLinks.resetPassword)),
+        isNull,
+      );
     });
 
     test('returns null for a foreign scheme', () {

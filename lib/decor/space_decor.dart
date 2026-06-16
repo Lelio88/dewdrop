@@ -178,24 +178,24 @@ class _SpaceDecorState extends State<SpaceDecor>
   ///  - voidNight ("Nuit noire"): the nebula/debris cool blues + a violet.
   ///  - planets ("Planètes"): the warm sun + planet hues riding the orbits.
   List<Color> _showerTints(SpaceVariant variant) => switch (variant) {
-        SpaceVariant.cosmos => const [
-            Color(0xFFF2F4F8),
-            Color(0xFFEAF2FF),
-            Color(0xFFD6DCEA),
-          ],
-        SpaceVariant.voidNight => const [
-            Color(0xFFCFE0FF), // debris glow
-            Color(0xFF7AB0D8), // nebula blue
-            Color(0xFFB58CD8), // nebula violet
-            Color(0xFFEAF2FF), // bright white
-          ],
-        SpaceVariant.planets => const [
-            Color(0xFFFFF1C8), // sun core
-            Color(0xFFE2C58A), // Vénus
-            Color(0xFF5A86C0), // Terre
-            Color(0xFFD8A86A), // Jupiter
-          ],
-      };
+    SpaceVariant.cosmos => const [
+      Color(0xFFF2F4F8),
+      Color(0xFFEAF2FF),
+      Color(0xFFD6DCEA),
+    ],
+    SpaceVariant.voidNight => const [
+      Color(0xFFCFE0FF), // debris glow
+      Color(0xFF7AB0D8), // nebula blue
+      Color(0xFFB58CD8), // nebula violet
+      Color(0xFFEAF2FF), // bright white
+    ],
+    SpaceVariant.planets => const [
+      Color(0xFFFFF1C8), // sun core
+      Color(0xFFE2C58A), // Vénus
+      Color(0xFF5A86C0), // Terre
+      Color(0xFFD8A86A), // Jupiter
+    ],
+  };
 
   List<_Star3D> _generateStars() {
     return List.generate(_starCount, (_) {
@@ -245,18 +245,18 @@ class _SpaceDecorState extends State<SpaceDecor>
 
   // A sweep of bright dust/debris in the lower-left (for the "nuit noire" photo).
   List<_Debris> _generateDebris() => List.generate(170, (_) {
-        final t = _rng.nextDouble();
-        final bx = t * 0.5;
-        final by = 1.0 - t * 0.42;
-        return _Debris(
-          x: (bx + (_rng.nextDouble() - 0.5) * 0.14).clamp(0.0, 1.0),
-          y: (by + (_rng.nextDouble() - 0.5) * 0.14).clamp(0.0, 1.0),
-          size: 0.5 + _rng.nextDouble() * 1.8,
-          phase: _rng.nextDouble() * math.pi * 2,
-          twinkleSpeed: 0.8 + _rng.nextDouble() * 2.0,
-          bright: 0.4 + _rng.nextDouble() * 0.6,
-        );
-      });
+    final t = _rng.nextDouble();
+    final bx = t * 0.5;
+    final by = 1.0 - t * 0.42;
+    return _Debris(
+      x: (bx + (_rng.nextDouble() - 0.5) * 0.14).clamp(0.0, 1.0),
+      y: (by + (_rng.nextDouble() - 0.5) * 0.14).clamp(0.0, 1.0),
+      size: 0.5 + _rng.nextDouble() * 1.8,
+      phase: _rng.nextDouble() * math.pi * 2,
+      twinkleSpeed: 0.8 + _rng.nextDouble() * 2.0,
+      bright: 0.4 + _rng.nextDouble() * 0.6,
+    );
+  });
 
   @override
   void dispose() {
@@ -308,38 +308,38 @@ class _SpaceDecorState extends State<SpaceDecor>
 }
 
 _SpaceConfig _configFor(SpaceVariant variant) => switch (variant) {
-      // Cosmos = the black-and-white Milky Way photo: monochrome galactic band,
-      // no colour at all.
-      SpaceVariant.cosmos => const _SpaceConfig(
-          base: Color(0xFF030305),
-          showNebulae: false,
-          showPlanets: false,
-          showDebris: false,
-          monochrome: true,
-          solarSystem: false,
-          twinkleDepth: 0.25,
-        ),
-      SpaceVariant.voidNight => const _SpaceConfig(
-          base: Color(0xFF05060E),
-          showNebulae: true,
-          showPlanets: false,
-          showDebris: true,
-          monochrome: false,
-          solarSystem: false,
-          twinkleDepth: 0.38,
-        ),
-      // Planets = the solar-system photo: tilted orbit ellipses, the sun in the
-      // distance, the ordered planets riding their orbits, and a comet.
-      SpaceVariant.planets => const _SpaceConfig(
-          base: Color(0xFF03030A),
-          showNebulae: false,
-          showPlanets: false,
-          showDebris: false,
-          monochrome: false,
-          solarSystem: true,
-          twinkleDepth: 0.25,
-        ),
-    };
+  // Cosmos = the black-and-white Milky Way photo: monochrome galactic band,
+  // no colour at all.
+  SpaceVariant.cosmos => const _SpaceConfig(
+    base: Color(0xFF030305),
+    showNebulae: false,
+    showPlanets: false,
+    showDebris: false,
+    monochrome: true,
+    solarSystem: false,
+    twinkleDepth: 0.25,
+  ),
+  SpaceVariant.voidNight => const _SpaceConfig(
+    base: Color(0xFF05060E),
+    showNebulae: true,
+    showPlanets: false,
+    showDebris: true,
+    monochrome: false,
+    solarSystem: false,
+    twinkleDepth: 0.38,
+  ),
+  // Planets = the solar-system photo: tilted orbit ellipses, the sun in the
+  // distance, the ordered planets riding their orbits, and a comet.
+  SpaceVariant.planets => const _SpaceConfig(
+    base: Color(0xFF03030A),
+    showNebulae: false,
+    showPlanets: false,
+    showDebris: false,
+    monochrome: false,
+    solarSystem: true,
+    twinkleDepth: 0.25,
+  ),
+};
 
 Color _starColor(math.Random rng) {
   final r = rng.nextDouble();
@@ -525,10 +525,12 @@ class _SpacePainter extends CustomPainter {
 
     if (config.showNebulae) {
       for (final n in nebulae) {
-        final nx = (n.center.dx + math.sin(time * 0.03 + n.phase) * n.drift) *
+        final nx =
+            (n.center.dx + math.sin(time * 0.03 + n.phase) * n.drift) *
                 size.width -
             lookX * minDim * 0.2;
-        final ny = (n.center.dy + math.cos(time * 0.025 + n.phase) * n.drift) *
+        final ny =
+            (n.center.dy + math.cos(time * 0.025 + n.phase) * n.drift) *
                 size.height -
             lookY * minDim * 0.2;
         final rad = n.radius * minDim;
@@ -537,11 +539,10 @@ class _SpacePainter extends CustomPainter {
           Offset(nx, ny),
           rad,
           Paint()
-            ..shader = ui.Gradient.radial(
-              Offset(nx, ny),
-              rad,
-              [col, col.withValues(alpha: 0)],
-            ),
+            ..shader = ui.Gradient.radial(Offset(nx, ny), rad, [
+              col,
+              col.withValues(alpha: 0),
+            ]),
         );
       }
     }
@@ -550,11 +551,16 @@ class _SpacePainter extends CustomPainter {
     for (final s in stars) {
       final sx = cx + ((s.x + lookX) / s.z) * _focal * minDim;
       final sy = cy + ((s.y + lookY) / s.z) * _focal * minDim;
-      if (sx < -40 || sx > size.width + 40 || sy < -40 || sy > size.height + 40) {
+      if (sx < -40 ||
+          sx > size.width + 40 ||
+          sy < -40 ||
+          sy > size.height + 40) {
         continue;
       }
 
-      final twinkle = (1 - td) + td * (0.5 + 0.5 * math.sin(time * s.twinkleSpeed + s.phase));
+      final twinkle =
+          (1 - td) +
+          td * (0.5 + 0.5 * math.sin(time * s.twinkleSpeed + s.phase));
       final a = (s.baseAlpha * twinkle).clamp(0.0, 1.0);
       final r = (s.size * _focal / s.z).clamp(0.3, 4.5);
       // In the B&W cosmos every star is a neutral white.
@@ -580,10 +586,16 @@ class _SpacePainter extends CustomPainter {
           d.x * size.width + lookX * size.width * 0.05,
           d.y * size.height + lookY * size.height * 0.05,
         );
-        canvas.drawCircle(c, d.size * 1.8,
-            Paint()..color = const Color(0xFFCFE0FF).withValues(alpha: a * 0.2));
-        canvas.drawCircle(c, d.size,
-            Paint()..color = const Color(0xFFEAF2FF).withValues(alpha: a));
+        canvas.drawCircle(
+          c,
+          d.size * 1.8,
+          Paint()..color = const Color(0xFFCFE0FF).withValues(alpha: a * 0.2),
+        );
+        canvas.drawCircle(
+          c,
+          d.size,
+          Paint()..color = const Color(0xFFEAF2FF).withValues(alpha: a),
+        );
       }
     }
 
@@ -702,13 +714,16 @@ class _SpacePainter extends CustomPainter {
       minDim * 0.16,
       Paint()
         ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.radial(
-          sun,
-          minDim * 0.16,
-          const [Color(0x66FFE6A8), Color(0x00FFE6A8)],
-        ),
+        ..shader = ui.Gradient.radial(sun, minDim * 0.16, const [
+          Color(0x66FFE6A8),
+          Color(0x00FFE6A8),
+        ]),
     );
-    canvas.drawCircle(sun, minDim * 0.026, Paint()..color = const Color(0xFFFFF1C8));
+    canvas.drawCircle(
+      sun,
+      minDim * 0.026,
+      Paint()..color = const Color(0xFFFFF1C8),
+    );
 
     canvas.save();
     canvas.translate(sun.dx, sun.dy);
@@ -729,7 +744,13 @@ class _SpacePainter extends CustomPainter {
 
       // Planet riding the orbit.
       final pos = Offset(math.cos(o.angle) * rx, math.sin(o.angle) * ry);
-      _paintOrbitPlanet(canvas, pos, o.planetRadius * minDim, o.color, o.hasRing);
+      _paintOrbitPlanet(
+        canvas,
+        pos,
+        o.planetRadius * minDim,
+        o.color,
+        o.hasRing,
+      );
     }
 
     canvas.restore();
@@ -785,15 +806,20 @@ class _SpacePainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = rad * 0.18
-      ..color = Color.lerp(color, Colors.white, 0.3)!
-          .withValues(alpha: back ? 0.3 : 0.6);
+      ..color = Color.lerp(
+        color,
+        Colors.white,
+        0.3,
+      )!.withValues(alpha: back ? 0.3 : 0.6);
     canvas.drawArc(rect, back ? math.pi : 0, math.pi, false, paint);
   }
 
   void _paintComet(Canvas canvas, Size size, double minDim, Offset sun) {
     final head = Offset(size.width * 0.80, size.height * 0.20);
     final away = head - sun;
-    final dir = away.distance == 0 ? const Offset(1, -0.4) : away / away.distance;
+    final dir = away.distance == 0
+        ? const Offset(1, -0.4)
+        : away / away.distance;
     final tail = head + dir * minDim * 0.34;
 
     // Tail (fades toward the end, pointing away from the sun).
@@ -803,24 +829,26 @@ class _SpacePainter extends CustomPainter {
       Paint()
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
-        ..shader = ui.Gradient.linear(
-          tail,
-          head,
-          const [Color(0x00CFE0FF), Color(0xCCEAF2FF)],
-        ),
+        ..shader = ui.Gradient.linear(tail, head, const [
+          Color(0x00CFE0FF),
+          Color(0xCCEAF2FF),
+        ]),
     );
     canvas.drawCircle(
       head,
       minDim * 0.03,
       Paint()
         ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.radial(
-          head,
-          minDim * 0.03,
-          const [Color(0x88EAF2FF), Color(0x00EAF2FF)],
-        ),
+        ..shader = ui.Gradient.radial(head, minDim * 0.03, const [
+          Color(0x88EAF2FF),
+          Color(0x00EAF2FF),
+        ]),
     );
-    canvas.drawCircle(head, minDim * 0.009, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawCircle(
+      head,
+      minDim * 0.009,
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
   }
 
   void _paintPlanet(
@@ -875,8 +903,11 @@ class _SpacePainter extends CustomPainter {
       width: rad * 3.4,
       height: rad * 1.1,
     );
-    final ringColor = Color.lerp(color, Colors.white, 0.25)!
-        .withValues(alpha: back ? 0.28 : 0.55);
+    final ringColor = Color.lerp(
+      color,
+      Colors.white,
+      0.25,
+    )!.withValues(alpha: back ? 0.28 : 0.55);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = rad * 0.16
@@ -918,8 +949,10 @@ class _ShootingStarPainter extends CustomPainter {
         ui.lerpDouble(star.from.dy, star.to.dy, tailT)! * size.height,
       );
 
-      final fade =
-          (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
+      final fade = (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(
+        0.0,
+        1.0,
+      );
 
       final tint = star.color;
 

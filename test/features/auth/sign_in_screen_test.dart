@@ -27,8 +27,9 @@ Future<void> _fillAndSubmit(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('shows a friendly message when the credentials are wrong',
-      (tester) async {
+  testWidgets('shows a friendly message when the credentials are wrong', (
+    tester,
+  ) async {
     final auth = FakeAuthRepository()
       ..signInError = Exception('Invalid login credentials');
     await _pumpSignIn(tester, auth);
@@ -40,14 +41,20 @@ void main() {
     expect(find.textContaining('Exception'), findsNothing);
   });
 
-  testWidgets('shows a server-unreachable message on a network failure',
-      (tester) async {
+  testWidgets('shows a server-unreachable message on a network failure', (
+    tester,
+  ) async {
     final auth = FakeAuthRepository()
-      ..signInError = Exception('ClientException with SocketException: Connection refused');
+      ..signInError = Exception(
+        'ClientException with SocketException: Connection refused',
+      );
     await _pumpSignIn(tester, auth);
     await _fillAndSubmit(tester);
 
-    expect(find.textContaining('Connexion au serveur impossible'), findsOneWidget);
+    expect(
+      find.textContaining('Connexion au serveur impossible'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('no error shown on a successful sign-in', (tester) async {
@@ -60,8 +67,9 @@ void main() {
     expect(find.textContaining('Connexion au serveur'), findsNothing);
   });
 
-  testWidgets('validates that both fields are filled before calling auth',
-      (tester) async {
+  testWidgets('validates that both fields are filled before calling auth', (
+    tester,
+  ) async {
     final auth = FakeAuthRepository();
     await _pumpSignIn(tester, auth);
     await tester.tap(find.text('Se connecter')); // empty fields

@@ -11,8 +11,11 @@ class SupabaseProfileRepository implements ProfileRepository {
   Future<Profile?> getMyProfile() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
-    final data =
-        await _client.from('profiles').select().eq('id', uid).maybeSingle();
+    final data = await _client
+        .from('profiles')
+        .select()
+        .eq('id', uid)
+        .maybeSingle();
     return data == null ? null : Profile.fromMap(data);
   }
 
@@ -29,11 +32,14 @@ class SupabaseProfileRepository implements ProfileRepository {
   @override
   Future<void> setHandle(String handle, {String? displayName}) async {
     final uid = _client.auth.currentUser!.id;
-    await _client.from('profiles').update({
-      'handle': handle,
-      if (displayName != null && displayName.isNotEmpty)
-        'display_name': displayName,
-    }).eq('id', uid);
+    await _client
+        .from('profiles')
+        .update({
+          'handle': handle,
+          if (displayName != null && displayName.isNotEmpty)
+            'display_name': displayName,
+        })
+        .eq('id', uid);
   }
 
   @override
@@ -64,11 +70,14 @@ class SupabaseProfileRepository implements ProfileRepository {
     String? quietTz,
   }) async {
     final uid = _client.auth.currentUser!.id;
-    await _client.from('profiles').update({
-      'default_anonymous': defaultAnonymous,
-      'quiet_start': quietStart,
-      'quiet_end': quietEnd,
-      'quiet_tz': quietTz,
-    }).eq('id', uid);
+    await _client
+        .from('profiles')
+        .update({
+          'default_anonymous': defaultAnonymous,
+          'quiet_start': quietStart,
+          'quiet_end': quietEnd,
+          'quiet_tz': quietTz,
+        })
+        .eq('id', uid);
   }
 }

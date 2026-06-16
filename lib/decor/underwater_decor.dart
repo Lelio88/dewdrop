@@ -177,7 +177,10 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
       for (var i = 0; i < 4; i++) {
         _model.glows.add(
           _Glow(
-            Offset(0.32 + _rng.nextDouble() * 0.36, 0.66 + _rng.nextDouble() * 0.16),
+            Offset(
+              0.32 + _rng.nextDouble() * 0.36,
+              0.66 + _rng.nextDouble() * 0.16,
+            ),
             _model.time,
           ),
         );
@@ -200,7 +203,10 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
       for (var i = 0; i < 4; i++) {
         _model.glows.add(
           _Glow(
-            Offset(0.18 + _rng.nextDouble() * 0.64, 0.32 + _rng.nextDouble() * 0.30),
+            Offset(
+              0.18 + _rng.nextDouble() * 0.64,
+              0.32 + _rng.nextDouble() * 0.30,
+            ),
             _model.time,
           ),
         );
@@ -228,51 +234,51 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   }
 
   List<_Bubble> _genBubbles() => List.generate(12, (_) {
-        return _Bubble(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          size: 1.5 + _rng.nextDouble() * 5,
-          speed: 0.03 + _rng.nextDouble() * 0.06,
-          phase: _rng.nextDouble() * math.pi * 2,
-          ephemeral: false,
-        );
-      });
+    return _Bubble(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble(),
+      size: 1.5 + _rng.nextDouble() * 5,
+      speed: 0.03 + _rng.nextDouble() * 0.06,
+      phase: _rng.nextDouble() * math.pi * 2,
+      ephemeral: false,
+    );
+  });
 
   List<_Ray> _genRays() => List.generate(5, (_) {
-        return _Ray(
-          x: _rng.nextDouble(),
-          width: 0.05 + _rng.nextDouble() * 0.08,
-          slant: (_rng.nextDouble() - 0.5) * 0.3,
-          phase: _rng.nextDouble() * math.pi * 2,
-        );
-      });
+    return _Ray(
+      x: _rng.nextDouble(),
+      width: 0.05 + _rng.nextDouble() * 0.08,
+      slant: (_rng.nextDouble() - 0.5) * 0.3,
+      phase: _rng.nextDouble() * math.pi * 2,
+    );
+  });
 
   List<_Weed> _genWeeds() => List.generate(26, (_) {
-        // Bias roots toward the edges so the kelp frames the open centre.
-        final e = _rng.nextDouble();
-        final rootX = (e < 0.5 ? e * 0.34 : 0.66 + (e - 0.5) * 0.68).clamp(0.0, 1.0);
-        return _Weed(
-          rootX: rootX,
-          height: 0.24 + _rng.nextDouble() * 0.44,
-          amp: 0.015 + _rng.nextDouble() * 0.03,
-          width: 4 + _rng.nextDouble() * 5,
-          speed: 0.5 + _rng.nextDouble() * 0.6,
-          phase: _rng.nextDouble() * math.pi * 2,
-          color: Color.fromRGBO(
-            12,
-            46 + _rng.nextInt(34),
-            42 + _rng.nextInt(24),
-            0.78,
-          ),
-        );
-      });
+    // Bias roots toward the edges so the kelp frames the open centre.
+    final e = _rng.nextDouble();
+    final rootX = (e < 0.5 ? e * 0.34 : 0.66 + (e - 0.5) * 0.68).clamp(
+      0.0,
+      1.0,
+    );
+    return _Weed(
+      rootX: rootX,
+      height: 0.24 + _rng.nextDouble() * 0.44,
+      amp: 0.015 + _rng.nextDouble() * 0.03,
+      width: 4 + _rng.nextDouble() * 5,
+      speed: 0.5 + _rng.nextDouble() * 0.6,
+      phase: _rng.nextDouble() * math.pi * 2,
+      color: Color.fromRGBO(
+        12,
+        46 + _rng.nextInt(34),
+        42 + _rng.nextInt(24),
+        0.78,
+      ),
+    );
+  });
 
   List<_Rock> _genRocks() => List.generate(6, (_) {
-        return _Rock(
-          x: _rng.nextDouble(),
-          size: 0.08 + _rng.nextDouble() * 0.13,
-        );
-      });
+    return _Rock(x: _rng.nextDouble(), size: 0.08 + _rng.nextDouble() * 0.13);
+  });
 
   // Darting fish silhouettes — the open-water ambient layer (variant 1 only).
   // A handful of little fish cross horizontally at varied depths, speeds and
@@ -346,7 +352,9 @@ Color _fishColor(math.Random rng) {
 /// Floor height (normalized 0..1) at horizontal position [xN]. Lower value =
 /// higher on screen. Gentle dunes via two sine terms.
 double _floorY(double xN) =>
-    0.84 - 0.05 * math.sin(xN * math.pi * 2) - 0.03 * math.sin(xN * math.pi * 5 + 1.3);
+    0.84 -
+    0.05 * math.sin(xN * math.pi * 2) -
+    0.03 * math.sin(xN * math.pi * 5 + 1.3);
 
 const _seabed = _UWConfig(
   top: Color(0xFF0A3038),
@@ -540,11 +548,10 @@ class _UWPainter extends CustomPainter {
     canvas.drawRect(
       rect,
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(w / 2, 0),
-          Offset(w / 2, h),
-          [config.top, config.bottom],
-        ),
+        ..shader = ui.Gradient.linear(Offset(w / 2, 0), Offset(w / 2, h), [
+          config.top,
+          config.bottom,
+        ]),
     );
 
     _paintRays(canvas, w, h, time, lookX);
@@ -602,14 +609,10 @@ class _UWPainter extends CustomPainter {
         radius,
         Paint()
           ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.radial(
-            center,
-            radius,
-            [
-              Color.fromRGBO(120, 230, 220, (1 - t) * 0.5 * bright),
-              const Color(0x00000000),
-            ],
-          ),
+          ..shader = ui.Gradient.radial(center, radius, [
+            Color.fromRGBO(120, 230, 220, (1 - t) * 0.5 * bright),
+            const Color(0x00000000),
+          ]),
       );
     }
 
@@ -628,7 +631,12 @@ class _UWPainter extends CustomPainter {
 
   // One dominant light shaft from the upper-right (matches the seabed photo).
   void _paintPrimaryBeam(
-      Canvas canvas, double w, double h, double time, double lookX) {
+    Canvas canvas,
+    double w,
+    double h,
+    double time,
+    double lookX,
+  ) {
     final sway = math.sin(time * 0.08) * 0.015 - lookX * 0.2;
     final topX = (0.78 + sway) * w;
     final botX = (0.46 + sway) * w;
@@ -645,18 +653,20 @@ class _UWPainter extends CustomPainter {
       path,
       Paint()
         ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(
-          Offset(topX, 0),
-          Offset(botX, endY),
-          [
-            const Color(0xFFBFE6FF).withValues(alpha: 0.42),
-            const Color(0x00BFE6FF),
-          ],
-        ),
+        ..shader = ui.Gradient.linear(Offset(topX, 0), Offset(botX, endY), [
+          const Color(0xFFBFE6FF).withValues(alpha: 0.42),
+          const Color(0x00BFE6FF),
+        ]),
     );
   }
 
-  void _paintRays(Canvas canvas, double w, double h, double time, double lookX) {
+  void _paintRays(
+    Canvas canvas,
+    double w,
+    double h,
+    double time,
+    double lookX,
+  ) {
     for (final r in rays) {
       final sway = math.sin(time * 0.12 + r.phase) * 0.04 - lookX * 0.25;
       final topX = (r.x + sway) * w;
@@ -714,7 +724,8 @@ class _UWPainter extends CustomPainter {
       const steps = 10;
       for (var i = 1; i <= steps; i++) {
         final t = i / steps;
-        final sway = math.sin(time * wd.speed + wd.phase + t * 3) * wd.amp * t * w;
+        final sway =
+            math.sin(time * wd.speed + wd.phase + t * 3) * wd.amp * t * w;
         path.lineTo(rootX + sway, rootY - t * wd.height * h);
       }
       canvas.drawPath(
@@ -795,7 +806,12 @@ class _UWPainter extends CustomPainter {
   }
 
   void _branchCoral(
-      Canvas canvas, Offset base, double s, Color col, double seed) {
+    Canvas canvas,
+    Offset base,
+    double s,
+    Color col,
+    double seed,
+  ) {
     final paint = Paint()
       ..color = col
       ..style = PaintingStyle.stroke
@@ -828,7 +844,10 @@ class _UWPainter extends CustomPainter {
     for (var i = 0; i < 3; i++) {
       canvas.drawArc(
         Rect.fromCenter(
-            center: c, width: s * (1.4 - i * 0.4), height: s * (0.9 - i * 0.25)),
+          center: c,
+          width: s * (1.4 - i * 0.4),
+          height: s * (0.9 - i * 0.25),
+        ),
         math.pi,
         math.pi,
         false,
@@ -838,7 +857,13 @@ class _UWPainter extends CustomPainter {
   }
 
   void _fanCoral(
-      Canvas canvas, Offset base, double s, Color col, double time, double seed) {
+    Canvas canvas,
+    Offset base,
+    double s,
+    Color col,
+    double time,
+    double seed,
+  ) {
     final sway = math.sin(time * 0.8 + seed * 6) * 0.12;
     final paint = Paint()
       ..color = col
@@ -848,7 +873,8 @@ class _UWPainter extends CustomPainter {
     const n = 7;
     for (var i = 0; i < n; i++) {
       final a = -math.pi / 2 + (i - (n - 1) / 2) * 0.16 + sway;
-      final mid = base + Offset(math.cos(a) * 0.6 + sway, math.sin(a) * 0.8) * s;
+      final mid =
+          base + Offset(math.cos(a) * 0.6 + sway, math.sin(a) * 0.8) * s;
       final tip = base + Offset(math.cos(a), math.sin(a)) * s * 1.5;
       canvas.drawPath(
         Path()

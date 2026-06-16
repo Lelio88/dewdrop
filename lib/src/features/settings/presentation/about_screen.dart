@@ -54,11 +54,15 @@ class AboutScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Envoie une pensée à un ami.',
-                          style: TextStyle(color: w, fontSize: 15)),
+                      Text(
+                        'Envoie une pensée à un ami.',
+                        style: TextStyle(color: w, fontSize: 15),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Version $_appVersion',
-                          style: TextStyle(color: w.withValues(alpha: 0.5))),
+                      Text(
+                        'Version $_appVersion',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
                     ],
                   ),
                 ),
@@ -70,7 +74,8 @@ class AboutScreen extends StatelessWidget {
                 child: _credit(
                   w,
                   title: 'Virevoltant du désert',
-                  body: '« Tumbleweed_Impact » par duckduckpony — Freesound.\n'
+                  body:
+                      '« Tumbleweed_Impact » par duckduckpony — Freesound.\n'
                       'Licence CC BY 4.0 (modifié).',
                   links: const [
                     'freesound.org/s/204028',
@@ -90,7 +95,9 @@ class AboutScreen extends StatelessWidget {
                     '(Freesound, OpenGameArt, NOAA) — aucune attribution requise. '
                     'Merci à leurs auteurs.',
                     style: TextStyle(
-                        color: w.withValues(alpha: 0.55), height: 1.4),
+                      color: w.withValues(alpha: 0.55),
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ),
@@ -100,12 +107,18 @@ class AboutScreen extends StatelessWidget {
                 w,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Licences open source',
-                      style: TextStyle(color: w)),
-                  subtitle: Text('Bibliothèques tierces et leurs licences',
-                      style: TextStyle(color: w.withValues(alpha: 0.5))),
-                  trailing: Icon(Icons.chevron_right,
-                      color: w.withValues(alpha: 0.4)),
+                  title: Text(
+                    'Licences open source',
+                    style: TextStyle(color: w),
+                  ),
+                  subtitle: Text(
+                    'Bibliothèques tierces et leurs licences',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.4),
+                  ),
                   onTap: () => showLicensePage(
                     context: context,
                     applicationName: 'DewDrop',
@@ -120,12 +133,18 @@ class AboutScreen extends StatelessWidget {
                 w,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Confidentialité & CGU',
-                      style: TextStyle(color: w)),
-                  subtitle: Text('Politique de confidentialité et conditions',
-                      style: TextStyle(color: w.withValues(alpha: 0.5))),
-                  trailing: Icon(Icons.chevron_right,
-                      color: w.withValues(alpha: 0.4)),
+                  title: Text(
+                    'Confidentialité & CGU',
+                    style: TextStyle(color: w),
+                  ),
+                  subtitle: Text(
+                    'Politique de confidentialité et conditions',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.4),
+                  ),
                   onTap: () => context.push('/legal'),
                 ),
               ),
@@ -141,46 +160,54 @@ class AboutScreen extends StatelessWidget {
     required String title,
     required String body,
     required List<String> links,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: TextStyle(color: w, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(body,
-                style:
-                    TextStyle(color: w.withValues(alpha: 0.7), height: 1.4)),
-            const SizedBox(height: 6),
-            for (final l in links)
-              SelectableText(l,
-                  style: TextStyle(
-                      color: w.withValues(alpha: 0.5),
-                      fontSize: 12.5,
-                      height: 1.5)),
-          ],
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(color: w, fontWeight: FontWeight.w600),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          body,
+          style: TextStyle(color: w.withValues(alpha: 0.7), height: 1.4),
+        ),
+        const SizedBox(height: 6),
+        for (final l in links)
+          SelectableText(
+            l,
+            style: TextStyle(
+              color: w.withValues(alpha: 0.5),
+              fontSize: 12.5,
+              height: 1.5,
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _section(Color w, String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8, left: 4),
-        child: Text(t,
-            style: TextStyle(
-                fontSize: 13,
-                letterSpacing: 0.6,
-                fontWeight: FontWeight.w600,
-                color: w.withValues(alpha: 0.6))),
-      );
+    padding: const EdgeInsets.only(bottom: 8, left: 4),
+    child: Text(
+      t,
+      style: TextStyle(
+        fontSize: 13,
+        letterSpacing: 0.6,
+        fontWeight: FontWeight.w600,
+        color: w.withValues(alpha: 0.6),
+      ),
+    ),
+  );
 
   Widget _card(Color w, {required Widget child}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          color: w.withValues(alpha: 0.06),
-          border: Border.all(color: w.withValues(alpha: 0.12)),
-        ),
-        child: child,
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      color: w.withValues(alpha: 0.06),
+      border: Border.all(color: w.withValues(alpha: 0.12)),
+    ),
+    child: child,
+  );
 }

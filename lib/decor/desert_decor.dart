@@ -59,14 +59,14 @@ class _DesertDecorState extends State<DesertDecor>
   }
 
   List<_DStar> _genStars() => List.generate(150, (_) {
-        return _DStar(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble() * 0.6,
-          r: 0.4 + _rng.nextDouble() * 1.5,
-          phase: _rng.nextDouble() * math.pi * 2,
-          twinkle: 0.3 + _rng.nextDouble() * 0.7,
-        );
-      });
+    return _DStar(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble() * 0.6,
+      r: 0.4 + _rng.nextDouble() * 1.5,
+      phase: _rng.nextDouble() * math.pi * 2,
+      twinkle: 0.3 + _rng.nextDouble() * 0.7,
+    );
+  });
 
   /// Manual preview: the lighter single-event tap — one sand puff (day) or one
   /// shooting star (night), rendered by the painter off [_DesertModel.burst].
@@ -136,7 +136,9 @@ class _DesertDecorState extends State<DesertDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(child: CustomPaint(painter: _DesertBgPainter(cfg))),
+          child: RepaintBoundary(
+            child: CustomPaint(painter: _DesertBgPainter(cfg)),
+          ),
         ),
         Positioned.fill(
           child: RepaintBoundary(
@@ -259,7 +261,8 @@ Path _dunePath(double w, double h, double baseY, double amp, double shift) {
   const steps = 24;
   for (var i = 0; i <= steps; i++) {
     final xN = i / steps;
-    final y = baseY +
+    final y =
+        baseY +
         amp *
             (0.55 * math.sin(xN * math.pi * 1.4 + shift) +
                 0.30 * math.sin(xN * math.pi * 3.1 + shift * 1.7) +
@@ -300,11 +303,10 @@ class _DesertBgPainter extends CustomPainter {
         h * 0.22,
         Paint()
           ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.radial(
-            sunPos,
-            h * 0.22,
-            [cfg.sun.withValues(alpha: 0.5), cfg.sun.withValues(alpha: 0)],
-          ),
+          ..shader = ui.Gradient.radial(sunPos, h * 0.22, [
+            cfg.sun.withValues(alpha: 0.5),
+            cfg.sun.withValues(alpha: 0),
+          ]),
       );
       canvas.drawCircle(sunPos, h * 0.04, Paint()..color = cfg.sun);
     } else {
@@ -327,11 +329,10 @@ class _DesertBgPainter extends CustomPainter {
       canvas.drawPath(
         path,
         Paint()
-          ..shader = ui.Gradient.linear(
-            Offset(0, baseY * h),
-            Offset(0, h),
-            [hazed, shadow],
-          ),
+          ..shader = ui.Gradient.linear(Offset(0, baseY * h), Offset(0, h), [
+            hazed,
+            shadow,
+          ]),
       );
     }
 
@@ -339,7 +340,9 @@ class _DesertBgPainter extends CustomPainter {
     final ripple = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = (cfg.night ? Colors.white : Colors.black).withValues(alpha: 0.06);
+      ..color = (cfg.night ? Colors.white : Colors.black).withValues(
+        alpha: 0.06,
+      );
     for (var i = 0; i < 16; i++) {
       final t = i / 15;
       final y = (0.80 + t * 0.19) * h;
@@ -358,7 +361,10 @@ class _DesertBgPainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset(w / 2, h * 0.5),
           size.longestSide * 0.8,
-          [const Color(0x00000000), (cfg.night ? const Color(0x66060A18) : const Color(0x33000000))],
+          [
+            const Color(0x00000000),
+            (cfg.night ? const Color(0x66060A18) : const Color(0x33000000)),
+          ],
           const [0.5, 1.0],
         ),
     );
@@ -400,7 +406,9 @@ class _DesertBgPainter extends CustomPainter {
         Paint()
           ..blendMode = BlendMode.plus
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18)
-          ..color = const Color(0xFFB9C6F0).withValues(alpha: 0.05 + rng.nextDouble() * 0.05),
+          ..color = const Color(
+            0xFFB9C6F0,
+          ).withValues(alpha: 0.05 + rng.nextDouble() * 0.05),
       );
     }
     canvas.restore();
@@ -441,7 +449,9 @@ class _DesertFxPainter extends CustomPainter {
       }
       // Shooting star on tap (single, lighter preview).
       _shootingStar(
-        canvas, w, h,
+        canvas,
+        w,
+        h,
         elapsed: time - model.burst,
         from: Offset(w * 0.2, h * 0.1),
         to: Offset(w * 0.7, h * 0.4),
@@ -450,7 +460,9 @@ class _DesertFxPainter extends CustomPainter {
       for (final s in showers) {
         if (!s.night) continue;
         _shootingStar(
-          canvas, w, h,
+          canvas,
+          w,
+          h,
           elapsed: time - s.start,
           from: Offset(s.ox * w, s.oy * h),
           to: Offset((s.ox + s.dx) * w, (s.oy + s.dy) * h),
@@ -490,7 +502,9 @@ class _DesertFxPainter extends CustomPainter {
       }
       // Sand puff on tap (single, lighter preview).
       _sandPuff(
-        canvas, w, h,
+        canvas,
+        w,
+        h,
         elapsed: time - model.burst,
         origin: Offset(w * 0.5, h * 0.82),
         seed: 8,
@@ -499,7 +513,9 @@ class _DesertFxPainter extends CustomPainter {
       for (final s in showers) {
         if (s.night) continue;
         _sandPuff(
-          canvas, w, h,
+          canvas,
+          w,
+          h,
           elapsed: time - s.start,
           origin: Offset(s.ox * w, s.oy * h),
           seed: s.seed,
@@ -531,11 +547,10 @@ class _DesertFxPainter extends CustomPainter {
       Paint()
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
-        ..shader = ui.Gradient.linear(
-          tail,
-          head,
-          [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)],
-        ),
+        ..shader = ui.Gradient.linear(tail, head, [
+          const Color(0x00FFFFFF),
+          Color.fromRGBO(255, 255, 255, fade),
+        ]),
     );
   }
 
