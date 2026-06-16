@@ -1,0 +1,12 @@
+<!-- Status-bar notification icon. Android renders ONLY the alpha (white
+     silhouette), so this is a solid white water-drop on transparent — otherwise
+     it falls back to a generic white circle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2C12,2 6,10 6,14.5C6,18.09 8.69,21 12,21C15.31,21 18,18.09 18,14.5C18,10 12,2 12,2Z" />
+</vector>
