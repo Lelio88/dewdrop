@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -13,11 +14,16 @@ import 'package:flutter/services.dart';
 ///
 /// Sky, sun/galaxy, peak ranges and foreground are static; the drifting fog
 /// (dawn) or twinkling stars (night) animate on top. A "pensée" (tap) releases
-/// a flurry of petals (dawn) or a shooting star (night). Pure Canvas.
+/// a single flurry of petals (dawn) or one shooting star (night) — a light
+/// manual preview. When a real "pensée" arrives, the host pulses
+/// [reception] and the decor plays an *amplified* celebratory burst: a whole
+/// shower of staggered shooting stars (night) or a dense, multi-wave petal
+/// cascade (dawn). Pure Canvas.
 class MountainDecor extends StatefulWidget {
-  const MountainDecor({super.key, this.variant = 0, this.child});
+  const MountainDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -37,8 +43,19 @@ class _MountainDecorState extends State<MountainDecor>
     super.initState();
     _ticker = createTicker((e) {
       _model.time = e.inMicroseconds / 1e6;
+      _model.prune(); // drop bursts that have fully faded
       _model.notify();
     })..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(MountainDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
   }
 
   List<_MStar> _genStars() => List.generate(150, (_) {
@@ -67,8 +84,26 @@ class _MountainDecorState extends State<MountainDecor>
     HapticFeedback.lightImpact();
   }
 
+  /// A pensée arrived: an *amplified*, variant-flavoured shower. Where [_tap]
+  /// fires one event, reception seeds a handful of staggered bursts so the
+  /// painter renders a real wave — several shooting stars trailing across the
+  /// sky (Nuit) or successive denser petal cascades (Aube). Each burst carries
+  /// its own launch time and seed so they never overlap into a single blob.
+  void _onReception() {
+    const count = 6;
+    for (var i = 0; i < count; i++) {
+      _model.addShowerBurst(
+        start: _model.time + i * 0.18, // staggered launches
+        lane: (i + _model.bursts.length) % count,
+        seed: _rng.nextInt(1 << 20),
+      );
+    }
+    HapticFeedback.mediumImpact();
+  }
+
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -142,9 +177,36 @@ const _night = _MountainConfig(
   rock: Color(0xFF222A40),
 );
 
+// One staggered event inside a reception shower. [start] is the launch time
+// (model clock), [lane] spreads the shooting-star trajectories / petal columns
+// across the width, and [seed] flavours its random scatter so each looks
+// distinct. The painter derives its own progress from `time - start`.
+class _ShowerBurst {
+  const _ShowerBurst({required this.start, required this.lane, required this.seed});
+  final double start;
+  final int lane;
+  final int seed;
+}
+
 class _MountainModel extends ChangeNotifier {
   double time = 0;
-  double burst = -10;
+  double burst = -10; // single-tap preview event
+  final List<_ShowerBurst> bursts = []; // amplified reception shower
+
+  // Longest visual lifetime of a single burst (the petal cascade), used to
+  // know when a burst can be dropped. Shooting stars live ~1.2s, petals ~1.6s.
+  static const double burstLifetime = 1.6;
+
+  void addShowerBurst({required double start, required int lane, required int seed}) {
+    bursts.add(_ShowerBurst(start: start, lane: lane, seed: seed));
+  }
+
+  // Drop bursts whose animation has fully elapsed so the list stays bounded.
+  void prune() {
+    if (bursts.isEmpty) return;
+    bursts.removeWhere((b) => time - b.start > burstLifetime);
+  }
+
   void notify() => notifyListeners();
 }
 
@@ -416,22 +478,11 @@ class _MountainFxPainter extends CustomPainter {
           Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
         );
       }
-      final t = (time - model.burst) / 1.2;
-      if (t >= 0 && t <= 1) {
-        final eased = Curves.easeOut.transform(t);
-        final from = Offset(w * 0.25, h * 0.08);
-        final to = Offset(w * 0.75, h * 0.38);
-        final head = Offset.lerp(from, to, eased)!;
-        final tail = Offset.lerp(from, to, (eased - 0.12).clamp(0.0, 1.0))!;
-        final fade = (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
-        canvas.drawLine(
-          tail,
-          head,
-          Paint()
-            ..strokeWidth = 2
-            ..strokeCap = StrokeCap.round
-            ..shader = ui.Gradient.linear(tail, head, [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)]),
-        );
+      // Single-tap preview: one shooting star on the centre lane.
+      _paintShootingStar(canvas, w, h, start: model.burst, lane: 2, seed: 0);
+      // Reception shower: a staggered volley of stars across all lanes.
+      for (final b in model.bursts) {
+        _paintShootingStar(canvas, w, h, start: b.start, lane: b.lane, seed: b.seed);
       }
     } else {
       // Drifting sea-of-fog ribbons in the valley.
@@ -455,21 +506,60 @@ class _MountainFxPainter extends CustomPainter {
           Paint()..color = f.color.withValues(alpha: 0.5),
         );
       }
-      // Petal flurry on tap.
-      final sp = (1 - (time - model.burst) / 1.6).clamp(0.0, 1.0);
-      if (sp > 0) {
-        final rng = math.Random(8);
-        for (var i = 0; i < 22; i++) {
-          final x = rng.nextDouble() * w;
-          final fall = (1 - sp) * h * 0.5;
-          final y = rng.nextDouble() * h * 0.4 + fall;
-          canvas.drawCircle(
-            Offset(x + math.sin(time * 3 + i) * 6, y),
-            1.5 + rng.nextDouble() * 2,
-            Paint()..color = _flowerColor(rng).withValues(alpha: sp * 0.7),
-          );
-        }
+      // Single-tap preview: one light petal flurry.
+      _paintPetalFlurry(canvas, w, h, start: model.burst, seed: 8, count: 22);
+      // Reception shower: each staggered burst is a denser petal cascade,
+      // its column offset by the lane so the waves don't stack into one blob.
+      for (final b in model.bursts) {
+        _paintPetalFlurry(canvas, w, h, start: b.start, seed: b.seed, count: 40, lane: b.lane);
       }
+    }
+  }
+
+  // One shooting star streaking from upper-left to mid-right. [lane] shifts the
+  // trajectory across the sky and tilts its descent so a volley fans out.
+  void _paintShootingStar(Canvas canvas, double w, double h,
+      {required double start, required int lane, required int seed}) {
+    final t = (model.time - start) / 1.2;
+    if (t < 0 || t > 1) return;
+    final rng = math.Random(seed);
+    final laneN = lane / 6; // 0..~0.83 across the lanes
+    final jitter = (rng.nextDouble() - 0.5) * 0.12;
+    final eased = Curves.easeOut.transform(t);
+    final fromX = 0.12 + laneN * 0.5 + jitter;
+    final from = Offset(w * fromX, h * (0.04 + laneN * 0.10));
+    final to = Offset(w * (fromX + 0.34), h * (0.30 + laneN * 0.16));
+    final head = Offset.lerp(from, to, eased)!;
+    final tail = Offset.lerp(from, to, (eased - 0.12).clamp(0.0, 1.0))!;
+    final fade = (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
+    canvas.drawLine(
+      tail,
+      head,
+      Paint()
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..shader = ui.Gradient.linear(
+            tail, head, [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)]),
+    );
+  }
+
+  // A flurry of falling petals fading over 1.6s. [count] controls density and
+  // [lane] nudges the horizontal spread so successive shower waves don't align.
+  void _paintPetalFlurry(Canvas canvas, double w, double h,
+      {required double start, required int seed, required int count, int lane = 0}) {
+    final sp = (1 - (model.time - start) / 1.6).clamp(0.0, 1.0);
+    if (sp <= 0) return;
+    final rng = math.Random(seed);
+    final laneShift = (lane / 6 - 0.4) * w * 0.25;
+    for (var i = 0; i < count; i++) {
+      final x = rng.nextDouble() * w + laneShift;
+      final fall = (1 - sp) * h * 0.5;
+      final y = rng.nextDouble() * h * 0.4 + fall;
+      canvas.drawCircle(
+        Offset(x + math.sin(model.time * 3 + i) * 6, y),
+        1.5 + rng.nextDouble() * 2,
+        Paint()..color = _flowerColor(rng).withValues(alpha: sp * 0.7),
+      );
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/sky_clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -30,21 +31,29 @@ enum SpaceVariant {
 
 /// Immersive "espace" decor: you float, still, in the middle of a 3-D
 /// starfield — calm and cosy, with only a soft twinkle and a whisper of sway.
-/// The pointer/gyroscope lets you gently look around. Receiving a "pensée"
-/// (here a tap on the open sky) triggers a shower of shooting stars.
+/// The pointer/gyroscope lets you gently look around. A tap on the open sky
+/// triggers a light shower of shooting stars (manual preview), while receiving
+/// a "pensée" pulses [reception] for a much bigger, denser "pluie d'étoiles
+/// filantes" flavoured by the current [variant].
 ///
 /// [variant] selects the mood (see [SpaceVariant]). Rendered entirely on the
 /// Canvas, so it works on every platform (Windows desktop included for dev).
+///
+/// [reception] is the host-owned "a pensée just arrived" pulse: each pulse
+/// spawns the amplified celebratory shower. The widget only listens — it never
+/// disposes the signal (the host owns its lifecycle).
 ///
 /// [child] floats over the scene (the app UI).
 class SpaceDecor extends StatefulWidget {
   const SpaceDecor({
     super.key,
     this.variant = SpaceVariant.cosmos,
+    this.reception,
     this.child,
   });
 
   final SpaceVariant variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -71,6 +80,16 @@ class _SpaceDecorState extends State<SpaceDecor>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(SpaceDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
   }
 
   void _onTick(Duration elapsed) {
@@ -100,7 +119,9 @@ class _SpaceDecorState extends State<SpaceDecor>
     _pointerLook = Offset(-nx * 0.10, -ny * 0.08);
   }
 
-  /// A "pensée" arrives: rain a staggered shower of shooting stars.
+  /// A tap on the open sky: rain a light, staggered shower of shooting stars.
+  /// This is the manual preview — the real reception burst ([_onReception]) is
+  /// a much bigger, denser version of the same effect.
   void _spawnThoughtShower() {
     const count = 14;
     for (var i = 0; i < count; i++) {
@@ -124,6 +145,63 @@ class _SpaceDecorState extends State<SpaceDecor>
     }
     HapticFeedback.mediumImpact();
   }
+
+  /// A "pensée" arrived: an AMPLIFIED celebratory burst — a real "pluie
+  /// d'étoiles filantes". Many more streaks than the tap preview (~38 vs 14),
+  /// seeded across the full width and a taller top band, with longer trails and
+  /// a wider stagger so they cascade in a sustained wave. Each streak is tinted
+  /// per [SpaceVariant] (reusing the decor's own palette) so the shower feels
+  /// native to the current scene rather than a generic white rain.
+  void _onReception() {
+    const count = 38;
+    final tints = _showerTints(widget.variant);
+    for (var i = 0; i < count; i++) {
+      final from = Offset(
+        _rng.nextDouble() * 1.2 - 0.1,
+        _rng.nextDouble() * 0.55 - 0.1,
+      );
+      final dir = Offset(
+        0.55 + (_rng.nextDouble() - 0.5) * 0.3,
+        0.65 + (_rng.nextDouble() - 0.5) * 0.3,
+      );
+      final length = 0.55 + _rng.nextDouble() * 0.5;
+      _model.shooting.add(
+        _ShootingStar(
+          startTime: _model.time + _rng.nextDouble() * 1.4,
+          from: from,
+          to: from + dir * length,
+          duration: 1.0 + _rng.nextDouble() * 0.8,
+          color: tints[_rng.nextInt(tints.length)],
+        ),
+      );
+    }
+    HapticFeedback.mediumImpact();
+  }
+
+  /// Per-variant streak colours for the reception shower, drawn from each
+  /// variant's existing palette:
+  ///  - cosmos ("Cosmos", B&W Milky Way): neutral whites, no colour at all.
+  ///  - voidNight ("Nuit noire"): the nebula/debris cool blues + a violet.
+  ///  - planets ("Planètes"): the warm sun + planet hues riding the orbits.
+  List<Color> _showerTints(SpaceVariant variant) => switch (variant) {
+        SpaceVariant.cosmos => const [
+            Color(0xFFF2F4F8),
+            Color(0xFFEAF2FF),
+            Color(0xFFD6DCEA),
+          ],
+        SpaceVariant.voidNight => const [
+            Color(0xFFCFE0FF), // debris glow
+            Color(0xFF7AB0D8), // nebula blue
+            Color(0xFFB58CD8), // nebula violet
+            Color(0xFFEAF2FF), // bright white
+          ],
+        SpaceVariant.planets => const [
+            Color(0xFFFFF1C8), // sun core
+            Color(0xFFE2C58A), // Vénus
+            Color(0xFF5A86C0), // Terre
+            Color(0xFFD8A86A), // Jupiter
+          ],
+      };
 
   List<_Star3D> _generateStars() {
     return List.generate(_starCount, (_) {
@@ -188,6 +266,7 @@ class _SpaceDecorState extends State<SpaceDecor>
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -404,12 +483,17 @@ class _ShootingStar {
     required this.from,
     required this.to,
     this.duration = 1.1,
+    this.color = const Color(0xFFFFFFFF),
   });
 
   final Offset from;
   final Offset to;
   final double startTime;
   final double duration;
+
+  /// Streak tint. Defaults to white (the manual tap preview); the reception
+  /// burst overrides it per variant for a flavoured "pluie d'étoiles filantes".
+  final Color color;
 
   double life(double now) => ((now - startTime) / duration).clamp(0.0, 1.0);
   bool isDead(double now) => now - startTime > duration;
@@ -851,6 +935,8 @@ class _ShootingStarPainter extends CustomPainter {
       final fade =
           (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
 
+      final tint = star.color;
+
       canvas.drawLine(
         tail,
         head,
@@ -858,15 +944,15 @@ class _ShootingStarPainter extends CustomPainter {
           ..strokeWidth = 2.0
           ..strokeCap = StrokeCap.round
           ..shader = ui.Gradient.linear(tail, head, [
-            const Color(0x00FFFFFF),
-            Color.fromRGBO(255, 255, 255, fade),
+            tint.withValues(alpha: 0),
+            tint.withValues(alpha: fade),
           ]),
       );
       canvas.drawCircle(
         head,
         2.4,
         Paint()
-          ..color = Color.fromRGBO(255, 255, 255, fade)
+          ..color = tint.withValues(alpha: fade)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
     }
