@@ -49,6 +49,7 @@ class GlassTextField extends StatelessWidget {
     this.obscure = false,
     this.keyboardType,
     this.icon,
+    this.suffix,
     this.autofillHints,
     this.focusNode,
     this.textInputAction,
@@ -60,6 +61,7 @@ class GlassTextField extends StatelessWidget {
   final bool obscure;
   final TextInputType? keyboardType;
   final IconData? icon;
+  final Widget? suffix;
   final List<String>? autofillHints;
   final FocusNode? focusNode;
   final TextInputAction? textInputAction;
@@ -82,6 +84,7 @@ class GlassTextField extends StatelessWidget {
         hintStyle: TextStyle(color: w.withValues(alpha: 0.5)),
         prefixIcon:
             icon == null ? null : Icon(icon, color: w.withValues(alpha: 0.6), size: 20),
+        suffixIcon: suffix,
         filled: true,
         fillColor: w.withValues(alpha: 0.08),
         enabledBorder: OutlineInputBorder(
