@@ -20,4 +20,10 @@ abstract interface class FriendRepository {
 
   /// Record a report against a user for later moderation.
   Future<void> report(String userId, {String? reason});
+
+  /// Emits an incrementing tick whenever a friendship the current user is part
+  /// of changes (a request arrives, is accepted, or is removed), so the friends
+  /// and requests lists can refresh **live** without a relaunch. Monotonic
+  /// counter so distinct values re-notify Riverpod reliably.
+  Stream<int> watchChanges();
 }

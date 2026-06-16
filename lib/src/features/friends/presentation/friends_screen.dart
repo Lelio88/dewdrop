@@ -48,9 +48,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   }
 
   Future<void> _scan() async {
-    final handle = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const ScanQrScreen()),
-    );
+    final handle = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const ScanQrScreen()));
     if (handle == null || !mounted) return;
     setState(() => _adding = true);
     try {
@@ -144,59 +144,68 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ),
         ),
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            children: [
-              GlassCard(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GlassTextField(
-                        controller: _handle,
-                        hint: 'Ajouter par @handle',
-                        icon: Icons.person_add_alt_1,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _add(),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(incomingRequestsProvider);
+              ref.invalidate(friendsProvider);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              children: [
+                GlassCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GlassTextField(
+                          controller: _handle,
+                          hint: 'Ajouter par @handle',
+                          icon: Icons.person_add_alt_1,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _add(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      width: 80,
-                      child: GlassButton(
-                        label: 'Inviter',
-                        loading: _adding,
-                        onTap: _add,
+                      const SizedBox(width: 10),
+                      SizedBox(
+                        width: 80,
+                        child: GlassButton(
+                          label: 'Inviter',
+                          loading: _adding,
+                          onTap: _add,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              _section(white, 'Demandes reçues'),
-              requests.when(
-                loading: () => const _Loading(),
-                error: (_, _) => _error(white),
-                data: (list) => list.isEmpty
-                    ? _empty(white, 'Aucune demande.')
-                    : Column(
-                        children: [
-                          for (final r in list) _requestTile(white, r),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: 24),
-              _section(white, 'Mes amis'),
-              friends.when(
-                loading: () => const _Loading(),
-                error: (_, _) => _error(white),
-                data: (list) => list.isEmpty
-                    ? _empty(white, 'Pas encore d\'amis. Invite quelqu\'un !')
-                    : Column(
-                        children: [for (final f in list) _friendTile(white, f)],
-                      ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                _section(white, 'Demandes reçues'),
+                requests.when(
+                  loading: () => const _Loading(),
+                  error: (_, _) => _error(white),
+                  data: (list) => list.isEmpty
+                      ? _empty(white, 'Aucune demande.')
+                      : Column(
+                          children: [
+                            for (final r in list) _requestTile(white, r),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 24),
+                _section(white, 'Mes amis'),
+                friends.when(
+                  loading: () => const _Loading(),
+                  error: (_, _) => _error(white),
+                  data: (list) => list.isEmpty
+                      ? _empty(white, 'Pas encore d\'amis. Invite quelqu\'un !')
+                      : Column(
+                          children: [
+                            for (final f in list) _friendTile(white, f),
+                          ],
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

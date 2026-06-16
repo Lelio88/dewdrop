@@ -26,3 +26,11 @@ final incomingRequestsProvider = FutureProvider<List<IncomingRequest>>((ref) {
   if (!_signedIn(ref)) return <IncomingRequest>[];
   return ref.watch(friendRepositoryProvider).incomingRequests();
 });
+
+/// Ticks whenever a friendship involving the current user changes, so the
+/// composition root can refresh the friends/requests lists live. Empty when
+/// signed out.
+final friendshipChangesProvider = StreamProvider<int>((ref) {
+  if (!_signedIn(ref)) return const Stream<int>.empty();
+  return ref.watch(friendRepositoryProvider).watchChanges();
+});

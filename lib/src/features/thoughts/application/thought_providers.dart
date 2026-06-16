@@ -18,12 +18,13 @@ final receivedThoughtsProvider = FutureProvider<List<ReceivedThought>>((ref) {
   return ref.watch(thoughtRepositoryProvider).receivedThoughts();
 });
 
-/// Fires each time a pensée is received **live** (while the app is open), so the
-/// active decor can play its reception burst. Empty stream when signed out.
-final incomingThoughtPulseProvider = StreamProvider<void>((ref) {
+/// Emits a tick each time a pensée is received **live** (while the app is open),
+/// so the active decor can play its reception burst and the received list can
+/// refresh. Empty stream when signed out.
+final incomingThoughtPulseProvider = StreamProvider<int>((ref) {
   ref.watch(authStateChangesProvider);
   if (ref.watch(authRepositoryProvider).currentSession == null) {
-    return const Stream<void>.empty();
+    return const Stream<int>.empty();
   }
   return ref.watch(thoughtRepositoryProvider).watchIncoming();
 });
