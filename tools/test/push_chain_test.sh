@@ -137,6 +137,13 @@ has "$r" "$U_SEND" "recipient can read the received thought"
 r=$(asuser "$T_STRAN" "$API/rest/v1/thoughts?select=id")
 hasnt "$r" "$U_SEND" "stranger cannot read others' thoughts (no leak)"
 
+# block: recipient blocks the sender -> the (still-friend) sender can no longer
+# send. Verifies the is_blocked() guard in the thoughts insert policy.
+psql -c "insert into public.blocks(blocker_id, blocked_id) values ('$U_RECIP','$U_SEND') on conflict do nothing;" >/dev/null
+r=$(asuser "$T_SEND" -X POST "$API/rest/v1/thoughts" -H "Prefer: return=representation" \
+  -d "{\"sender_id\":\"$U_SEND\",\"recipient_id\":\"$U_RECIP\"}")
+hasnt "$r" "$U_RECIP" "blocked sender cannot send a thought (RLS block guard)"
+
 echo ""
 echo "================================"
 echo "  push-chain: $pass passed, $fail failed"

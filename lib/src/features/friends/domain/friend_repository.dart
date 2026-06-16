@@ -10,4 +10,14 @@ abstract interface class FriendRepository {
 
   /// Reject a request or remove a friend (deletes the friendship row).
   Future<void> removeFriendship(String friendshipId);
+
+  /// Block a user ([userId] is their profile id): removes any friendship both
+  /// ways and prevents them from sending you thoughts or friend requests.
+  Future<void> block(String userId);
+
+  /// Lift a block.
+  Future<void> unblock(String userId);
+
+  /// Record a report against a user for later moderation.
+  Future<void> report(String userId, {String? reason});
 }
