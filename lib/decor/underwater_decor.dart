@@ -9,11 +9,15 @@ import 'package:flutter/services.dart';
 
 /// Immersive "sous l'eau" decor with two distinct scenes:
 ///  - variant 0 "Fonds marins": the seabed — an undulating floor, rocks, and
-///    swaying seaweed rising from it. Dark and deep.
-///  - variant 1 "Poissons": brighter open water with fish swimming across and
-///    bubbles rising, lit by surface god-rays.
+///    swaying seaweed rising from it. Dark and deep. Its ambient particle layer
+///    is drifting marine snow / plankton — sparse pale specks sinking gently.
+///  - variant 1 "Poissons": brighter open water with bubbles rising, lit by
+///    surface god-rays. Its ambient particle layer is a handful of small fish
+///    silhouettes darting across at varied depths — no marine snow here.
 ///
-/// Both share marine snow, ambient bubbles, and a bubble burst. A tap spawns a
+/// Each variant therefore owns a *different* ambient particle TYPE (snow vs
+/// fish), gated by [_UWConfig.showSnow] / [_UWConfig.showFish]. Both share
+/// ambient bubbles and the bubble burst. A tap spawns a
 /// light preview burst ([_spawnBubbleBurst]); a decoupled [ReceptionSignal]
 /// pulse — fired by the host when a "pensée" actually arrives — spawns the big
 /// amplified celebratory swell ([_onReception]), flavoured per variant.
@@ -206,15 +210,22 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     HapticFeedback.heavyImpact();
   }
 
-  List<_Mote> _genSnow() => List.generate(70, (_) {
-        return _Mote(
-          x: _rng.nextDouble(),
-          y: _rng.nextDouble(),
-          size: 0.6 + _rng.nextDouble() * 1.6,
-          speed: 0.015 + _rng.nextDouble() * 0.04,
-          phase: _rng.nextDouble() * math.pi * 2,
-        );
-      });
+  // Marine snow / plankton — the deep-seabed ambient layer (variant 0 only).
+  // Sparse pale specks sinking very slowly with a faint sway: the calm
+  // suspended-particle look of deep water. Variant 1 grows fish instead, so
+  // there is no snow there.
+  List<_Mote> _genSnow() {
+    if (widget.variant != 0) return <_Mote>[];
+    return List.generate(70, (_) {
+      return _Mote(
+        x: _rng.nextDouble(),
+        y: _rng.nextDouble(),
+        size: 0.6 + _rng.nextDouble() * 1.6,
+        speed: 0.015 + _rng.nextDouble() * 0.04,
+        phase: _rng.nextDouble() * math.pi * 2,
+      );
+    });
+  }
 
   List<_Bubble> _genBubbles() => List.generate(12, (_) {
         return _Bubble(
@@ -263,17 +274,24 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
         );
       });
 
-  List<_Fish> _genFish() => List.generate(9, (_) {
-        return _Fish(
-          x: _rng.nextDouble(),
-          y: 0.18 + _rng.nextDouble() * 0.55,
-          size: 8 + _rng.nextDouble() * 13,
-          dir: _rng.nextBool() ? 1.0 : -1.0,
-          speed: 0.02 + _rng.nextDouble() * 0.05,
-          phase: _rng.nextDouble() * math.pi * 2,
-          color: _fishColor(_rng),
-        );
-      });
+  // Darting fish silhouettes — the open-water ambient layer (variant 1 only).
+  // A handful of little fish cross horizontally at varied depths, speeds and
+  // directions, looping around when they leave the screen, with a gentle
+  // vertical bob. Variant 0 has marine snow instead, so no fish there.
+  List<_Fish> _genFish() {
+    if (widget.variant != 1) return <_Fish>[];
+    return List.generate(7, (_) {
+      return _Fish(
+        x: _rng.nextDouble(),
+        y: 0.18 + _rng.nextDouble() * 0.55,
+        size: 8 + _rng.nextDouble() * 13,
+        dir: _rng.nextBool() ? 1.0 : -1.0,
+        speed: 0.02 + _rng.nextDouble() * 0.05,
+        phase: _rng.nextDouble() * math.pi * 2,
+        color: _fishColor(_rng),
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -337,6 +355,7 @@ const _seabed = _UWConfig(
   brightness: 0.6,
   showSeabed: true,
   showFish: false,
+  showSnow: true,
 );
 const _openWater = _UWConfig(
   top: Color(0xFF1C7FA0),
@@ -346,6 +365,7 @@ const _openWater = _UWConfig(
   showSeabed: false,
   showFish: true,
   showReef: true,
+  showSnow: false,
 );
 
 class _UWConfig {
@@ -356,6 +376,7 @@ class _UWConfig {
     required this.brightness,
     required this.showSeabed,
     required this.showFish,
+    required this.showSnow,
     this.showReef = false,
   });
 
@@ -365,6 +386,10 @@ class _UWConfig {
   final double brightness;
   final bool showSeabed;
   final bool showFish;
+  // Marine snow / plankton drifts only in the deep seabed scene (variant 0).
+  // The open-water scene (variant 1) uses darting fish silhouettes instead, so
+  // each variant carries a genuinely distinct ambient particle type.
+  final bool showSnow;
   final bool showReef;
 }
 
@@ -538,13 +563,15 @@ class _UWPainter extends CustomPainter {
       }
     }
 
-    // Marine snow.
-    for (final m in snow) {
-      canvas.drawCircle(
-        Offset(m.x * w, m.y * h),
-        m.size,
-        Paint()..color = Color.fromRGBO(220, 240, 255, 0.3 * bright),
-      );
+    // Marine snow / plankton — deep-seabed ambient layer only (variant 0).
+    if (config.showSnow) {
+      for (final m in snow) {
+        canvas.drawCircle(
+          Offset(m.x * w, m.y * h),
+          m.size,
+          Paint()..color = Color.fromRGBO(220, 240, 255, 0.3 * bright),
+        );
+      }
     }
 
     // Bubbles.
@@ -856,5 +883,6 @@ class _UWPainter extends CustomPainter {
   bool shouldRepaint(_UWPainter old) =>
       old.config.top != config.top ||
       old.config.showSeabed != config.showSeabed ||
-      old.config.showFish != config.showFish;
+      old.config.showFish != config.showFish ||
+      old.config.showSnow != config.showSnow;
 }

@@ -40,6 +40,16 @@ class _AuroraDecorState extends State<AuroraDecor>
   late final List<_Star> _stars = _genStars();
   late final List<_Curtain> _curtains = _genCurtains();
 
+  // Always-on ambient particle layer, calm and sparse. Its behaviour is chosen
+  // by the variant so each scene reads as a genuinely different texture, not
+  // just a recolour of the same particles:
+  //  - variant 0 "Émeraude": pale snowflakes drifting slowly DOWNWARD.
+  //  - variant 1 "Magenta":  warm embers / sparks drifting slowly UPWARD.
+  // Generated once; the ticker advances them and wraps them around the screen
+  // so the layer runs forever at constant density (distinct from the ephemeral
+  // reception sparkles below, which self-cull).
+  late final List<_Ambient> _ambient = _genAmbient();
+
   // Ephemeral celebratory particles spawned by a reception burst (shimmering
   // ice crystals / star sparkles raining down across the snow). Empty at rest;
   // they self-cull once they fall past the bottom.
@@ -68,6 +78,8 @@ class _AuroraDecorState extends State<AuroraDecor>
     final dt = (now - _lastTick).clamp(0.0, 0.05);
     _lastTick = now;
     _model.time = now;
+
+    _advanceAmbient(dt);
 
     if (_sparkles.isNotEmpty) {
       final remove = <_Sparkle>[];
@@ -114,6 +126,33 @@ class _AuroraDecorState extends State<AuroraDecor>
     HapticFeedback.lightImpact();
   }
 
+  /// Advances the always-on ambient layer. Émeraude (variant 0) snow drifts
+  /// downward with a gentle sinusoidal sway; Magenta (variant 1) embers rise
+  /// upward with the same lateral wander. Particles wrap around the opposite
+  /// edge so the layer keeps a constant, calm density forever.
+  void _advanceAmbient(double dt) {
+    final bool rising = widget.variant.clamp(0, 1) == 1;
+    final double time = _model.time;
+    for (final p in _ambient) {
+      // Vertical drift: up for embers, down for snow.
+      p.y += (rising ? -p.speed : p.speed) * dt;
+      // Lateral sway, each particle on its own phase/frequency.
+      p.x += math.sin(time * p.swayFreq + p.swayPhase) * p.swayAmp * dt;
+
+      // Wrap vertically; re-randomise x so the recycled particle reads as new.
+      if (rising && p.y < -0.04) {
+        p.y = 1.04;
+        p.x = _rng.nextDouble();
+      } else if (!rising && p.y > 1.04) {
+        p.y = -0.04;
+        p.x = _rng.nextDouble();
+      }
+      // Wrap horizontally to keep the sway from pushing particles off-screen.
+      if (p.x < -0.04) p.x = 1.04;
+      if (p.x > 1.04) p.x = -0.04;
+    }
+  }
+
   List<_Star> _genStars() => List.generate(140, (_) {
         final y = _rng.nextDouble();
         return _Star(
@@ -135,6 +174,23 @@ class _AuroraDecorState extends State<AuroraDecor>
           phase: _rng.nextDouble() * math.pi * 2,
           waviness: 0.02 + _rng.nextDouble() * 0.035,
           bright: 0.55 + _rng.nextDouble() * 0.45,
+        );
+      });
+
+  // ~38 ambient particles — sparse and calm. The same particle data drives both
+  // variants; only the tick direction (rise vs fall) and the paint differ, so
+  // density and motion feel are shared while the look is genuinely distinct.
+  List<_Ambient> _genAmbient() => List.generate(38, (_) {
+        return _Ambient(
+          x: _rng.nextDouble(),
+          y: _rng.nextDouble(),
+          size: 0.8 + _rng.nextDouble() * 1.8,
+          speed: 0.012 + _rng.nextDouble() * 0.028, // fraction of height / sec
+          swayAmp: 0.006 + _rng.nextDouble() * 0.018,
+          swayFreq: 0.4 + _rng.nextDouble() * 0.9,
+          swayPhase: _rng.nextDouble() * math.pi * 2,
+          twPhase: _rng.nextDouble() * math.pi * 2,
+          twSpeed: 1.5 + _rng.nextDouble() * 2.5,
         );
       });
 
@@ -164,6 +220,7 @@ class _AuroraDecorState extends State<AuroraDecor>
                 variant: v,
                 stars: _stars,
                 curtains: _curtains,
+                ambient: _ambient,
                 sparkles: _sparkles,
               ),
             ),
@@ -229,6 +286,34 @@ class _Curtain {
   final double phase;
   final double waviness;
   final double bright;
+}
+
+/// An always-on ambient particle. The same shape drives both variants; the
+/// ticker moves it DOWN (snow, variant 0) or UP (embers, variant 1) and the fx
+/// painter colours it accordingly. Mutable: the ticker advances [x]/[y].
+/// [speed] is a fraction of the canvas height per second; [twPhase]/[twSpeed]
+/// drive the embers' twinkle (snow stays steady).
+class _Ambient {
+  _Ambient({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.speed,
+    required this.swayAmp,
+    required this.swayFreq,
+    required this.swayPhase,
+    required this.twPhase,
+    required this.twSpeed,
+  });
+  double x;
+  double y;
+  final double size;
+  final double speed;
+  final double swayAmp;
+  final double swayFreq;
+  final double swayPhase;
+  final double twPhase;
+  final double twSpeed;
 }
 
 /// A falling shimmer crystal spawned by a reception burst. [tint] (0..1) blends
@@ -340,6 +425,7 @@ class _AuroraFxPainter extends CustomPainter {
     required this.variant,
     required this.stars,
     required this.curtains,
+    required this.ambient,
     required this.sparkles,
   }) : super(repaint: model);
 
@@ -347,6 +433,7 @@ class _AuroraFxPainter extends CustomPainter {
   final int variant;
   final List<_Star> stars;
   final List<_Curtain> curtains;
+  final List<_Ambient> ambient;
   final List<_Sparkle> sparkles;
 
   @override
@@ -378,6 +465,9 @@ class _AuroraFxPainter extends CustomPainter {
     for (final c in curtains) {
       _paintCurtain(canvas, w, h, time, c, cols, drive);
     }
+
+    // Always-on ambient texture: snow (variant 0) or embers (variant 1).
+    _paintAmbient(canvas, w, h, time, cols);
 
     // Reception shower: shimmering ice crystals / star sparkles, variant-tinted.
     if (sparkles.isNotEmpty) _paintSparkles(canvas, w, h, time, cols);
@@ -438,6 +528,70 @@ class _AuroraFxPainter extends CustomPainter {
           const [0.0, 0.45, 1.0],
         ),
     );
+  }
+
+  // Always-on ambient layer, two genuinely different looks per variant:
+  //  - variant 0 (Émeraude): pale white / faintly teal snowflakes — soft,
+  //    steady (no twinkle), drawn as plain opaque-ish dabs that read as snow
+  //    settling through the night.
+  //  - variant 1 (Magenta): warm pink / magenta embers — small glowing points
+  //    with a soft additive halo and a gentle twinkle, reading as sparks rising.
+  // Kept low-alpha and small so it stays a calm background texture, never
+  // competing with the curtains or the reception burst.
+  void _paintAmbient(
+      Canvas canvas, double w, double h, double time, List<Color> cols) {
+    if (variant == 1) {
+      // Embers: warm magenta glow, additive, twinkling.
+      final glow = cols[0]; // magenta
+      final core = Color.lerp(glow, Colors.white, 0.55)!;
+      for (final p in ambient) {
+        final px = p.x * w;
+        final py = p.y * h;
+        final tw =
+            0.4 + 0.6 * (0.5 + 0.5 * math.sin(time * p.twSpeed + p.twPhase));
+        final r = p.size;
+        // Soft halo.
+        canvas.drawCircle(
+          Offset(px, py),
+          r * 2.4,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = glow.withValues(alpha: 0.16 * tw),
+        );
+        // Bright warm core.
+        canvas.drawCircle(
+          Offset(px, py),
+          r * 0.7,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = core.withValues(alpha: 0.65 * tw),
+        );
+      }
+      return;
+    }
+
+    // Snow: pale flakes, faintly tinted by the emerald palette, steady alpha.
+    final flake = Color.lerp(Colors.white, cols[0], 0.18)!;
+    for (final p in ambient) {
+      final px = p.x * w;
+      final py = p.y * h;
+      // Fade flakes gently as they approach the very bottom so they melt into
+      // the snowfield instead of popping out at the wrap line.
+      final fade =
+          p.y > _snowLine ? (1 - (p.y - _snowLine) / (1 - _snowLine)) : 1.0;
+      final a = (0.55 * fade).clamp(0.0, 1.0);
+      // Soft outer glow so the flake doesn't look like a hard dot.
+      canvas.drawCircle(
+        Offset(px, py),
+        p.size * 1.8,
+        Paint()..color = flake.withValues(alpha: 0.12 * fade),
+      );
+      canvas.drawCircle(
+        Offset(px, py),
+        p.size * 0.85,
+        Paint()..color = flake.withValues(alpha: a),
+      );
+    }
   }
 
   // The reception shower: each particle is a soft glow halo plus a four-point
