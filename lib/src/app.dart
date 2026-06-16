@@ -5,6 +5,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
+import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:dewdrop/src/routing/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +18,8 @@ class DewDropApp extends ConsumerStatefulWidget {
   ConsumerState<DewDropApp> createState() => _DewDropAppState();
 }
 
-class _DewDropAppState extends ConsumerState<DewDropApp> {
+class _DewDropAppState extends ConsumerState<DewDropApp>
+    with WidgetsBindingObserver {
   // App-level messenger so deep-link handlers (which fire outside any screen's
   // context) can still surface a snackbar.
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -30,13 +32,26 @@ class _DewDropAppState extends ConsumerState<DewDropApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _inviteLinks = InviteLinkListener(_onInvite)..start();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _inviteLinks.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Safety net: Realtime can miss events while backgrounded (socket dropped),
+    // so on every foreground, refetch the live lists to catch up.
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(friendsProvider);
+      ref.invalidate(incomingRequestsProvider);
+      ref.invalidate(receivedThoughtsProvider);
+    }
   }
 
   Future<void> _onInvite(String handle) async {
@@ -64,6 +79,17 @@ class _DewDropAppState extends ConsumerState<DewDropApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+
+    // Live refresh: a friendship change (request/accept/remove) refetches the
+    // friends + requests lists; a new pensée refetches the received list. These
+    // streams stay subscribed app-wide because this root widget watches them.
+    ref.listen(friendshipChangesProvider, (_, _) {
+      ref.invalidate(friendsProvider);
+      ref.invalidate(incomingRequestsProvider);
+    });
+    ref.listen(incomingThoughtPulseProvider, (_, _) {
+      ref.invalidate(receivedThoughtsProvider);
+    });
 
     ref.listen(authStateChangesProvider, (_, next) {
       final state = next.value;

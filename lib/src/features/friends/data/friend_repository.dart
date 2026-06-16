@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
@@ -19,8 +21,11 @@ class SupabaseFriendRepository implements FriendRepository {
   @override
   Future<void> sendRequest(String handle) async {
     final h = handle.trim().toLowerCase();
-    final target =
-        await _client.from('profiles').select('id').eq('handle', h).maybeSingle();
+    final target = await _client
+        .from('profiles')
+        .select('id')
+        .eq('handle', h)
+        .maybeSingle();
     if (target == null) throw FriendException('Aucun utilisateur @$h.');
 
     final targetId = target['id'] as String;
@@ -31,18 +36,23 @@ class SupabaseFriendRepository implements FriendRepository {
     final existing = await _client
         .from('friendships')
         .select('status')
-        .or('and(requester_id.eq.$_uid,addressee_id.eq.$targetId),'
-            'and(requester_id.eq.$targetId,addressee_id.eq.$_uid)')
+        .or(
+          'and(requester_id.eq.$_uid,addressee_id.eq.$targetId),'
+          'and(requester_id.eq.$targetId,addressee_id.eq.$_uid)',
+        )
         .maybeSingle();
     if (existing != null) {
-      throw FriendException(existing['status'] == 'accepted'
-          ? 'Vous êtes déjà amis.'
-          : 'Une demande est déjà en cours.');
+      throw FriendException(
+        existing['status'] == 'accepted'
+            ? 'Vous êtes déjà amis.'
+            : 'Une demande est déjà en cours.',
+      );
     }
 
-    await _client
-        .from('friendships')
-        .insert({'requester_id': _uid, 'addressee_id': targetId});
+    await _client.from('friendships').insert({
+      'requester_id': _uid,
+      'addressee_id': targetId,
+    });
   }
 
   @override
@@ -53,8 +63,9 @@ class SupabaseFriendRepository implements FriendRepository {
         .eq('addressee_id', _uid)
         .eq('status', 'pending');
     if (rows.isEmpty) return [];
-    final profiles =
-        await _profilesByIds([for (final r in rows) r['requester_id'] as String]);
+    final profiles = await _profilesByIds([
+      for (final r in rows) r['requester_id'] as String,
+    ]);
     return [
       for (final r in rows)
         if (profiles[r['requester_id']] case final p?)
@@ -72,7 +83,8 @@ class SupabaseFriendRepository implements FriendRepository {
     if (rows.isEmpty) return [];
 
     String other(Map<String, dynamic> r) =>
-        (r['requester_id'] == _uid ? r['addressee_id'] : r['requester_id']) as String;
+        (r['requester_id'] == _uid ? r['addressee_id'] : r['requester_id'])
+            as String;
 
     final profiles = await _profilesByIds([for (final r in rows) other(r)]);
     return [
@@ -85,7 +97,8 @@ class SupabaseFriendRepository implements FriendRepository {
   @override
   Future<void> acceptRequest(String friendshipId) => _client
       .from('friendships')
-      .update({'status': 'accepted'}).eq('id', friendshipId);
+      .update({'status': 'accepted'})
+      .eq('id', friendshipId);
 
   /// Reject a request or remove a friend (deletes the friendship row).
   @override
@@ -96,12 +109,17 @@ class SupabaseFriendRepository implements FriendRepository {
   Future<void> block(String userId) async {
     // Remove the friendship both ways, then record the block (RLS then stops
     // them sending thoughts/requests).
-    await _client.from('friendships').delete().or(
-        'and(requester_id.eq.$_uid,addressee_id.eq.$userId),'
-        'and(requester_id.eq.$userId,addressee_id.eq.$_uid)');
     await _client
-        .from('blocks')
-        .insert({'blocker_id': _uid, 'blocked_id': userId});
+        .from('friendships')
+        .delete()
+        .or(
+          'and(requester_id.eq.$_uid,addressee_id.eq.$userId),'
+          'and(requester_id.eq.$userId,addressee_id.eq.$_uid)',
+        );
+    await _client.from('blocks').insert({
+      'blocker_id': _uid,
+      'blocked_id': userId,
+    });
   }
 
   @override
@@ -112,9 +130,29 @@ class SupabaseFriendRepository implements FriendRepository {
       .eq('blocked_id', userId);
 
   @override
-  Future<void> report(String userId, {String? reason}) =>
-      _client.from('reports').insert(
-          {'reporter_id': _uid, 'reported_id': userId, 'reason': reason});
+  Future<void> report(String userId, {String? reason}) => _client
+      .from('reports')
+      .insert({'reporter_id': _uid, 'reported_id': userId, 'reason': reason});
+
+  @override
+  Stream<int> watchChanges() {
+    // No column filter: a friendship has two parties, and RLS already restricts
+    // Realtime to rows where this user is the requester or the addressee. Fires
+    // on insert (someone added you), update (accepted) and delete (removed).
+    final controller = StreamController<int>();
+    var tick = 0;
+    final channel = _client
+        .channel('friendships:$_uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'friendships',
+          callback: (_) => controller.add(++tick),
+        );
+    channel.subscribe();
+    controller.onCancel = () => _client.removeChannel(channel);
+    return controller.stream;
+  }
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {
     if (ids.isEmpty) return {};

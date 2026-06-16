@@ -8,9 +8,12 @@ abstract interface class ThoughtRepository {
 
   Future<List<ReceivedThought>> receivedThoughts();
 
-  /// Emits once for every pensée received **live** (a new row addressed to the
-  /// current user). Used to trigger the decor's reception burst while the app
-  /// is open. The payload is intentionally empty — the burst needs a signal,
-  /// not the content. Cancel the subscription to tear down the channel.
-  Stream<void> watchIncoming();
+  /// Emits an incrementing tick for every pensée received **live** (a new row
+  /// addressed to the current user). Drives the decor's reception burst and a
+  /// refresh of the received-thoughts list while the app is open. The value is
+  /// a monotonic counter (not the content) on purpose: distinct values are what
+  /// make Riverpod re-notify reliably — a `void`/identical payload gets
+  /// collapsed by `==` and dropped. Cancel the subscription to tear down the
+  /// channel.
+  Stream<int> watchIncoming();
 }

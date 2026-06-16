@@ -62,10 +62,12 @@ class SupabaseThoughtRepository implements ThoughtRepository {
   }
 
   @override
-  Stream<void> watchIncoming() {
+  Stream<int> watchIncoming() {
     // RLS still applies to Realtime, but we also filter server-side so the
-    // socket only carries this user's incoming pensées.
-    final controller = StreamController<void>();
+    // socket only carries this user's incoming pensées. Emit a monotonic tick
+    // (not null) so every event is a distinct value that re-notifies listeners.
+    final controller = StreamController<int>();
+    var tick = 0;
     final channel = _client.channel('thoughts:incoming:$_uid').onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
@@ -75,7 +77,7 @@ class SupabaseThoughtRepository implements ThoughtRepository {
             column: 'recipient_id',
             value: _uid,
           ),
-          callback: (_) => controller.add(null),
+          callback: (_) => controller.add(++tick),
         );
     channel.subscribe();
     controller.onCancel = () => _client.removeChannel(channel);
