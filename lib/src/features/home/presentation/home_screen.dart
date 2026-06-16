@@ -187,8 +187,6 @@ class _HomeViewState extends ConsumerState<HomeView>
   @override
   Widget build(BuildContext context) {
     final (env, variant) = parseDecor(_decor);
-    final white = Colors.white;
-    final soundOn = ref.watch(soundscapeProvider);
 
     // Live: a pensée arrives while the app is open -> burst now.
     ref.listen(incomingThoughtPulseProvider, (_, next) {
@@ -207,44 +205,6 @@ class _HomeViewState extends ConsumerState<HomeView>
         child: SafeArea(
           child: Stack(
             children: [
-              Positioned(
-                left: 26,
-                top: 18,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'DewDrop',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: 2,
-                        color: white.withValues(alpha: 0.9),
-                        shadows: const [Shadow(color: Colors.black54, blurRadius: 12)],
-                      ),
-                    ),
-                    Text(
-                      '@${widget.profile.handle}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: white.withValues(alpha: 0.6),
-                        shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                right: 20,
-                bottom: 84,
-                child: _GlassCircleButton(
-                  icon: soundOn
-                      ? Icons.volume_up_rounded
-                      : Icons.volume_off_rounded,
-                  onTap: () =>
-                      unawaited(ref.read(soundscapeProvider.notifier).toggleMaster()),
-                ),
-              ),
               Positioned(
                 right: 20,
                 bottom: 20,
@@ -296,6 +256,18 @@ class _HomeMenu extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text(
+                  'DewDrop',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 2,
+                    color: white,
+                  ),
+                ),
+              ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.person_outline, color: white.withValues(alpha: 0.85)),
@@ -322,7 +294,7 @@ class _HomeMenu extends ConsumerWidget {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.palette_outlined, color: white.withValues(alpha: 0.85)),
-                title: const Text('Ambiance'),
+                title: const Text('Univers'),
                 trailing: Icon(Icons.chevron_right, color: white.withValues(alpha: 0.5)),
                 onTap: () => Navigator.of(context).pop('decor'),
               ),

@@ -78,7 +78,7 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Ambiance',
+                  Text('Univers',
                       style: TextStyle(
                           fontSize: 20, fontWeight: FontWeight.w500, color: w)),
                   _modeToggle(w),
@@ -301,7 +301,7 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
           for (var i = 0; i < env.variantCount; i++)
             Padding(
               padding: const EdgeInsets.only(left: 6),
-              child: _chip(w, 'Var ${i + 1}',
+              child: _chip(w, 'V${i + 1}',
                   _sel.$1 == env && _sel.$2 == i, () => _selectVariant(env, i)),
             ),
         ],
