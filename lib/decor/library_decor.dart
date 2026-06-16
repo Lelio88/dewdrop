@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -17,9 +18,10 @@ import 'package:flutter/services.dart';
 /// the warm glow pulse and the dust motes animate on top. A "pensée" (tap)
 /// makes the flame flare and scatters sparks. Pure Canvas.
 class LibraryDecor extends StatefulWidget {
-  const LibraryDecor({super.key, this.variant = 0, this.child});
+  const LibraryDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -33,13 +35,45 @@ class _LibraryDecorState extends State<LibraryDecor>
   late final Ticker _ticker;
   late final List<_Mote> _motes = _genMotes();
 
+  // Ephemeral burst sparks spawned on a reception (a swell of drifting motes
+  // that rise, sway and fade out). Ambient [_motes] keep looping untouched.
+  final List<_Spark> _sparks = [];
+
+  double _lastTick = 0;
+
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker((e) {
-      _model.time = e.inMicroseconds / 1e6;
-      _model.notify();
-    })..start();
+    _ticker = createTicker(_onTick)..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(LibraryDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    final now = elapsed.inMicroseconds / 1e6;
+    final dt = (now - _lastTick).clamp(0.0, 0.05);
+    _lastTick = now;
+    _model.time = now;
+
+    if (_sparks.isNotEmpty) {
+      final remove = <_Spark>[];
+      for (final s in _sparks) {
+        s.life -= dt / s.ttl;
+        s.y -= s.rise * dt;
+        if (s.life <= 0 || s.y < -0.05) remove.add(s);
+      }
+      if (remove.isNotEmpty) _sparks.removeWhere(remove.contains);
+    }
+
+    _model.notify();
   }
 
   List<_Mote> _genMotes() => List.generate(40, (_) {
@@ -53,13 +87,49 @@ class _LibraryDecorState extends State<LibraryDecor>
         );
       });
 
+  /// Light manual preview: a single flame flare, like before.
   void _tap() {
     _model.flare = _model.time;
+    _model.flareScale = 1.0;
     HapticFeedback.lightImpact();
+  }
+
+  /// A pensée arrived: an AMPLIFIED celebratory swell. The flame flares far
+  /// harder than a tap, and a dense flurry of drifting motes/glints rises and
+  /// fades across the whole room. Variant-flavoured: warm golden embers in the
+  /// Cosy nook (0), cool pale dust in the Ancienne hall's light shaft (1).
+  void _onReception() {
+    // 0 = Cosy (warm), 1 = Ancienne (cool).
+    final cosy = widget.variant == 0;
+
+    _model.flare = _model.time;
+    _model.flareScale = 2.4; // much bigger than a tap's 1.0
+
+    // A swell of ~54 drifting motes — far denser than the 40 ambient ones, and
+    // ephemeral so the room settles back to calm afterwards.
+    for (var i = 0; i < 54; i++) {
+      _sparks.add(
+        _Spark(
+          x: _rng.nextDouble(),
+          // Bias warm embers toward the lower-right hearth in Cosy; spread the
+          // cool dust across the central light shaft in Ancienne.
+          y: cosy
+              ? 0.55 + _rng.nextDouble() * 0.40
+              : 0.25 + _rng.nextDouble() * 0.55,
+          r: (cosy ? 0.8 : 0.6) + _rng.nextDouble() * 2.2,
+          rise: 0.06 + _rng.nextDouble() * 0.12,
+          drift: 0.02 + _rng.nextDouble() * 0.05,
+          phase: _rng.nextDouble() * math.pi * 2,
+          ttl: 1.4 + _rng.nextDouble() * 1.6,
+        ),
+      );
+    }
+    HapticFeedback.mediumImpact();
   }
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -76,7 +146,12 @@ class _LibraryDecorState extends State<LibraryDecor>
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
-              painter: _LibraryFxPainter(model: _model, cosy: cosy, motes: _motes),
+              painter: _LibraryFxPainter(
+                model: _model,
+                cosy: cosy,
+                motes: _motes,
+                sparks: _sparks,
+              ),
             ),
           ),
         ),
@@ -92,6 +167,8 @@ class _LibraryDecorState extends State<LibraryDecor>
 class _LibraryModel extends ChangeNotifier {
   double time = 0;
   double flare = -10;
+  // How big the most recent flare is: 1.0 for a tap, larger for a reception.
+  double flareScale = 1.0;
   void notify() => notifyListeners();
 }
 
@@ -103,6 +180,28 @@ class _Mote {
   final double speed;
   final double phase;
   final double drift;
+}
+
+/// An ephemeral reception spark: a mote that rises, sways and fades. Mutable —
+/// the ticker advances [y] and [life]; the fx painter renders it by [life].
+class _Spark {
+  _Spark({
+    required this.x,
+    required this.y,
+    required this.r,
+    required this.rise,
+    required this.drift,
+    required this.phase,
+    required this.ttl,
+  });
+  final double x;
+  double y;
+  final double r;
+  final double rise;
+  final double drift;
+  final double phase;
+  final double ttl;
+  double life = 1.0; // 1 → 0 over [ttl] seconds
 }
 
 // Warm leather book-spine palette.
@@ -485,18 +584,28 @@ class _LibraryBgPainter extends CustomPainter {
 }
 
 class _LibraryFxPainter extends CustomPainter {
-  _LibraryFxPainter({required this.model, required this.cosy, required this.motes}) : super(repaint: model);
+  _LibraryFxPainter({
+    required this.model,
+    required this.cosy,
+    required this.motes,
+    required this.sparks,
+  }) : super(repaint: model);
 
   final _LibraryModel model;
   final bool cosy;
   final List<_Mote> motes;
+  final List<_Spark> sparks;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
     final time = model.time;
-    final flare = (1 - (time - model.flare) / 1.2).clamp(0.0, 1.0);
+    // Scale the flare envelope by how big the triggering pulse was (a reception
+    // flares far harder, and for a touch longer, than a manual tap).
+    final flareScale = model.flareScale;
+    final flare =
+        ((1 - (time - model.flare) / 1.2).clamp(0.0, 1.0)) * flareScale;
 
     if (cosy) {
       _paintFire(canvas, Rect.fromLTRB(w * 0.62, h * 0.60, w * 0.93, h * 0.85), time, flare);
@@ -516,6 +625,41 @@ class _LibraryFxPainter extends CustomPainter {
       final x = (m.x + math.sin(time * 0.3 + m.phase) * m.drift) % 1.0;
       final a = 0.10 + 0.10 * (0.5 + 0.5 * math.sin(time * 1.2 + m.phase));
       canvas.drawCircle(Offset(x * w, y * h), m.r, Paint()..color = moteColor.withValues(alpha: a));
+    }
+
+    _paintSparks(canvas, w, h, time);
+  }
+
+  // Reception burst: a swell of drifting, fading glints. Reuses the per-variant
+  // mote palette so it reads as "the room's own dust, lit up" — warm golden
+  // embers in the Cosy nook, cool pale dust in the Ancienne light shaft.
+  void _paintSparks(Canvas canvas, double w, double h, double time) {
+    if (sparks.isEmpty) return;
+    // A touch brighter/warmer than the ambient motes for a celebratory feel.
+    final core = cosy ? const Color(0xFFFFC766) : const Color(0xFFEAF2FA);
+    final halo = cosy ? const Color(0xFFFF8A3A) : const Color(0xFFBFD4E8);
+    for (final s in sparks) {
+      // Ease-out fade (bright at birth, gentle tail).
+      final fade = (s.life * s.life).clamp(0.0, 1.0);
+      final x = (s.x + math.sin(time * 0.6 + s.phase) * s.drift) * w;
+      final y = s.y * h;
+      final r = s.r;
+      // Soft halo.
+      canvas.drawCircle(
+        Offset(x, y),
+        r * 2.4,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = halo.withValues(alpha: 0.28 * fade),
+      );
+      // Bright core.
+      canvas.drawCircle(
+        Offset(x, y),
+        r,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = core.withValues(alpha: 0.85 * fade),
+      );
     }
   }
 

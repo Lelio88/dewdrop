@@ -24,7 +24,7 @@ L'app est un **client** : elle n'expose pas d'API HTTP ; elle parle à Supabase 
    Supabase local (PostgREST + GoTrue)  ──►  Postgres + RLS
 ```
 
-Règle : `presentation → application → domain ← data`. La **composition root** (`lib/main.dart`, `lib/src/app.dart`, les `*_providers.dart`) est le seul endroit qui instancie les repositories (via `Supabase.instance.client`). Le **moteur de décors** (`lib/decor/`) est transverse (pas une feature) : `buildDecor(env, variant, mode, {child})` rend le décor plein écran avec l'UI qui flotte par-dessus (`child`).
+Règle : `presentation → application → domain ← data`. La **composition root** (`lib/main.dart`, `lib/src/app.dart`, les `*_providers.dart`) est le seul endroit qui instancie les repositories (via `Supabase.instance.client`). Le **moteur de décors** (`lib/decor/`) est transverse (pas une feature) : `buildDecor(env, variant, mode, {child, reception})` rend le décor plein écran avec l'UI qui flotte par-dessus (`child`) et un `ReceptionSignal` optionnel pour le burst de réception.
 
 ## Features
 
@@ -57,6 +57,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 - **Variantes** : une variante = une **vraie scène différente** (éléments, composition), pas une teinte. Les arbres procéduraux vivent dans `forest_tree.dart`.
 - **Mode photo** (`photo_decor.dart`) : parallax **multi-couches** auto-découvertes (`assets/photo/<env>/<variant>/0.png` = fond … `N.png` = avant ; `base.png` = source, ignorée). Chaque couche est **inpaintée** (tout ce qui est plus proche est effacé → bord feutré qui se fond, pas de couture) ; le **nombre de plans** + le feather sont réglés **par scène** (`tools/depth_split/split_all.py` → `SCENE_SETTINGS`), et un **`depthStrength` par décor** atténue le parallaxe là où la profondeur est peu fiable (espace ≈ plat).
 - **Cohérence Dessin↔Photo** : pour une variante donnée, le rendu dessiné doit représenter la **même scène** que la photo (autre style, pas autre lieu).
+- **Burst de réception** : `buildDecor(..., {reception})` accepte un `ReceptionSignal` (`lib/decor/reception_signal.dart`, un `ChangeNotifier` découplé — pas de Riverpod dans le moteur). Quand l'utilisateur reçoit une pensée, le home le **pulse** et le décor actif joue un **burst amplifié, propre à la variante courante** (pluie d'étoiles filantes, rideau de feuilles, houle de bulles…). Le **tap** sur le décor reste un aperçu plus léger du même effet. Le home alimente le signal depuis **Supabase Realtime** (live) **et** une détection **à l'ouverture/reprise** (pensées reçues hors-ligne ; 1er lancement = historique considéré comme vu).
 
 ## Le son (soundscape)
 

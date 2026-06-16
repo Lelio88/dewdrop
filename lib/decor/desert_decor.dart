@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -16,9 +17,10 @@ import 'package:flutter/services.dart';
 /// A "pensée" (tap) puffs sand into the wind (day) or sends a shooting star
 /// (night). Pure Canvas.
 class DesertDecor extends StatefulWidget {
-  const DesertDecor({super.key, this.variant = 0, this.child});
+  const DesertDecor({super.key, this.variant = 0, this.reception, this.child});
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -36,9 +38,24 @@ class _DesertDecorState extends State<DesertDecor>
   void initState() {
     super.initState();
     _ticker = createTicker((e) {
-      _model.time = e.inMicroseconds / 1e6;
+      final now = e.inMicroseconds / 1e6;
+      _model.time = now;
+      // Reap finished shower entries so the list stays bounded over a session.
+      if (_model.showers.isNotEmpty) {
+        _model.showers.removeWhere((s) => now - s.start > s.life);
+      }
       _model.notify();
     })..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(DesertDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
   }
 
   List<_DStar> _genStars() => List.generate(150, (_) {
@@ -51,13 +68,63 @@ class _DesertDecorState extends State<DesertDecor>
         );
       });
 
+  /// Manual preview: the lighter single-event tap — one sand puff (day) or one
+  /// shooting star (night), rendered by the painter off [_DesertModel.burst].
   void _tap() {
     _model.burst = _model.time;
     HapticFeedback.lightImpact();
   }
 
+  /// A pensée arrived: an AMPLIFIED, variant-flavoured *shower* — not the single
+  /// tap event but a whole staggered volley seeded into [_model.showers]. The
+  /// painter renders each entry like a tap burst but driven by its own start
+  /// time, so day = a sweeping fan of sand puffs blown across several origins
+  /// and night = a rain of shooting stars streaking in from staggered angles.
+  void _onReception() {
+    final night = widget.variant != 0;
+    final now = _model.time;
+    final count = night ? 7 : 6;
+    for (var i = 0; i < count; i++) {
+      // Stagger the volley so the shower rolls in instead of flashing at once.
+      final start = now + i * (night ? 0.16 : 0.1);
+      if (night) {
+        // Shooting stars: vary the entry corridor and slope across the sky.
+        final fromX = 0.05 + _rng.nextDouble() * 0.5;
+        final fromY = 0.04 + _rng.nextDouble() * 0.16;
+        final span = 0.4 + _rng.nextDouble() * 0.35;
+        final drop = 0.18 + _rng.nextDouble() * 0.22;
+        _model.showers.add(
+          _Shower(
+            start: start,
+            night: true,
+            ox: fromX,
+            oy: fromY,
+            dx: span,
+            dy: drop,
+            seed: _rng.nextInt(1 << 20),
+          ),
+        );
+      } else {
+        // Sand puffs blown off several crest origins across the width.
+        _model.showers.add(
+          _Shower(
+            start: start,
+            night: false,
+            ox: 0.12 + _rng.nextDouble() * 0.76,
+            oy: 0.72 + _rng.nextDouble() * 0.16,
+            dx: 0,
+            dy: 0,
+            seed: _rng.nextInt(1 << 20),
+          ),
+        );
+      }
+    }
+    HapticFeedback.mediumImpact();
+  }
+
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -74,7 +141,12 @@ class _DesertDecorState extends State<DesertDecor>
         Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
-              painter: _DesertFxPainter(model: _model, cfg: cfg, stars: _stars),
+              painter: _DesertFxPainter(
+                model: _model,
+                cfg: cfg,
+                stars: _stars,
+                showers: _model.showers,
+              ),
             ),
           ),
         ),
@@ -128,7 +200,40 @@ const double _dHorizon = 0.42;
 class _DesertModel extends ChangeNotifier {
   double time = 0;
   double burst = -10;
+
+  /// Active reception-shower bursts. Each plays out from its own [_Shower.start]
+  /// and is reaped by the ticker once past its life span. The single-event tap
+  /// stays on [burst]; the amplified "many" lives here.
+  final List<_Shower> showers = [];
+
   void notify() => notifyListeners();
+}
+
+/// One staggered burst within a reception shower. [night] picks the flavour:
+/// a shooting star streaking from ([ox],[oy]) along ([dx],[dy]) (night) or a
+/// sand puff erupting at ([ox],[oy]) (day). [seed] keeps each burst's particle
+/// spread deterministic across frames.
+class _Shower {
+  _Shower({
+    required this.start,
+    required this.night,
+    required this.ox,
+    required this.oy,
+    required this.dx,
+    required this.dy,
+    required this.seed,
+  });
+  final double start;
+  final bool night;
+  final double ox;
+  final double oy;
+  final double dx;
+  final double dy;
+  final int seed;
+
+  /// How long this burst animates (seconds) — matches the per-flavour painter
+  /// timing (shooting star 1.2s, sand puff 1.1s) used for the single tap.
+  double get life => night ? 1.2 : 1.1;
 }
 
 class _DStar {
@@ -306,12 +411,17 @@ class _DesertBgPainter extends CustomPainter {
 }
 
 class _DesertFxPainter extends CustomPainter {
-  _DesertFxPainter({required this.model, required this.cfg, required this.stars})
-      : super(repaint: model);
+  _DesertFxPainter({
+    required this.model,
+    required this.cfg,
+    required this.stars,
+    required this.showers,
+  }) : super(repaint: model);
 
   final _DesertModel model;
   final _DesertConfig cfg;
   final List<_DStar> stars;
+  final List<_Shower> showers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -329,26 +439,21 @@ class _DesertFxPainter extends CustomPainter {
           Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
         );
       }
-      // Shooting star on tap.
-      final t = (time - model.burst) / 1.2;
-      if (t >= 0 && t <= 1) {
-        final eased = Curves.easeOut.transform(t);
-        final from = Offset(w * 0.2, h * 0.1);
-        final to = Offset(w * 0.7, h * 0.4);
-        final head = Offset.lerp(from, to, eased)!;
-        final tail = Offset.lerp(from, to, (eased - 0.12).clamp(0.0, 1.0))!;
-        final fade = (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
-        canvas.drawLine(
-          tail,
-          head,
-          Paint()
-            ..strokeWidth = 2
-            ..strokeCap = StrokeCap.round
-            ..shader = ui.Gradient.linear(
-              tail,
-              head,
-              [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)],
-            ),
+      // Shooting star on tap (single, lighter preview).
+      _shootingStar(
+        canvas, w, h,
+        elapsed: time - model.burst,
+        from: Offset(w * 0.2, h * 0.1),
+        to: Offset(w * 0.7, h * 0.4),
+      );
+      // Reception shower: a rain of staggered shooting stars.
+      for (final s in showers) {
+        if (!s.night) continue;
+        _shootingStar(
+          canvas, w, h,
+          elapsed: time - s.start,
+          from: Offset(s.ox * w, s.oy * h),
+          to: Offset((s.ox + s.dx) * w, (s.oy + s.dy) * h),
         );
       }
     } else {
@@ -383,22 +488,80 @@ class _DesertFxPainter extends CustomPainter {
         }
         canvas.drawPath(path, shimmer..style = PaintingStyle.stroke);
       }
-      // Sand puff on tap.
-      final sp = (1 - (time - model.burst) / 1.1).clamp(0.0, 1.0);
-      if (sp > 0) {
-        final rng = math.Random(8);
-        for (var i = 0; i < 18; i++) {
-          final base = Offset(w * 0.5, h * 0.82);
-          final ang = -math.pi * (0.2 + rng.nextDouble() * 0.6);
-          final dist = (1 - sp) * w * 0.25 * (0.4 + rng.nextDouble());
-          final p = base + Offset(math.cos(ang), math.sin(ang)) * dist;
-          canvas.drawCircle(
-            p,
-            1 + rng.nextDouble() * 2,
-            Paint()..color = const Color(0xFFE9C079).withValues(alpha: sp * 0.5),
-          );
-        }
+      // Sand puff on tap (single, lighter preview).
+      _sandPuff(
+        canvas, w, h,
+        elapsed: time - model.burst,
+        origin: Offset(w * 0.5, h * 0.82),
+        seed: 8,
+      );
+      // Reception shower: a sweep of sand puffs blown across several crests.
+      for (final s in showers) {
+        if (s.night) continue;
+        _sandPuff(
+          canvas, w, h,
+          elapsed: time - s.start,
+          origin: Offset(s.ox * w, s.oy * h),
+          seed: s.seed,
+        );
       }
+    }
+  }
+
+  /// One shooting star — the night flavour. Shared by the single tap and every
+  /// staggered burst of a reception shower so they look identical in motion and
+  /// colour, only differing in their from/to corridor.
+  void _shootingStar(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double elapsed,
+    required Offset from,
+    required Offset to,
+  }) {
+    final t = elapsed / 1.2;
+    if (t < 0 || t > 1) return;
+    final eased = Curves.easeOut.transform(t);
+    final head = Offset.lerp(from, to, eased)!;
+    final tail = Offset.lerp(from, to, (eased - 0.12).clamp(0.0, 1.0))!;
+    final fade = (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85).clamp(0.0, 1.0);
+    canvas.drawLine(
+      tail,
+      head,
+      Paint()
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..shader = ui.Gradient.linear(
+          tail,
+          head,
+          [const Color(0x00FFFFFF), Color.fromRGBO(255, 255, 255, fade)],
+        ),
+    );
+  }
+
+  /// One sand puff — the day flavour. Shared by the single tap and every
+  /// staggered burst of a reception shower; [seed] keeps each puff's spread
+  /// deterministic across frames while differing between origins.
+  void _sandPuff(
+    Canvas canvas,
+    double w,
+    double h, {
+    required double elapsed,
+    required Offset origin,
+    required int seed,
+  }) {
+    final sp = (1 - elapsed / 1.1).clamp(0.0, 1.0);
+    if (sp <= 0) return;
+    final rng = math.Random(seed);
+    for (var i = 0; i < 18; i++) {
+      final ang = -math.pi * (0.2 + rng.nextDouble() * 0.6);
+      final dist = (1 - sp) * w * 0.25 * (0.4 + rng.nextDouble());
+      final p = origin + Offset(math.cos(ang), math.sin(ang)) * dist;
+      canvas.drawCircle(
+        p,
+        1 + rng.nextDouble() * 2,
+        Paint()..color = const Color(0xFFE9C079).withValues(alpha: sp * 0.5),
+      );
     }
   }
 

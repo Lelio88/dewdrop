@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -14,14 +15,22 @@ import 'package:flutter/services.dart';
 ///
 /// Sky, sun, island, sea base, sand, palms and props are static; the sea
 /// shimmer, the sun's reflection, the wave wash and the birds animate on top.
-/// A "pensée" (tap) sends a soft sparkle across the water. Pure Canvas.
+/// A "pensée" (tap) sends a soft sparkle across the water. A reception (the host
+/// pulsing [reception]) sends an amplified shower of sea-foam glints — a far
+/// bigger, denser, longer burst than a tap. Pure Canvas.
 ///
 /// Fronds are built as explicit tapering polygons (not stroked spokes) so the
 /// palms read as full, lush leaves.
 class BeachDecor extends StatefulWidget {
-  const BeachDecor({super.key, this.variant = 0, this.child});
+  const BeachDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+  });
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -42,15 +51,38 @@ class _BeachDecorState extends State<BeachDecor>
       _model.time = e.inMicroseconds / 1e6;
       _model.notify();
     })..start();
+    widget.reception?.addListener(_onReception);
   }
 
+  @override
+  void didUpdateWidget(BeachDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
+  }
+
+  // Lighter manual preview: a single soft sparkle pass across the water.
   void _sparkle() {
     _model.sparkle = _model.time;
     HapticFeedback.lightImpact();
   }
 
+  /// A pensée arrived: fire an amplified celebratory shower — a fresh random
+  /// seed each time so successive bursts differ, recorded as its own event so
+  /// it renders far denser, larger and longer than a tap [_sparkle]. The fx
+  /// painter colours every glint per variant (cool foam by day, warm gold at
+  /// sunset), so the burst matches the current scene for free.
+  void _onReception() {
+    _model.reception = _model.time;
+    _model.receptionSeed = _model.receptionSeed + 1;
+    HapticFeedback.mediumImpact();
+  }
+
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -161,6 +193,8 @@ const _sunset = _BeachConfig(
 class _BeachModel extends ChangeNotifier {
   double time = 0;
   double sparkle = -10;
+  double reception = -10;
+  int receptionSeed = 0;
   void notify() => notifyListeners();
 }
 
@@ -554,6 +588,43 @@ class _BeachFxPainter extends CustomPainter {
           Offset(x, y),
           1.5 + rng.nextDouble() * 2,
           Paint()..color = Colors.white.withValues(alpha: sp * 0.8),
+        );
+      }
+    }
+
+    // Reception burst: an amplified, variant-flavoured shower of sea-foam
+    // glints — denser (110 vs 24), bigger, drifting upward, and longer-lived
+    // (2.0s vs 1.4s) than a tap. By day the glints are cool foam tinted with
+    // the lagoon's sun glow; at sunset they take the sky's warm sun colours.
+    final rp = (1 - (time - model.reception) / 2.0).clamp(0.0, 1.0);
+    if (rp > 0) {
+      // Eased fade so the shower lands with a bright crest then settles.
+      final crest = rp * rp;
+      final rise = (1 - rp) * h * 0.10; // glints drift up as the burst ages
+      final seaBot = _BeachBgPainter.sandLine(0) * h;
+      // Re-seed per reception so successive bursts read differently.
+      final rng = math.Random(model.receptionSeed * 2654435761 & 0x7fffffff);
+      final glow = cfg.sunGlow;
+      final core = cfg.daytime ? Colors.white : cfg.sun;
+      for (var i = 0; i < 110; i++) {
+        final x = rng.nextDouble() * w;
+        // Spread the shower over the whole sea band, biased toward the surface.
+        final t = rng.nextDouble() * rng.nextDouble();
+        final y = hy + t * (seaBot - hy) - rise;
+        // Per-glint twinkle so the shower shimmers rather than fading flatly.
+        final tw = 0.55 + 0.45 * math.sin(time * 9 + i * 1.3);
+        final a = (crest * tw).clamp(0.0, 1.0);
+        final r = 2.0 + rng.nextDouble() * 3.5;
+        // Soft halo (variant glow) + bright core (white by day / warm sun).
+        canvas.drawCircle(
+          Offset(x, y),
+          r * 1.9,
+          Paint()..color = glow.withValues(alpha: a * 0.32),
+        );
+        canvas.drawCircle(
+          Offset(x, y),
+          r,
+          Paint()..color = core.withValues(alpha: a * 0.92),
         );
       }
     }

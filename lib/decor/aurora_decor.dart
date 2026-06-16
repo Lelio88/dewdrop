@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -15,9 +16,15 @@ import 'package:flutter/services.dart';
 /// the aurora curtains (waving) and the tap "flash" animate on top. A "pensée"
 /// (tap) makes the aurora surge brighter. Rendered entirely on the Canvas.
 class AuroraDecor extends StatefulWidget {
-  const AuroraDecor({super.key, this.variant = 0, this.child});
+  const AuroraDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+  });
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -33,13 +40,73 @@ class _AuroraDecorState extends State<AuroraDecor>
   late final List<_Star> _stars = _genStars();
   late final List<_Curtain> _curtains = _genCurtains();
 
+  // Ephemeral celebratory particles spawned by a reception burst (shimmering
+  // ice crystals / star sparkles raining down across the snow). Empty at rest;
+  // they self-cull once they fall past the bottom.
+  final List<_Sparkle> _sparkles = [];
+
+  double _lastTick = 0;
+
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker((e) {
-      _model.time = e.inMicroseconds / 1e6;
-      _model.notify();
-    })..start();
+    _ticker = createTicker(_onTick)..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(AuroraDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    final now = elapsed.inMicroseconds / 1e6;
+    final dt = (now - _lastTick).clamp(0.0, 0.05);
+    _lastTick = now;
+    _model.time = now;
+
+    if (_sparkles.isNotEmpty) {
+      final remove = <_Sparkle>[];
+      for (final s in _sparkles) {
+        s.y += s.fall * dt;
+        s.x += s.drift * dt;
+        s.rot += s.rotSpeed * dt;
+        if (s.y > 1.06) remove.add(s);
+      }
+      if (remove.isNotEmpty) _sparkles.removeWhere(remove.contains);
+    }
+
+    _model.notify();
+  }
+
+  /// A pensée arrived: the whole aurora sweeps to full brightness (a longer,
+  /// amplified swell distinct from the lighter tap flash) and a shower of
+  /// shimmering ice crystals / star sparkles rains down across the sky. The
+  /// sparkles are tinted by the active variant's palette so Émeraude rains
+  /// green and Magenta rains pink.
+  void _onReception() {
+    _model.flash = _model.time; // ride the existing curtain surge too…
+    _model.burst = _model.time; // …plus the bigger, longer reception swell.
+    for (var i = 0; i < 60; i++) {
+      _sparkles.add(
+        _Sparkle(
+          x: _rng.nextDouble(),
+          y: -0.05 - _rng.nextDouble() * 0.7,
+          size: 1.6 + _rng.nextDouble() * 3.2,
+          fall: 0.18 + _rng.nextDouble() * 0.30,
+          drift: (_rng.nextDouble() - 0.5) * 0.10,
+          rot: _rng.nextDouble() * math.pi * 2,
+          rotSpeed: (_rng.nextDouble() - 0.5) * 4,
+          phase: _rng.nextDouble() * math.pi * 2,
+          tint: _rng.nextDouble(),
+        ),
+      );
+    }
+    HapticFeedback.mediumImpact();
   }
 
   void _surge() {
@@ -73,6 +140,7 @@ class _AuroraDecorState extends State<AuroraDecor>
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -96,6 +164,7 @@ class _AuroraDecorState extends State<AuroraDecor>
                 variant: v,
                 stars: _stars,
                 curtains: _curtains,
+                sparkles: _sparkles,
               ),
             ),
           ),
@@ -121,7 +190,8 @@ const double _snowLine = 0.74;
 
 class _AuroraModel extends ChangeNotifier {
   double time = 0;
-  double flash = -10;
+  double flash = -10; // last lighter tap surge
+  double burst = -10; // last amplified reception swell
   void notify() => notifyListeners();
 }
 
@@ -159,6 +229,32 @@ class _Curtain {
   final double phase;
   final double waviness;
   final double bright;
+}
+
+/// A falling shimmer crystal spawned by a reception burst. [tint] (0..1) blends
+/// between the active variant's two aurora colours so the shower stays on
+/// palette. Mutable: the ticker advances [y]/[x]/[rot].
+class _Sparkle {
+  _Sparkle({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.fall,
+    required this.drift,
+    required this.rot,
+    required this.rotSpeed,
+    required this.phase,
+    required this.tint,
+  });
+  double x;
+  double y;
+  double rot;
+  final double size;
+  final double fall;
+  final double drift;
+  final double rotSpeed;
+  final double phase;
+  final double tint;
 }
 
 class _AuroraBgPainter extends CustomPainter {
@@ -244,12 +340,14 @@ class _AuroraFxPainter extends CustomPainter {
     required this.variant,
     required this.stars,
     required this.curtains,
+    required this.sparkles,
   }) : super(repaint: model);
 
   final _AuroraModel model;
   final int variant;
   final List<_Star> stars;
   final List<_Curtain> curtains;
+  final List<_Sparkle> sparkles;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -257,22 +355,32 @@ class _AuroraFxPainter extends CustomPainter {
     final h = size.height;
     final time = model.time;
     final surge = (1 - (time - model.flash) / 1.6).clamp(0.0, 1.0);
+    // The reception swell: bigger amplitude, longer decay than a tap surge, so
+    // the whole sky visibly intensifies for the celebratory burst.
+    final burst = (1 - (time - model.burst) / 2.8).clamp(0.0, 1.0);
+    final cols = _auroraColors(variant);
 
-    // Stars (behind the aurora).
+    // Stars (behind the aurora) — brighten with the burst for a sparkling sky.
+    final starBoost = 1 + burst * 0.9;
     for (final s in stars) {
-      final a = s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase));
+      final a =
+          s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase)) * starBoost;
       canvas.drawCircle(
         Offset(s.x * w, s.y * h),
-        s.r,
+        s.r * (1 + burst * 0.4),
         Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
       );
     }
 
-    // Aurora curtains.
-    final cols = _auroraColors(variant);
+    // Aurora curtains — the tap surge plus the amplified reception swell sweep
+    // every curtain to its brightest.
+    final drive = (surge * 0.5 + burst).clamp(0.0, 1.0);
     for (final c in curtains) {
-      _paintCurtain(canvas, w, h, time, c, cols, surge);
+      _paintCurtain(canvas, w, h, time, c, cols, drive);
     }
+
+    // Reception shower: shimmering ice crystals / star sparkles, variant-tinted.
+    if (sparkles.isNotEmpty) _paintSparkles(canvas, w, h, time, cols);
 
     // Depth vignette.
     canvas.drawRect(
@@ -330,6 +438,57 @@ class _AuroraFxPainter extends CustomPainter {
           const [0.0, 0.45, 1.0],
         ),
     );
+  }
+
+  // The reception shower: each particle is a soft glow halo plus a four-point
+  // shimmer cross (an icy star crystal). Tinted between the variant's two
+  // aurora colours toward a white-hot core, drawn additively to sit in the same
+  // luminous register as the curtains.
+  void _paintSparkles(
+      Canvas canvas, double w, double h, double time, List<Color> cols) {
+    for (final s in sparkles) {
+      final px = s.x * w;
+      final py = s.y * h;
+      // Twinkle: the crystal pulses as it falls.
+      final tw = 0.45 + 0.55 * (0.5 + 0.5 * math.sin(time * 6 + s.phase));
+      // On-palette colour: blend the two variant hues, then push toward white
+      // for the icy core.
+      final hue = Color.lerp(cols[0], cols[1], s.tint)!;
+      final core = Color.lerp(hue, Colors.white, 0.6)!;
+      final r = s.size;
+
+      // Soft halo.
+      canvas.drawCircle(
+        Offset(px, py),
+        r * 2.2,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = hue.withValues(alpha: 0.22 * tw),
+      );
+
+      // Four-point shimmer cross (rotating).
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.rotate(s.rot);
+      final spike = Paint()
+        ..blendMode = BlendMode.plus
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = r * 0.5
+        ..color = core.withValues(alpha: 0.85 * tw);
+      final arm = r * 2.6;
+      canvas.drawLine(Offset(-arm, 0), Offset(arm, 0), spike);
+      canvas.drawLine(Offset(0, -arm), Offset(0, arm), spike);
+      canvas.restore();
+
+      // Bright core dot.
+      canvas.drawCircle(
+        Offset(px, py),
+        r * 0.55,
+        Paint()
+          ..blendMode = BlendMode.plus
+          ..color = core.withValues(alpha: 0.95 * tw),
+      );
+    }
   }
 
   @override

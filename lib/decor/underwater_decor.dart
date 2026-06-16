@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -11,12 +12,21 @@ import 'package:flutter/services.dart';
 ///  - variant 1 "Poissons": brighter open water with fish swimming across and
 ///    bubbles rising, lit by surface god-rays.
 ///
-/// Both share marine snow, ambient bubbles, and a bubble burst when a "pensée"
-/// arrives (tap). Rendered entirely on the Canvas.
+/// Both share marine snow, ambient bubbles, and a bubble burst. A tap spawns a
+/// light preview burst ([_spawnBubbleBurst]); a decoupled [ReceptionSignal]
+/// pulse — fired by the host when a "pensée" actually arrives — spawns the big
+/// amplified celebratory swell ([_onReception]), flavoured per variant.
+/// Rendered entirely on the Canvas.
 class UnderwaterDecor extends StatefulWidget {
-  const UnderwaterDecor({super.key, this.variant = 0, this.child});
+  const UnderwaterDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+  });
 
   final int variant;
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -44,6 +54,16 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    widget.reception?.addListener(_onReception);
+  }
+
+  @override
+  void didUpdateWidget(UnderwaterDecor old) {
+    super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
   }
 
   void _onTick(Duration elapsed) {
@@ -103,6 +123,9 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     _pointerLook = Offset(-nx * 0.06, -ny * 0.04);
   }
 
+  /// Tap preview: a light, modest burst rising from the bottom edge — the
+  /// manual "what would a pensée feel like" tease. Kept deliberately small so
+  /// the real reception swell ([_onReception]) reads as much bigger.
   void _spawnBubbleBurst() {
     for (var i = 0; i < 16; i++) {
       _bubbles.add(
@@ -118,6 +141,75 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     }
     _model.glows.add(_Glow(const Offset(0.5, 0.6), _model.time));
     HapticFeedback.mediumImpact();
+  }
+
+  /// A pensée arrived: an AMPLIFIED celebratory swell — a much bigger, denser
+  /// wave of bubbles than a tap, plus a cluster of bioluminescent glows. The
+  /// swell is flavoured by the active variant so each scene celebrates in its
+  /// own register:
+  ///  - variant 0 "Fonds marins": a deep, heavy welling that lifts off the
+  ///    seabed floor itself — fewer, bigger, slower bubbles seeded along the
+  ///    undulating floor line, and a low cluster of teal glows hugging the bed,
+  ///    matching the dark/deep scene.
+  ///  - variant 1 "Poissons": a bright, fast, wide surge fanned across the full
+  ///    width and rising quickly toward the surface god-rays — many smaller
+  ///    bubbles (the brighter open water renders them more luminous for free)
+  ///    and glows spread higher where the light is.
+  void _onReception() {
+    final isSeabed = widget.variant == 0;
+
+    if (isSeabed) {
+      // Deep welling lifting off the seabed floor: ~48 big slow bubbles.
+      for (var i = 0; i < 48; i++) {
+        final x = _rng.nextDouble();
+        _bubbles.add(
+          _Bubble(
+            x: x,
+            // Seed just under the floor line so they appear to rise from the
+            // bed; stagger below it so the swell arrives as a wave.
+            y: _floorY(x) + 0.02 + _rng.nextDouble() * 0.18,
+            size: 3 + _rng.nextDouble() * 6,
+            speed: 0.10 + _rng.nextDouble() * 0.10,
+            phase: _rng.nextDouble() * math.pi * 2,
+            ephemeral: true,
+          ),
+        );
+      }
+      // Low cluster of glows hugging the bed (centre-weighted, deep).
+      for (var i = 0; i < 4; i++) {
+        _model.glows.add(
+          _Glow(
+            Offset(0.32 + _rng.nextDouble() * 0.36, 0.66 + _rng.nextDouble() * 0.16),
+            _model.time,
+          ),
+        );
+      }
+    } else {
+      // Bright wide surge across the whole width, rising fast.
+      for (var i = 0; i < 60; i++) {
+        _bubbles.add(
+          _Bubble(
+            x: _rng.nextDouble(),
+            y: 1.04 + _rng.nextDouble() * 0.30,
+            size: 1.5 + _rng.nextDouble() * 4.5,
+            speed: 0.16 + _rng.nextDouble() * 0.16,
+            phase: _rng.nextDouble() * math.pi * 2,
+            ephemeral: true,
+          ),
+        );
+      }
+      // Glows spread wider and higher, toward the sunlit zone.
+      for (var i = 0; i < 4; i++) {
+        _model.glows.add(
+          _Glow(
+            Offset(0.18 + _rng.nextDouble() * 0.64, 0.32 + _rng.nextDouble() * 0.30),
+            _model.time,
+          ),
+        );
+      }
+    }
+
+    HapticFeedback.heavyImpact();
   }
 
   List<_Mote> _genSnow() => List.generate(70, (_) {
@@ -191,6 +283,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _ticker.dispose();
     _model.dispose();
     super.dispose();
