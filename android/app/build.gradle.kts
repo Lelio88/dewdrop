@@ -37,10 +37,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // App ID — must match the Firebase Android app (google-services.json) and
+        // the Apple bundle id (app.dewdrop). SDK/version values flow from Flutter.
         applicationId = "app.dewdrop"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
