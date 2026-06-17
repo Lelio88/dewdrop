@@ -10,19 +10,19 @@ final groupRepositoryProvider = Provider<GroupRepository>((ref) {
   return SupabaseGroupRepository(Supabase.instance.client);
 });
 
-bool _signedIn(Ref ref) =>
-    ref.watch(authRepositoryProvider).currentSession != null;
+bool _signedIn(Ref ref) {
+  ref.watch(authStateChangesProvider);
+  return ref.watch(authRepositoryProvider).currentSession != null;
+}
 
 /// Live tick when the user's groups or their membership change.
 final groupChangesProvider = StreamProvider<int>((ref) {
-  ref.watch(authStateChangesProvider);
   if (!_signedIn(ref)) return const Stream<int>.empty();
   return ref.watch(groupRepositoryProvider).watchChanges();
 });
 
 /// The groups the signed-in user belongs to (self-refreshes on realtime change).
 final myGroupsProvider = FutureProvider<List<Group>>((ref) {
-  ref.watch(authStateChangesProvider);
   if (!_signedIn(ref)) return <Group>[];
   ref.watch(groupChangesProvider);
   return ref.watch(groupRepositoryProvider).myGroups();
