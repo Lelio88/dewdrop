@@ -21,8 +21,10 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<bool> isHandleAvailable(String handle) async {
+    // Checked against the directory view (profiles is owner-only); the unique
+    // constraint on profiles.handle is the real guard against a TOCTOU race.
     final res = await _client
-        .from('profiles')
+        .from('public_profiles')
         .select('id')
         .eq('handle', handle)
         .maybeSingle();
@@ -75,6 +77,15 @@ class SupabaseProfileRepository implements ProfileRepository {
     await _client
         .from('profiles')
         .update({'default_anonymous': value})
+        .eq('id', uid);
+  }
+
+  @override
+  Future<void> updateNotificationsEnabled(bool value) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'notifications_enabled': value})
         .eq('id', uid);
   }
 

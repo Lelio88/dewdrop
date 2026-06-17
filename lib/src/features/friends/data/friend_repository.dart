@@ -22,7 +22,7 @@ class SupabaseFriendRepository implements FriendRepository {
   Future<void> sendRequest(String handle) async {
     final h = handle.trim().toLowerCase();
     final target = await _client
-        .from('profiles')
+        .from('public_profiles')
         .select('id')
         .eq('handle', h)
         .maybeSingle();
@@ -156,7 +156,12 @@ class SupabaseFriendRepository implements FriendRepository {
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {
     if (ids.isEmpty) return {};
-    final rows = await _client.from('profiles').select().inFilter('id', ids);
+    // public_profiles: the directory view (handle/name/avatar only) — the base
+    // profiles table is owner-only, so other users are read through it.
+    final rows = await _client
+        .from('public_profiles')
+        .select()
+        .inFilter('id', ids);
     return {for (final m in rows) m['id'] as String: Profile.fromMap(m)};
   }
 }

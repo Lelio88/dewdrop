@@ -11,6 +11,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
+  // Only POST. A GET in a phishing link must never be able to trigger a
+  // deletion just because the client attached the session automatically.
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   try {
     const token = (req.headers.get("Authorization") ?? "").replace(
       /^Bearer\s+/i,
@@ -34,7 +37,8 @@ Deno.serve(async (req) => {
     if (!del.ok) return json({ error: "delete failed" }, 500);
     return json({ deleted: true });
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    console.error("delete-account error:", e);
+    return json({ error: "internal_error" }, 500);
   }
 });
 

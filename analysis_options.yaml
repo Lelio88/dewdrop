@@ -1,1 +1,7 @@
 include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Force every Future to be awaited or explicitly `unawaited(...)`. Catches
+    # silent fire-and-forget bugs (e.g. a deep-link handler that was never awaited).
+    unawaited_futures: true

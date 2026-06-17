@@ -71,12 +71,22 @@ class _ThoughtSettingsScreenState extends ConsumerState<ThoughtSettingsScreen> {
   void _onReel(void Function() apply) {
     setState(apply);
     _save?.cancel();
-    _save = Timer(const Duration(milliseconds: 500), () {
-      unawaited(
-        ref.read(profileRepositoryProvider).updateThoughtStyle(_style.toJson()),
-      );
-      ref.invalidate(myProfileProvider);
-    });
+    _save = Timer(const Duration(milliseconds: 500), _persistStyle);
+  }
+
+  /// Persists the current style. Logs (never swallows) a failed save, and skips
+  /// the invalidate if the write failed or the screen is already gone.
+  Future<void> _persistStyle() async {
+    try {
+      await ref
+          .read(profileRepositoryProvider)
+          .updateThoughtStyle(_style.toJson());
+    } on Exception catch (e) {
+      debugPrint('thought_style save failed: $e');
+      return;
+    }
+    if (!mounted) return;
+    ref.invalidate(myProfileProvider);
   }
 
   Future<void> _setAnonymous(bool v) async {
