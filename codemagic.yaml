@@ -38,6 +38,24 @@ workflows:
     scripts:
       - name: Flutter packages
         script: flutter pub get
+      - name: Bundle GoogleService-Info.plist into the Runner target
+        # The plist lives at ios/Runner/ but Firebase needs it IN the Xcode
+        # bundle. We can't open Xcode from Windows, so add it to the target here
+        # (idempotent; xcodeproj ships with CocoaPods on the runner).
+        script: |
+          cd "$CM_BUILD_DIR/ios"
+          ruby -e '
+            require "xcodeproj"
+            proj = Xcodeproj::Project.open("Runner.xcodeproj")
+            target = proj.targets.find { |t| t.name == "Runner" }
+            present = target.resources_build_phase.files.any? { |f| f.display_name == "GoogleService-Info.plist" }
+            unless present
+              ref = proj.main_group.find_subpath("Runner", true).new_reference("GoogleService-Info.plist")
+              target.resources_build_phase.add_file_reference(ref)
+              proj.save
+              puts "Added GoogleService-Info.plist to Runner target"
+            end
+          '
       - name: Set up code signing
         script: xcode-project use-profiles
       - name: CocoaPods
