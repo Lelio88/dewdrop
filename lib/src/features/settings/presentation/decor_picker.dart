@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
+import 'package:dewdrop/src/features/ambient/application/sound_preview.dart';
 import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,6 +45,11 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
 
   void _update(String env, EnvSoundPref pref) =>
       ref.read(soundPrefsProvider.notifier).setEnv(env, pref);
+
+  /// Play a short preview of [asset] so the user can hear a track before
+  /// toggling it (separate player — doesn't touch the live soundscape).
+  void _preview(String asset) =>
+      unawaited(ref.read(soundPreviewProvider).play(asset));
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +168,7 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
               env.name,
               pref.copyWith(amb: pref.amb.copyWith(vol: v)),
             ),
+            onPreview: () => _preview('audio/${cfg.ambiance}.ogg'),
           ),
           _track(
             w,
@@ -173,6 +181,9 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
               env.name,
               pref.copyWith(mus: pref.mus.copyWith(vol: v)),
             ),
+            onPreview: cfg.music.isNotEmpty
+                ? () => _preview('audio/${cfg.music.first}.ogg')
+                : null,
           ),
           if (cfg.secondaries.isNotEmpty) divider,
           for (final entry in cfg.secondaries.entries)
@@ -200,6 +211,9 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
       onVol: (v) => _update(env, pref.withSecondary(key, sp.copyWith(vol: v))),
       onFreq: (v) =>
           _update(env, pref.withSecondary(key, sp.copyWith(freq: v))),
+      onPreview: cat.clips.isNotEmpty
+          ? () => _preview('audio/oneshot/${cat.clips.first}.ogg')
+          : null,
     );
   }
 
@@ -210,6 +224,7 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
     required double vol,
     required ValueChanged<bool> onOn,
     required ValueChanged<double> onVol,
+    VoidCallback? onPreview,
     double? freq,
     ValueChanged<double>? onFreq,
   }) {
@@ -240,6 +255,19 @@ class _DecorPickerState extends ConsumerState<DecorPicker> {
                   ),
                 ),
               ),
+              if (onPreview != null)
+                GestureDetector(
+                  onTap: onPreview,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.play_circle_outline_rounded,
+                      size: 24,
+                      color: w.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
             ],
           ),
           _slider(w, Icons.volume_up_rounded, vol, on ? onVol : null),

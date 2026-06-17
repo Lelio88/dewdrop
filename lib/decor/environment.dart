@@ -50,6 +50,7 @@ Widget buildDecor(
       environment: env,
       variant: v,
       parallax: parallax,
+      reception: reception,
       child: child,
     );
   }

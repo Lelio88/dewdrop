@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:dewdrop/decor/environment.dart';
+import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -23,12 +24,16 @@ class PhotoDecor extends StatefulWidget {
     required this.environment,
     this.variant = 0,
     this.parallax = true,
+    this.reception,
     this.child,
   });
 
   final Environment environment;
   final int variant;
   final bool parallax;
+  // Pulsed when a pensée is received, so the scene bursts (same as a tap, but
+  // bigger). When null (e.g. the decor preview), only taps burst.
+  final ReceptionSignal? reception;
   final Widget? child;
 
   @override
@@ -56,11 +61,16 @@ class _PhotoDecorState extends State<PhotoDecor>
     _particles = _genParticles();
     _ticker = createTicker(_onTick)..start();
     _loadLayers();
+    widget.reception?.addListener(_onReception);
   }
 
   @override
   void didUpdateWidget(PhotoDecor old) {
     super.didUpdateWidget(old);
+    if (old.reception != widget.reception) {
+      old.reception?.removeListener(_onReception);
+      widget.reception?.addListener(_onReception);
+    }
     if (old.environment != widget.environment ||
         old.variant != widget.variant) {
       _overlay = _overlayFor(widget.environment, widget.variant);
@@ -123,9 +133,20 @@ class _PhotoDecorState extends State<PhotoDecor>
   }
 
   void _onTap() {
+    _burst(16);
+    HapticFeedback.lightImpact();
+  }
+
+  // A pensée was received (live via Realtime, or on app open): play an amplified
+  // burst — same effect as a tap, bigger, and without the haptic (no touch).
+  void _onReception() => _burst(26);
+
+  // Spawn [count] ephemeral particles sweeping across the scene + a soft flash.
+  // Shared by a tap and an incoming pensée.
+  void _burst(int count) {
     _model.flashStart = _model.time;
     final rise = _overlay.kind == _PKind.bubble;
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < count; i++) {
       _particles.add(
         _Particle(
           x: _rng.nextDouble(),
@@ -144,7 +165,6 @@ class _PhotoDecorState extends State<PhotoDecor>
         ),
       );
     }
-    HapticFeedback.lightImpact();
   }
 
   List<_Particle> _genParticles() => List.generate(_overlay.count, (_) {
@@ -178,6 +198,7 @@ class _PhotoDecorState extends State<PhotoDecor>
 
   @override
   void dispose() {
+    widget.reception?.removeListener(_onReception);
     _tilt.dispose();
     _ticker.dispose();
     _model.dispose();
