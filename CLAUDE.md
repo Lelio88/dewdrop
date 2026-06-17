@@ -15,7 +15,7 @@ Résolvez les problèmes sans introduire de régression ni de dette technique ar
 
 Topologie rapide :
 - `lib/decor/` — moteur de décors (Canvas) : `environment.dart` (registre 8 ambiances + `buildDecor`), `*_decor.dart`, `photo_decor.dart` (parallax photo), `tilt.dart` (parallax gyroscope à neutre adaptatif).
-- `lib/src/features/<f>/{domain,data,application,presentation}/` — auth · profile · friends · thoughts · settings · home · **ambient** (son) · **notifications** (push).
+- `lib/src/features/<f>/{domain,data,application,presentation}/` — auth · profile · friends · **groups** (cercles) · thoughts · settings · home · **ambient** (son) · **notifications** (push **groupé**).
 - `lib/src/{app,routing,common,supabase}/` — composition root, GoRouter, `common/deep_links.dart`, widgets glass, config Supabase.
 - `supabase/{migrations,functions,config.toml}` · `tools/depth_split/` (couches photo) · `docs/index.html` (page légale hébergée) · `assets/{photo,audio}/`.
 
@@ -37,7 +37,7 @@ Topologie rapide :
 ## IV. Garde-Fous non négociables
 
 1. **Migrations immuables** : une migration `supabase/migrations/` déjà jouée n'est **jamais** modifiée. Corriger = nouvelle migration.
-2. **Sécurité Supabase** : toute table lue/écrite exige **RLS** **et** **GRANT** au rôle `authenticated`. Oublier le GRANT → `42501 permission denied`.
+2. **Sécurité Supabase** : toute table lue/écrite exige **RLS** **et** **GRANT** au rôle `authenticated` (oublier le GRANT → `42501`). `profiles` est **owner-only** (lire les autres = vue **`public_profiles`**) ; les helpers RLS (`are_friends`, `is_blocked`, `is_group_member`…) vivent dans le schéma **`private`** (`search_path=''`, non exposé en RPC).
 3. **Riverpod sans codegen** : providers à la main. **NE PAS** réintroduire `riverpod_generator`/`riverpod_lint` (conflit freezed 3 / Dart 3.11). `AsyncValue.value`, pas `valueOrNull`.
 4. **Décors en Canvas** : pas de fragment shader runtime (ne rend pas sur desktop) → `CustomPainter`. Fond statique vs couche animée (perf). Une **variante = une vraie scène** (même scène en Dessin **et** Photo), pas une teinte.
 5. **Aucun secret commité** (repo **public**) : clé SMTP via `env(BREVO_SMTP_KEY)` au `config push` ; keystore + `android/key.properties` gitignorés ; service account FCM dans `supabase/functions/.env` gitignoré.
@@ -80,10 +80,12 @@ supabase config push                   # pousser la config auth (SMTP, templates
 | Réglage parallaxe d'une scène | `SCENE_SETTINGS` (`split_all.py`) → re-run `split_all.py` + `export_webp.py` |
 | Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
 | Style/texte des notifs envoyées | listes émojis/phrases dans `thought_style.dart` ; assemblage par `send-thought-push` (les deux côtés) |
+| Logique de groupe (RLS, fan-out) | nouvelle migration (helpers `private`) + `features/groups/` + RPC `send_to_group` |
+| Affichage/groupement des notifs reçues | `thought_notifications.dart` (app) **et** le payload `data` de `send-thought-push` |
 | Nouveau son / piste audio | recette `tools/sounds/build_audio.sh` + attribution `CREDITS.md` |
 | Changement de dépendance critique | Section « Pile » + `pubspec.yaml` |
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : **notification personnalisable** (`profiles.thought_style` + page « Pensées » à machine à sous, appliqué par `send-thought-push`) ; correctifs son (**mixage** des lecteurs via `AudioContext`, sérialisation) ; **icône notif** monochrome ; **toggle parallaxe**. Diffusion testeurs **v0.3.0** (Firebase App Distribution).
-- **Focus immédiat** : **iOS** — prep faite (app Firebase iOS + `GoogleService-Info.plist`, `codemagic.yaml`, scheme, permission caméra) ; **bloqué sur le compte Apple Developer (99 $/an)** requis pour la signature + APNs + TestFlight. Puis déploiement **Play Store**.
+- **Dernier focus** : **durcissement sécurité** (helpers RLS → schéma `private`, `profiles` owner-only + vue `public_profiles`, anti-flood 25/min, rotation clé service account + clé API Firebase restreinte) ; **notifications v2** (messages *data* → notifs **groupées** « DewDrop », alerte une fois, silencieuses en heures calmes) ; **groupes** (cercles partagés + `send_to_group`). Diffusion testeurs **v0.5.0**.
+- **Focus immédiat** : **test end-to-end à deux** (notifs groupées + groupes). Puis **iOS** (prep faite, **bloqué compte Apple Developer 99 $/an**) et **Play Store** (compte 25 $, captures, test fermé 14 j — voir `docs/play-store-listing.md`).

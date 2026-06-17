@@ -19,18 +19,20 @@ Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douc
   synchronisés au profil.
 - **Backend** : **Supabase** (Postgres + Auth + RLS + Realtime) — cloud en prod, **local via
   Docker** pour le dev.
-- **Push & crash** : **Firebase** — Cloud Messaging (notifs), Crashlytics (rapports), App
-  Distribution (diffusion aux testeurs).
+- **Push & crash** : **Firebase** — Cloud Messaging (notifs **groupées**, construites par l'app
+  depuis des messages *data*), Crashlytics (rapports), App Distribution (diffusion aux testeurs).
 - **Emails** : **Brevo** (SMTP) pour les mails de confirmation / reset — templates FR brandés.
 
 ## Fonctionnalités
 
 - **Comptes** email + **confirmation obligatoire** (anti-abus) + reset de mot de passe.
 - **Deep links** `dewdrop://` : confirmation d'inscription, reset, **invitation par lien**.
-- **Amis** : ajout par @handle / **QR** / **lien**, demandes en **temps réel**, **bloquer / signaler**.
-- **Pensées** : envoi (option **anonyme**), réception **live** (liste + éclat du décor),
-  **throttle** des notifs, **heures calmes**, **notification personnalisable** (émojis + phrase au
-  choix sur une « machine à sous », page « Pensées »).
+- **Amis & groupes** : ajout par @handle / **QR** / **lien** ; **cercles partagés** (le créateur
+  gère les membres, tout membre envoie au groupe) ; demandes en **temps réel**, **bloquer / signaler**.
+- **Pensées** : envoi à un **ami ou un groupe** (option **anonyme**), réception **live** (liste +
+  éclat du décor), **heures calmes**, **notification personnalisable** (émojis + phrase, page « Pensées »).
+- **Notifications groupées** : une seule alerte + un groupe « DewDrop » avec une sous-notif par
+  expéditeur ; **silencieuses** pendant les heures calmes ; **désactivables**.
 - **Suppression de compte** (cascade) · **page légale** hébergée (GitHub Pages).
 
 ## Structure
@@ -97,11 +99,13 @@ python -m venv .venv
 
 ## État
 
-✅ Comptes + confirmation email · ✅ Profil/handle · ✅ Décors (dessin + photo, persistés, **parallaxe
-désactivable**) · ✅ Amis (QR / lien / handle, temps réel, bloquer/signaler) · ✅ Pensées (anonyme,
-live, throttle, heures calmes, **notif personnalisable**) · ✅ Push FCM (**icône monochrome**) ·
-✅ Son par décor (lecteurs **mixés**) · ✅ Deep links · ✅ SMTP Brevo · ✅ Crashlytics ·
-✅ Signature release · ✅ Page légale hébergée · ✅ Diffusion testeurs (Firebase App Distribution, **v0.3.0**).
+✅ Comptes + confirmation email · ✅ Profil/handle · ✅ Décors (dessin + photo, parallaxe
+désactivable, éclat de réception **aussi en photo**) · ✅ **Amis + groupes** (cercles partagés) ·
+✅ Pensées (anonyme, live, heures calmes, **notif personnalisable**) · ✅ **Notifications v2**
+(groupées, alerte unique, silencieuses en heures calmes, **désactivables**) · ✅ Son par décor
+(lecteurs **mixés** + **aperçu ▶**) · ✅ **Sécurité durcie** (RLS schéma `private`, vue `public_profiles`,
+anti-flood, secrets rotés) · ✅ Deep links · ✅ SMTP Brevo · ✅ Crashlytics · ✅ Signature release ·
+✅ Page légale hébergée · ✅ Diffusion testeurs (Firebase App Distribution, **v0.5.0**).
 
 🔜 **iOS** : prep faite (app Firebase iOS, `codemagic.yaml`, scheme, permission caméra) — **bloqué
 sur le compte Apple Developer (99 $/an)** requis pour la signature + APNs + TestFlight.

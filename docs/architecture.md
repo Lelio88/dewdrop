@@ -33,12 +33,13 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 |---|---|
 | `auth` | Inscription/connexion email (**confirmation obligatoire**), **reset de mot de passe** + **confirmation d'inscription** par deep link, suppression de compte (Edge Function). Erreurs traduites FR (`authErrorMessage`) ; signup détecte « email déjà pris » (identities vide). |
 | `profile` | Profil 1:1 : handle unique, pseudo, décor/mode, heures calmes (IANA tz), anonymat, **`sound_prefs`**, **`thought_style`** (style de notif envoyée). Onboarding. |
-| `friends` | Demandes d'ami par **@handle / QR (`qr_invite.dart`) / lien (`dewdrop://invite`)**, accepter/refuser, **bloquer / signaler**. Listes **temps réel** (Realtime). |
-| `thoughts` | Envoyer une pensée (option anonyme), liste reçue **live** + **éclat du décor** ; throttle des notifs. Page **« Pensées »** (`thought_settings_screen.dart`) : anonymat + **style de notif** (machine à sous à 3 rouleaux — émoji avant · phrase · émoji après — aperçu live), persisté dans `thought_style`. |
-| `settings` | Picker de décor + **Son par décor** (volumes/on-off/fréquences, persisté au profil), **toggle parallaxe** (device-local), heures calmes, lien → **« Pensées »**, **suppression de compte**, À-propos / **Crédits** / **Légal**. |
-| `home` | Garde (onboarding vs accueil) + accueil = décor en fond + menu (identité centrée, sans avatar). |
-| `ambient` | **Moteur de son** : ambiance + musique en boucle + planificateur de one-shots ; lit `SoundPrefs`. |
-| `notifications` | Push **FCM** : token (`devices`), canal Android `thoughts_v3` (son goutte d'eau). |
+| `friends` | **Gestion** (l'envoi a migré vers « Envoyer une pensée ») : demandes d'ami par **@handle / QR / lien (`dewdrop://invite`)**, accepter/refuser, **bloquer / signaler**, + **création/gestion de groupes**. Listes **temps réel**. |
+| `groups` | **Cercles partagés** (`groups` / `group_members` / `group_blocks`). Le créateur gère les membres (parmi ses amis) ; **tout membre** envoie au groupe via le RPC **`send_to_group`** (fan-out). Quitter / **bloquer** / supprimer un groupe. |
+| `thoughts` | **« Envoyer une pensée »** (`send_thoughts_screen.dart`) : choisir un **ami ou un groupe** (option anonyme). Réception **live** + **éclat du décor**. Page **« Pensées »** (`thought_settings_screen.dart`) : anonymat + **style de notif** (machine à sous 3 rouleaux, aperçu live → `thought_style`). |
+| `settings` | Picker de décor + **Son par décor** (+ **aperçu ▶** par piste), **toggle parallaxe**, **heures calmes**, **toggle « notifications »** (`notifications_enabled`), liens → « Pensées », **suppression de compte**, À-propos / Crédits / Légal. |
+| `home` | Garde (onboarding vs accueil) + accueil = décor en fond + menu (`Pensées reçues · Pensées · Envoyer une pensée · Amis · Univers · Réglages`). |
+| `ambient` | **Moteur de son** : ambiance + musique + one-shots ; lit `SoundPrefs`. **Aperçu** (`sound_preview.dart`) : lecteur dédié pour écouter une piste sans toucher au son en cours. |
+| `notifications` | Push **FCM en messages *data*** : l'app construit des notifs **groupées** (`thought_notifications.dart`) — 1 groupe « DewDrop » + 1 enfant par expéditeur/groupe, **alerte une fois** (`onlyAlertOnce` + `GroupAlertBehavior.summary`), **silencieuses** pendant les heures calmes (canal `thoughts_silent`). Tokens dans `devices`. |
 
 ## Infrastructure partagée
 
@@ -59,7 +60,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 - **Variantes** : une variante = une **vraie scène différente** (éléments, composition), pas une teinte ; cohérente entre Dessin et Photo.
 - **Parallax (tilt)** : `tilt.dart` lit l'accéléromètre (~50 Hz). Le **neutre est adaptatif** — un lissage rapide suit l'orientation, un lissage lent (le neutre) la chase → le repos = ta position courante, un tilt tenu revient au centre, **jamais bloqué à un bord**. Deux réglages : `sensitivity` (force), `recenter` (vitesse de retour). **Désactivable** via `buildDecor(..., parallax:)` (depuis `parallaxEnabledProvider`, device-local) : à off, les décors ignorent le tilt.
 - **Mode photo** (`photo_decor.dart`) : parallax **multi-couches** (`assets/photo/<env>/<variant>/0.webp` = fond … `N.webp` = avant). Chaque couche a son fond **reconstruit par inpainting LaMa** (ce qui est plus proche est effacé puis comblé), pour éviter la **« trace »** du sujet quand un plan glisse. Nb de plans + feather **par scène** (`SCENE_SETTINGS`), `depthStrength` par décor atténue le parallaxe là où la profondeur est peu fiable (espace ≈ plat). Pipeline : `split_all.py` (Depth Anything V2 + LaMa, GPU si torch CUDA) → couches PNG dans `tools/depth_split/_src/` → `export_webp.py` → `assets/photo/*.webp`.
-- **Burst de réception** : `buildDecor(..., {reception})` accepte un `ReceptionSignal` (`ChangeNotifier` découplé — pas de Riverpod dans le moteur). À la réception d'une pensée, le décor joue un **burst propre à la variante**. Le home alimente le signal depuis **Realtime** (live) **et** une détection **à l'ouverture/reprise**.
+- **Burst de réception** : `buildDecor(..., {reception})` accepte un `ReceptionSignal` (`ChangeNotifier` découplé — pas de Riverpod dans le moteur). À la réception d'une pensée, le décor joue un **burst propre à la variante** — **y compris en mode photo** (`PhotoDecor` reçoit aussi le `ReceptionSignal`). Le home alimente le signal depuis **Realtime** (live) **et** une détection **à l'ouverture/reprise** (un burst par pensée non vue, plafonné).
 
 ## Le son (soundscape)
 
@@ -85,16 +86,18 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 
 ## Temps réel (Realtime)
 
-- Tables publiées dans `supabase_realtime` : `thoughts` (pensées reçues) et `friendships` (demandes/accepts). La RLS s'applique au Realtime → un client ne reçoit que ses lignes.
+- Tables publiées dans `supabase_realtime` : `thoughts`, `friendships`, `groups` et `group_members`. La RLS s'applique au Realtime → un client ne reçoit que ses lignes.
 - Les repos exposent un **flux qui émet un compteur `int`** (`watchIncoming`, `watchChanges`) — **jamais `void`** : deux `AsyncValue<void>` identiques sont avalés par `==` et ne re-notifient pas Riverpod. Les `FutureProvider` de liste **`ref.watch`** ce flux → refetch live. Filet de sécurité : `app.dart` rafraîchit les listes **au retour d'app** (Realtime peut rater des events en arrière-plan) ; pull-to-refresh sur l'écran Amis.
 
 ## Données & sécurité (Supabase)
 
-Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` + **`thought_style`** jsonb, `last_thought_push_at`), `friendships` (`pending`/`accepted`, `are_friends()`), `thoughts`, `devices` (tokens FCM), `blocks` + `reports` (`is_blocked()`).
+Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` + `thought_style` jsonb, `notifications_enabled`), `friendships` (`pending`/`accepted`), `thoughts` (+ `group_id` nullable pour le fan-out), `devices` (tokens FCM), `blocks` + `reports`, `groups` / `group_members` / `group_blocks`.
 
 **Double barrière obligatoire** sur chaque table accédée par l'app :
 1. **RLS** (`enable row level security` + policies `to authenticated`) — quelles **lignes**.
 2. **GRANT** (`grant … to authenticated`) — privilèges **table**. Sans GRANT → `42501 permission denied` même si la RLS autorise.
+
+**Cloisonnement** : `profiles` n'est lisible **que par son propriétaire** ; les autres passent par la **vue `public_profiles`** (handle/nom/avatar only). Les helpers RLS (`are_friends`, `is_blocked`, `is_group_member`, `is_group_creator`) vivent dans le schéma **`private`** (non exposé par PostgREST, `search_path = ''`) → pas de récursion de policy ni d'énumération par RPC. Anti-flood : trigger **25 pensées/min** par expéditeur (les pensées de groupe en sont exemptées, plafonnées dans `send_to_group`).
 
 ### Patterns imposés
 
@@ -105,11 +108,11 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 
 ### Flux typique — « envoyer une pensée → notification »
 
-1. `FriendsScreen` : tap sur un ami → `SendThoughtSheet` (anonyme seedé par `profile.default_anonymous`).
-2. `ThoughtRepository.sendThought(recipientId, anonymous)` → POST `/rest/v1/thoughts` (JWT → rôle `authenticated`).
-3. Postgres : policy `insert` vérifie `auth.uid() = sender_id AND are_friends(...) AND not is_blocked(...)`.
-4. **Webhook DB** → **Edge Function** `send-thought-push` : lit le **`thought_style` de l'expéditeur** et assemble le corps (`{lead} {phrase: %s → nom ou « Quelqu'un »} {tail}`), lit les `devices` du destinataire (hors quiet hours, fuseau IANA), **throttle** (`last_thought_push_at`, cooldown 60 s), envoie un push **FCM** (canal `thoughts_v3`, icône monochrome `ic_stat_dewdrop` via le manifeste).
-5. Destinataire : notification ; Realtime → `incomingThoughtPulseProvider` (tick) → **burst du décor** + refetch de `receivedThoughtsProvider`.
+1. **« Envoyer une pensée »** (`send_thoughts_screen.dart`) : choisir un **ami** ou un **groupe** → `SendThoughtSheet` (anonyme seedé par `profile.default_anonymous`).
+2. Ami → `ThoughtRepository.sendThought` (POST `/rest/v1/thoughts`). Groupe → RPC **`send_to_group(p_group, p_anonymous)`** (`SECURITY DEFINER`) qui **fan-out** : une `thought` par autre membre (membership + blocages vérifiés), `group_id` posé.
+3. Pour un envoi direct, la policy `insert` vérifie `auth.uid() = sender_id AND private.are_friends(...) AND not private.is_blocked(...)`.
+4. **Webhook DB** → Edge Function `send-thought-push` : vérifie l'appelant (rôle `service_role` via le claim JWT), saute si `notifications_enabled = false`, calcule **`silent`** selon les heures calmes (fuseau IANA — plus de skip, juste silencieux), assemble le corps (style ; pour un groupe : « X a pensé au groupe Y ») et envoie un **message *data* FCM** par device.
+5. Côté app : le **background handler** (`thought_notifications.dart`) construit la notif **groupée** (1 « DewDrop » + 1 enfant par expéditeur/groupe, **alerte une fois**, silencieuse en heures calmes). En foreground, Realtime → `incomingThoughtPulseProvider` → **burst du décor** ; à l'ouverture, on **vide** le groupe + rejoue les bursts non vus.
 
 ## Distribution & déploiement
 
