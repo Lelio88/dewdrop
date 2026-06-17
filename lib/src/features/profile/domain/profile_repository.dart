@@ -5,6 +5,10 @@ abstract interface class ProfileRepository {
   Future<Profile?> getMyProfile();
   Future<bool> isHandleAvailable(String handle);
   Future<void> setHandle(String handle, {String? displayName});
+
+  /// Post-onboarding edit of the display name and/or handle (only the provided
+  /// fields are changed).
+  Future<void> updateProfile({String? displayName, String? handle});
   Future<void> updateDecor(String decor, String renderMode);
 
   /// Persists the per-decor soundscape customization (synced across devices).

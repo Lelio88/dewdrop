@@ -45,6 +45,17 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   @override
+  Future<void> updateProfile({String? displayName, String? handle}) async {
+    final uid = _client.auth.currentUser!.id;
+    final patch = <String, dynamic>{
+      'display_name': ?displayName,
+      'handle': ?handle,
+    };
+    if (patch.isEmpty) return;
+    await _client.from('profiles').update(patch).eq('id', uid);
+  }
+
+  @override
   Future<void> updateDecor(String decor, String renderMode) async {
     final uid = _client.auth.currentUser!.id;
     await _client

@@ -205,6 +205,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 w,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
+                  title: const Text('Modifier mon profil'),
+                  subtitle: Text(
+                    'Pseudo et @handle',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => context.push('/edit-profile'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
                   leading: const Icon(
                     Icons.delete_outline,
                     color: Color(0xFFFF6B5A),

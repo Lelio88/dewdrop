@@ -17,6 +17,10 @@ abstract interface class AuthRepository {
   Future<void> signIn(String email, String password);
   Future<void> signOut();
 
+  /// Re-sends the sign-up confirmation email to [email] (for someone who didn't
+  /// receive it). Rate-limited by Supabase.
+  Future<void> resendConfirmation(String email);
+
   /// Sends a password-reset email. The link opens the app in recovery mode
   /// (a temporary session), where [updatePassword] can be called.
   Future<void> sendPasswordReset(String email);
