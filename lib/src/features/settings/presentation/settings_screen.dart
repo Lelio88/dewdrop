@@ -22,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _start = 22;
   int _end = 7;
   String? _tz; // device IANA timezone, captured when quiet hours are enabled
+  bool _notifs = true; // master push switch
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _start = p.quietStart ?? 22;
       _end = p.quietEnd ?? 7;
       _tz = p.quietTz;
+      _notifs = p.notificationsEnabled;
     }
   }
 
@@ -47,6 +49,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return _tz;
   }
 
+  Future<void> _persistNotifs(bool value) async {
+    await ref.read(profileRepositoryProvider).updateNotificationsEnabled(value);
+    if (!mounted) return;
+    ref.invalidate(myProfileProvider);
+  }
+
   Future<void> _persist() async {
     final tz = _quiet ? await _deviceTz() : null;
     await ref
@@ -56,6 +64,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           quietEnd: _quiet ? _end : null,
           quietTz: tz,
         );
+    if (!mounted) return;
     ref.invalidate(myProfileProvider);
   }
 
@@ -64,7 +73,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       initialTime: TimeOfDay(hour: start ? _start : _end, minute: 0),
     );
-    if (t == null) return;
+    if (t == null || !mounted) return;
     setState(() {
       if (start) {
         _start = t.hour;
@@ -96,24 +105,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             children: [
-              _section(w, 'Pensées'),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Personnaliser tes pensées'),
-                  subtitle: Text(
-                    'Anonymat + le style de ta notification.',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => context.push('/thought-settings'),
-                ),
-              ),
-              const SizedBox(height: 24),
               _section(w, 'Affichage'),
               _card(
                 w,
@@ -170,6 +161,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'Notifications'),
+              _card(
+                w,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _notifs,
+                  onChanged: (v) {
+                    setState(() => _notifs = v);
+                    unawaited(_persistNotifs(v));
+                  },
+                  title: const Text('Recevoir des notifications'),
+                  subtitle: Text(
+                    'Une notif quand on pense à toi. Désactive pour tout couper.',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

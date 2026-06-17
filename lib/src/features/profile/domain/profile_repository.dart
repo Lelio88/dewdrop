@@ -16,6 +16,9 @@ abstract interface class ProfileRepository {
   /// Default for the per-send "anonymous" toggle.
   Future<void> updateDefaultAnonymous(bool value);
 
+  /// Master push switch — when false, the push function skips this user.
+  Future<void> updateNotificationsEnabled(bool value);
+
   /// Quiet hours are hours 0-23 (null = disabled); [quietTz] is the user's IANA
   /// timezone so the push function evaluates the window in local time.
   Future<void> updateQuietHours({

@@ -138,9 +138,25 @@ class _HomeViewState extends ConsumerState<HomeView>
         markerMs,
         isUtc: true,
       );
-      if (list.any((t) => t.createdAt.isAfter(lastSeen))) _reception.pulse();
+      final unseen = list.where((t) => t.createdAt.isAfter(lastSeen)).length;
+      if (unseen > 0) _replayBursts(unseen);
     } on Exception catch (_) {
       // Offline / transient — no burst, marker left untouched.
+    }
+  }
+
+  // Cap the catch-up so returning after many pensées doesn't burst forever.
+  static const _kMaxReplayBursts = 5;
+
+  /// Replay one burst per unseen pensée (capped + staggered) so coming back to
+  /// the app "catches up" what arrived while it was closed. Guards on [mounted]
+  /// since the timers may outlive the screen.
+  void _replayBursts(int count) {
+    final n = count.clamp(1, _kMaxReplayBursts);
+    for (var i = 0; i < n; i++) {
+      Timer(Duration(milliseconds: i * 600), () {
+        if (mounted) _reception.pulse();
+      });
     }
   }
 
@@ -166,6 +182,8 @@ class _HomeViewState extends ConsumerState<HomeView>
       if (result == 'decor') _openDecorPicker();
       if (result == 'friends') context.push('/friends');
       if (result == 'thoughts') context.push('/thoughts');
+      if (result == 'thought-settings') context.push('/thought-settings');
+      if (result == 'send') context.push('/send');
       if (result == 'settings') context.push('/settings');
     });
   }
@@ -333,6 +351,39 @@ class _HomeMenu extends ConsumerWidget {
                   color: white.withValues(alpha: 0.5),
                 ),
                 onTap: () => Navigator.of(context).pop('thoughts'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.edit_note_rounded,
+                  color: white.withValues(alpha: 0.85),
+                ),
+                title: const Text('Pensées'),
+                subtitle: Text(
+                  'Anonymat + style de tes notifications',
+                  style: TextStyle(
+                    color: white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
+                onTap: () => Navigator.of(context).pop('thought-settings'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.send_rounded,
+                  color: white.withValues(alpha: 0.85),
+                ),
+                title: const Text('Envoyer une pensée'),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: white.withValues(alpha: 0.5),
+                ),
+                onTap: () => Navigator.of(context).pop('send'),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

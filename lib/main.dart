@@ -5,6 +5,7 @@ import 'package:dewdrop/src/app.dart';
 import 'package:dewdrop/src/common/provider_error_logger.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
+import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
 import 'package:dewdrop/src/supabase/supabase_config.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,11 +16,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Background isolate handler. FCM renders "notification" messages in the system
-/// tray automatically; this exists so background delivery is wired (and as a
-/// hook for future data-only messages).
+/// Background isolate handler for FCM **data** messages: builds the grouped
+/// "DewDrop" notification (one child per sender + a single alerting summary).
+/// Runs in a fresh isolate, so it re-inits Firebase before doing anything.
 @pragma('vm:entry-point')
-Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {}
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  await showThoughtNotification(message);
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
