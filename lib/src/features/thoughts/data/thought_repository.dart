@@ -91,7 +91,12 @@ class SupabaseThoughtRepository implements ThoughtRepository {
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {
     if (ids.isEmpty) return {};
-    final rows = await _client.from('profiles').select().inFilter('id', ids);
+    // public_profiles: directory view (handle/name/avatar) — the base profiles
+    // table is owner-only, so other users' names are read through it.
+    final rows = await _client
+        .from('public_profiles')
+        .select()
+        .inFilter('id', ids);
     return {for (final m in rows) m['id'] as String: Profile.fromMap(m)};
   }
 }

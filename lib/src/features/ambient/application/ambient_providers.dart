@@ -192,10 +192,14 @@ class SoundscapeNotifier extends Notifier<bool> {
     // players/timers first so they don't leak.
     _teardown();
     _disposed = false;
-    _amb = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
-    _mus = AudioPlayer()..setReleaseMode(ReleaseMode.loop);
+    _amb = AudioPlayer();
+    unawaited(_amb!.setReleaseMode(ReleaseMode.loop));
+    _mus = AudioPlayer();
+    unawaited(_mus!.setReleaseMode(ReleaseMode.loop));
     for (var i = 0; i < 4; i++) {
-      _shots.add(AudioPlayer()..setReleaseMode(ReleaseMode.stop));
+      final shot = AudioPlayer();
+      unawaited(shot.setReleaseMode(ReleaseMode.stop));
+      _shots.add(shot);
     }
     // Live-react to per-decor customization edits.
     ref.listen(soundPrefsProvider, (_, _) => unawaited(_apply()));
@@ -218,6 +222,7 @@ class SoundscapeNotifier extends Notifier<bool> {
     }
     _amb = _mus = null;
     _shots.clear();
+    _shotIdx = 0;
   }
 
   DecorAudio? get _cfg => _env == null ? null : kDecorAudio[_env];

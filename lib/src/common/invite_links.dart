@@ -18,8 +18,13 @@ class InviteLinkListener {
   StreamSubscription<Uri>? _sub;
 
   Future<void> start() async {
-    final initial = await _appLinks.getInitialLink();
-    if (initial != null) _dispatch(initial);
+    try {
+      final initial = await _appLinks.getInitialLink();
+      if (initial != null) _dispatch(initial);
+    } on Exception catch (_) {
+      // No initial link (or the platform channel isn't ready yet) — ignore and
+      // still wire the live stream below so running-app links keep working.
+    }
     _sub = _appLinks.uriLinkStream.listen(_dispatch);
   }
 
