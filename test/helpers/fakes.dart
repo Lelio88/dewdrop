@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
+import 'package:dewdrop/src/features/groups/domain/group.dart';
+import 'package:dewdrop/src/features/groups/domain/group_repository.dart';
 import 'package:dewdrop/src/features/notifications/domain/push_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
@@ -54,6 +56,15 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> deleteAccount() async {}
+
+  String? lastResendEmail;
+  Object? resendError;
+
+  @override
+  Future<void> resendConfirmation(String email) async {
+    if (resendError != null) throw resendError!;
+    lastResendEmail = email;
+  }
 }
 
 class FakeProfileRepository implements ProfileRepository {
@@ -97,6 +108,16 @@ class FakeProfileRepository implements ProfileRepository {
     savedNotificationsEnabled = value;
   }
 
+  Map<String, dynamic>? savedProfileUpdate;
+
+  @override
+  Future<void> updateProfile({String? displayName, String? handle}) async {
+    savedProfileUpdate = {
+      'display_name': ?displayName,
+      'handle': ?handle,
+    };
+  }
+
   @override
   Future<void> updateQuietHours({
     int? quietStart,
@@ -130,4 +151,57 @@ class FakePushRepository implements PushRepository {
 
   void emitRefresh(String t) => _refreshes.add(t);
   Future<void> dispose() => _refreshes.close();
+}
+
+class FakeGroupRepository implements GroupRepository {
+  final _changes = StreamController<int>.broadcast();
+  int _tick = 0;
+  int myGroupsCalls = 0;
+  List<Group> groups = [];
+  final List<(String groupId, String userId)> added = [];
+  final List<(String groupId, bool anonymous)> sent = [];
+
+  void emitChange() => _changes.add(++_tick);
+
+  @override
+  Stream<int> watchChanges() => _changes.stream;
+
+  @override
+  Future<List<Group>> myGroups() async {
+    myGroupsCalls++;
+    return groups;
+  }
+
+  @override
+  Future<Group> createGroup(String name) async {
+    final g = Group(id: 'g-${groups.length}', name: name, creatorId: 'me');
+    groups = [...groups, g];
+    return g;
+  }
+
+  @override
+  Future<List<Profile>> members(String groupId) async => const [];
+
+  @override
+  Future<void> addMember(String groupId, String userId) async {
+    added.add((groupId, userId));
+  }
+
+  @override
+  Future<void> removeMember(String groupId, String userId) async {}
+
+  @override
+  Future<void> leaveGroup(String groupId) async {}
+
+  @override
+  Future<void> blockGroup(String groupId) async {}
+
+  @override
+  Future<void> deleteGroup(String groupId) async {}
+
+  @override
+  Future<int> sendToGroup(String groupId, {bool anonymous = false}) async {
+    sent.add((groupId, anonymous));
+    return 0;
+  }
 }
