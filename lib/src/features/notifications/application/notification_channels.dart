@@ -14,6 +14,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// it is also declared as the app's default FCM channel in AndroidManifest.
 const String thoughtsChannelId = 'thoughts_v3';
 
+/// Silent twin of the "Pensées" channel, used during the recipient's quiet hours:
+/// the grouped notification is still delivered (so it's already there at wake-up,
+/// no catch-up cron needed) but makes no sound and no vibration.
+const String thoughtsSilentChannelId = 'thoughts_silent';
+
 /// Old channel ids to delete on startup so a device that created one of them
 /// picks up the current sound (each sound bump appends the retired id here).
 const List<String> _supersededChannelIds = ['thoughts_v1', 'thoughts_v2'];
@@ -25,6 +30,16 @@ const AndroidNotificationChannel _thoughtsChannel = AndroidNotificationChannel(
   importance: Importance.high,
   sound: RawResourceAndroidNotificationSound('drop'),
 );
+
+const AndroidNotificationChannel _thoughtsSilentChannel =
+    AndroidNotificationChannel(
+      thoughtsSilentChannelId,
+      'Pensées (silencieux)',
+      description: 'Pensées reçues pendant les heures calmes',
+      importance: Importance.low, // no sound, no vibration, no heads-up
+      playSound: false,
+      enableVibration: false,
+    );
 
 /// Creates the "Pensées" channel (idempotent). Call once at startup, on mobile.
 /// No-op on platforms without an Android notifications implementation.
@@ -39,4 +54,5 @@ Future<void> ensureThoughtsChannel() async {
     await android?.deleteNotificationChannel(channelId: id);
   }
   await android?.createNotificationChannel(_thoughtsChannel);
+  await android?.createNotificationChannel(_thoughtsSilentChannel);
 }

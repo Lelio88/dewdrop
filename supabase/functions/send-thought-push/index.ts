@@ -11,42 +11,57 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FIREBASE_SERVICE_ACCOUNT = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
 
+// The fixed style lists the app offers (mirror of thought_style.dart). The
+// sender can only pick from these — any other value is ignored, so a push the
+// RECIPIENT sees can never contain arbitrary attacker-controlled text.
+const ALLOWED_EMOJIS = new Set([
+  "", "💭", "💗", "🌸", "✨", "☀️", "🌙", "🍀", "💫", "💖", "🌟", "🤍", "🫶",
+]);
+const ALLOWED_BODIES = new Set([
+  "%s a pensé à toi",
+  "%s pense fort à toi",
+  "%s t'envoie une pensée",
+  "%s a une pensée pour toi",
+  "Une pensée de %s",
+]);
+
 interface Thought {
   id: string;
   sender_id: string;
   recipient_id: string;
   is_anonymous: boolean;
+  group_id?: string | null;
 }
 
 Deno.serve(async (req) => {
+  // Only the DB webhook (service_role) may call this — otherwise anyone with the
+  // public anon key could spam push notifications. We trust the JWT role claim
+  // because the function gateway (verify_jwt) has already verified the signature.
+  if (!callerIsServiceRole(req)) {
+    return json({ error: "forbidden" }, 403);
+  }
   try {
     const payload = await req.json();
     const t: Thought = payload.record;
     if (!t?.recipient_id) return json({ ok: false, reason: "no record" });
 
     const recipient = (await rest(
-      `profiles?id=eq.${t.recipient_id}&select=quiet_start,quiet_end,quiet_tz,last_thought_push_at`,
+      `profiles?id=eq.${t.recipient_id}&select=notifications_enabled,quiet_start,quiet_end,quiet_tz`,
     ))[0];
-    if (
-      recipient &&
-      inQuietHours(
+    // Master push switch (Settings toggle): when off, never push to this user.
+    if (recipient && recipient.notifications_enabled === false) {
+      return json({ skipped: "notifications disabled" });
+    }
+    // Quiet hours no longer SKIP the push — they deliver it SILENTLY (no sound,
+    // no vibration). The grouped notifications pile up quietly, so the user sees
+    // "X pensées" when they wake — no catch-up cron needed.
+    const silent = recipient
+      ? inQuietHours(
         recipient.quiet_start as number | null,
         recipient.quiet_end as number | null,
         recipient.quiet_tz as string | null,
       )
-    ) {
-      return json({ skipped: "quiet hours" });
-    }
-
-    // Notification rate-limit: at most one push per recipient per cooldown
-    // window. Every thought is still recorded — this only throttles the push.
-    const COOLDOWN_MS = 60_000;
-    const last = recipient?.last_thought_push_at
-      ? Date.parse(recipient.last_thought_push_at as string)
-      : 0;
-    if (Date.now() - last < COOLDOWN_MS) {
-      return json({ skipped: "throttled" });
-    }
+      : false;
 
     // Always read the sender's profile: even an anonymous thought keeps the
     // sender's chosen style (lead emoji / phrasing / tail emoji), just with
@@ -65,54 +80,86 @@ Deno.serve(async (req) => {
       return json({ error: "FIREBASE_SERVICE_ACCOUNT not set" });
     }
 
-    // Stamp the throttle now, so a burst within the window notifies only once.
-    await stampPush(t.recipient_id);
-
+    // No server-side throttle in v2: every pensée is delivered as a data message
+    // and the app GROUPS them (one child per sender) + alerts only once. So we
+    // never drop a pensée — the grouping replaces the old 1-push-per-60s cap.
     const sa = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
     const accessToken = await getAccessToken(sa);
+    // Validate the sender-controlled style against the fixed lists before it
+    // reaches the recipient's notification.
     const style = (sender?.thought_style ?? {}) as {
       lead?: string;
       body?: string;
       tail?: string;
     };
-    const phrase = (style.body?.length ? style.body : "%s a pensé à toi").replace(
-      "%s",
-      name,
-    );
-    const body = [style.lead, phrase, style.tail ?? "✨"]
+    const safeBody = style.body && ALLOWED_BODIES.has(style.body)
+      ? style.body
+      : "%s a pensé à toi";
+    const safeLead = style.lead && ALLOWED_EMOJIS.has(style.lead)
+      ? style.lead
+      : "";
+    const safeTail = style.tail !== undefined && ALLOWED_EMOJIS.has(style.tail)
+      ? style.tail
+      : "✨";
+    // A group pensée notifies each member "<X> a pensé au groupe <Y>" and groups
+    // under the GROUP (one child per group). An individual pensée uses the
+    // sender's custom phrase and groups under the sender (anonymous → "anon").
+    let label = name;
+    let senderKey = t.is_anonymous ? "anon" : t.sender_id;
+    let phrase = safeBody.replace("%s", name);
+    if (t.group_id) {
+      const grp = (await rest(`groups?id=eq.${t.group_id}&select=name`))[0];
+      label = (grp?.name as string | undefined) ?? "un groupe";
+      senderKey = `g_${t.group_id}`;
+      phrase = `${name} a pensé au groupe`;
+    }
+    const body = [safeLead, phrase, safeTail]
       .filter((x) => x && x.length)
       .join(" ");
 
+    const data: Record<string, string> = {
+      type: "thought",
+      sender_key: senderKey,
+      label,
+      message: body,
+      silent: silent ? "1" : "0",
+    };
     let sent = 0;
     for (const d of devices) {
-      if (await sendFcm(sa.project_id, accessToken, d.token, body)) sent++;
+      if (await sendFcm(sa.project_id, accessToken, d.token, data)) sent++;
     }
     return json({ sent });
   } catch (e) {
-    return json({ error: String(e) });
+    console.error("send-thought-push error:", e);
+    return json({ error: "internal_error" }, 500);
   }
 });
+
+// True only for a service_role caller. Accepts the exact service-role env key
+// (covers any format) OR a JWT whose `role` claim is service_role (the legacy
+// key the DB webhook sends). The gateway already verified the signature, so the
+// role claim is trustworthy; the public anon key (role "anon") is rejected.
+function callerIsServiceRole(req: Request): boolean {
+  const auth = req.headers.get("Authorization") ?? "";
+  if (auth === `Bearer ${SERVICE_ROLE}`) return true;
+  const token = auth.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return false;
+  const part = token.split(".")[1];
+  if (!part) return false;
+  try {
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+    return JSON.parse(atob(b64 + pad)).role === "service_role";
+  } catch {
+    return false;
+  }
+}
 
 async function rest(query: string): Promise<Array<Record<string, unknown>>> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${query}`, {
     headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` },
   });
   return res.ok ? await res.json() : [];
-}
-
-// Stamp profiles.last_thought_push_at = now (the push throttle). Column-level
-// grant lets service_role touch only this column.
-async function stampPush(userId: string): Promise<void> {
-  await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
-    method: "PATCH",
-    headers: {
-      apikey: SERVICE_ROLE,
-      Authorization: `Bearer ${SERVICE_ROLE}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify({ last_thought_push_at: new Date().toISOString() }),
-  });
 }
 
 function inQuietHours(
@@ -153,7 +200,7 @@ async function sendFcm(
   projectId: string,
   accessToken: string,
   token: string,
-  body: string,
+  data: Record<string, string>,
 ): Promise<boolean> {
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -166,17 +213,28 @@ async function sendFcm(
       body: JSON.stringify({
         message: {
           token,
-          notification: { title: "DewDrop", body },
-          // Route to the water-drop "Pensées" channel (Android 8+ takes the
-          // sound from the channel; `sound` covers older versions).
-          android: {
-            notification: { channel_id: "thoughts_v3", sound: "drop" },
-          },
+          // DATA-ONLY: the app builds the grouped "DewDrop" notification itself
+          // (one child per sender + a single alerting summary). `priority: high`
+          // wakes the background handler even when the app is killed.
+          data,
+          android: { priority: "high" },
         },
       }),
     },
   );
-  return res.ok;
+  if (res.ok) return true;
+  // FCM returns 404 / UNREGISTERED for stale tokens — prune them so the devices
+  // table doesn't accumulate dead tokens (and we stop retrying them).
+  if (res.status === 404) {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/devices?token=eq.${encodeURIComponent(token)}`,
+      {
+        method: "DELETE",
+        headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` },
+      },
+    );
+  }
+  return false;
 }
 
 // --- Google OAuth2 access token from a service account (RS256 JWT) ----------

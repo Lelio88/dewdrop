@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:dewdrop/src/common/invite_links.dart';
@@ -5,6 +6,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
+import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:dewdrop/src/routing/app_router.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +36,11 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _inviteLinks = InviteLinkListener(_onInvite)..start();
+    // Launching the app = the pensées are seen → clear the grouped tray + reset
+    // the counters (also re-arms the "alert once" for the next batch).
+    if (Platform.isAndroid || Platform.isIOS) {
+      unawaited(clearThoughtNotifications());
+    }
   }
 
   @override
@@ -51,6 +58,9 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
       ref.invalidate(friendsProvider);
       ref.invalidate(incomingRequestsProvider);
       ref.invalidate(receivedThoughtsProvider);
+      if (Platform.isAndroid || Platform.isIOS) {
+        unawaited(clearThoughtNotifications());
+      }
     }
   }
 
@@ -98,7 +108,7 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
         final pending = _pendingInvite;
         if (pending != null) {
           _pendingInvite = null;
-          _onInvite(pending);
+          unawaited(_onInvite(pending));
         }
       }
     });

@@ -13,6 +13,7 @@ class Profile {
     this.quietEnd,
     this.quietTz,
     this.defaultAnonymous = false,
+    this.notificationsEnabled = true,
     this.soundPrefsRaw = const {},
     this.thoughtStyleRaw = const {},
   });
@@ -26,6 +27,7 @@ class Profile {
   final int? quietEnd;
   final String? quietTz; // IANA timezone for evaluating quiet hours locally
   final bool defaultAnonymous;
+  final bool notificationsEnabled; // master push switch
   final Map<String, dynamic>
   soundPrefsRaw; // per-decor soundscape customization
   final Map<String, dynamic> thoughtStyleRaw; // sent-notification style
@@ -48,6 +50,7 @@ class Profile {
     quietEnd: m['quiet_end'] as int?,
     quietTz: m['quiet_tz'] as String?,
     defaultAnonymous: (m['default_anonymous'] as bool?) ?? false,
+    notificationsEnabled: (m['notifications_enabled'] as bool?) ?? true,
     soundPrefsRaw:
         (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
     thoughtStyleRaw:

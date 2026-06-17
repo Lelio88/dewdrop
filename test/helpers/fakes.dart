@@ -80,6 +80,7 @@ class FakeProfileRepository implements ProfileRepository {
 
   Map<String, dynamic>? savedThoughtStyle;
   bool? savedDefaultAnonymous;
+  bool? savedNotificationsEnabled;
 
   @override
   Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle) async {
@@ -89,6 +90,11 @@ class FakeProfileRepository implements ProfileRepository {
   @override
   Future<void> updateDefaultAnonymous(bool value) async {
     savedDefaultAnonymous = value;
+  }
+
+  @override
+  Future<void> updateNotificationsEnabled(bool value) async {
+    savedNotificationsEnabled = value;
   }
 
   @override
