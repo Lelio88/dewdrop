@@ -32,10 +32,10 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 | Feature | Rôle |
 |---|---|
 | `auth` | Inscription/connexion email (**confirmation obligatoire**), **reset de mot de passe** + **confirmation d'inscription** par deep link, suppression de compte (Edge Function). Erreurs traduites FR (`authErrorMessage`) ; signup détecte « email déjà pris » (identities vide). |
-| `profile` | Profil 1:1 : handle unique, pseudo, décor/mode, heures calmes (IANA tz), anonymat, **`sound_prefs`**. Onboarding. |
+| `profile` | Profil 1:1 : handle unique, pseudo, décor/mode, heures calmes (IANA tz), anonymat, **`sound_prefs`**, **`thought_style`** (style de notif envoyée). Onboarding. |
 | `friends` | Demandes d'ami par **@handle / QR (`qr_invite.dart`) / lien (`dewdrop://invite`)**, accepter/refuser, **bloquer / signaler**. Listes **temps réel** (Realtime). |
-| `thoughts` | Envoyer une pensée (option anonyme), liste reçue **live** + **éclat du décor** ; throttle des notifs. |
-| `settings` | Picker de décor + **Son par décor** (volumes/on-off/fréquences, persisté au profil), heures calmes, **suppression de compte**, À-propos / **Crédits** / **Légal**. |
+| `thoughts` | Envoyer une pensée (option anonyme), liste reçue **live** + **éclat du décor** ; throttle des notifs. Page **« Pensées »** (`thought_settings_screen.dart`) : anonymat + **style de notif** (machine à sous à 3 rouleaux — émoji avant · phrase · émoji après — aperçu live), persisté dans `thought_style`. |
+| `settings` | Picker de décor + **Son par décor** (volumes/on-off/fréquences, persisté au profil), **toggle parallaxe** (device-local), heures calmes, lien → **« Pensées »**, **suppression de compte**, À-propos / **Crédits** / **Légal**. |
 | `home` | Garde (onboarding vs accueil) + accueil = décor en fond + menu (identité centrée, sans avatar). |
 | `ambient` | **Moteur de son** : ambiance + musique en boucle + planificateur de one-shots ; lit `SoundPrefs`. |
 | `notifications` | Push **FCM** : token (`devices`), canal Android `thoughts_v3` (son goutte d'eau). |
@@ -57,7 +57,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 
 - **Rendu Canvas uniquement.** Les *fragment shaders runtime* **ne s'affichent pas** sur desktop → tout en `CustomPainter`. **Perf** : séparer un **fond statique** d'une **couche animée** (`repaint: model`).
 - **Variantes** : une variante = une **vraie scène différente** (éléments, composition), pas une teinte ; cohérente entre Dessin et Photo.
-- **Parallax (tilt)** : `tilt.dart` lit l'accéléromètre (~50 Hz). Le **neutre est adaptatif** — un lissage rapide suit l'orientation, un lissage lent (le neutre) la chase → le repos = ta position courante, un tilt tenu revient au centre, **jamais bloqué à un bord**. Deux réglages : `sensitivity` (force), `recenter` (vitesse de retour).
+- **Parallax (tilt)** : `tilt.dart` lit l'accéléromètre (~50 Hz). Le **neutre est adaptatif** — un lissage rapide suit l'orientation, un lissage lent (le neutre) la chase → le repos = ta position courante, un tilt tenu revient au centre, **jamais bloqué à un bord**. Deux réglages : `sensitivity` (force), `recenter` (vitesse de retour). **Désactivable** via `buildDecor(..., parallax:)` (depuis `parallaxEnabledProvider`, device-local) : à off, les décors ignorent le tilt.
 - **Mode photo** (`photo_decor.dart`) : parallax **multi-couches** (`assets/photo/<env>/<variant>/0.webp` = fond … `N.webp` = avant). Chaque couche a son fond **reconstruit par inpainting LaMa** (ce qui est plus proche est effacé puis comblé), pour éviter la **« trace »** du sujet quand un plan glisse. Nb de plans + feather **par scène** (`SCENE_SETTINGS`), `depthStrength` par décor atténue le parallaxe là où la profondeur est peu fiable (espace ≈ plat). Pipeline : `split_all.py` (Depth Anything V2 + LaMa, GPU si torch CUDA) → couches PNG dans `tools/depth_split/_src/` → `export_webp.py` → `assets/photo/*.webp`.
 - **Burst de réception** : `buildDecor(..., {reception})` accepte un `ReceptionSignal` (`ChangeNotifier` découplé — pas de Riverpod dans le moteur). À la réception d'une pensée, le décor joue un **burst propre à la variante**. Le home alimente le signal depuis **Realtime** (live) **et** une détection **à l'ouverture/reprise**.
 
@@ -74,6 +74,7 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 
 - **Égalisation par groupe** pré-rendue (musiques ~-18 LUFS, ambiances ~-28 LUFS). Pipeline : `tools/sounds/build_audio.sh` (dossier de travail **non committé**).
 - **Personnalisation** (`SoundPrefs`) : on/off + volume (couches) + on/off + volume + fréquence (catégories), éditée **en live** dans le picker, **synchronisée au profil** (`profiles.sound_prefs` jsonb, débounce).
+- **Mixage des lecteurs** : un **`AudioContext` global** (`AndroidAudioFocus.none` + iOS `mixWithOthers`, posé dans `main.dart`). Sans lui, chaque lecteur prend le **focus audio exclusif** et coupe les autres (la musique noyait l'ambiance, les one-shots ne passaient jamais).
 - **Réconciliation sérialisée** : `_apply()` est **sérialisé + coalescé** (un seul passage à la fois). Sinon, un vieux `play()` peut finir après un `pause()` récent → son bloqué « à fond » (bug corrigé). Le volume est passé **directement à `play()`** (jamais de blast à 1.0). Mute = `pause()`/`resume()` ; changer de décor = `play()` d'une nouvelle source.
 
 ## Deep links & emails d'auth
@@ -89,7 +90,7 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 
 ## Données & sécurité (Supabase)
 
-Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` jsonb, `last_thought_push_at`), `friendships` (`pending`/`accepted`, `are_friends()`), `thoughts`, `devices` (tokens FCM), `blocks` + `reports` (`is_blocked()`).
+Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` + **`thought_style`** jsonb, `last_thought_push_at`), `friendships` (`pending`/`accepted`, `are_friends()`), `thoughts`, `devices` (tokens FCM), `blocks` + `reports` (`is_blocked()`).
 
 **Double barrière obligatoire** sur chaque table accédée par l'app :
 1. **RLS** (`enable row level security` + policies `to authenticated`) — quelles **lignes**.
@@ -107,7 +108,7 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 1. `FriendsScreen` : tap sur un ami → `SendThoughtSheet` (anonyme seedé par `profile.default_anonymous`).
 2. `ThoughtRepository.sendThought(recipientId, anonymous)` → POST `/rest/v1/thoughts` (JWT → rôle `authenticated`).
 3. Postgres : policy `insert` vérifie `auth.uid() = sender_id AND are_friends(...) AND not is_blocked(...)`.
-4. **Webhook DB** → **Edge Function** `send-thought-push` : lit les `devices` du destinataire (hors quiet hours, fuseau IANA), **throttle** (`last_thought_push_at`, cooldown 60 s), envoie un push **FCM** (canal `thoughts_v3`).
+4. **Webhook DB** → **Edge Function** `send-thought-push` : lit le **`thought_style` de l'expéditeur** et assemble le corps (`{lead} {phrase: %s → nom ou « Quelqu'un »} {tail}`), lit les `devices` du destinataire (hors quiet hours, fuseau IANA), **throttle** (`last_thought_push_at`, cooldown 60 s), envoie un push **FCM** (canal `thoughts_v3`, icône monochrome `ic_stat_dewdrop` via le manifeste).
 5. Destinataire : notification ; Realtime → `incomingThoughtPulseProvider` (tick) → **burst du décor** + refetch de `receivedThoughtsProvider`.
 
 ## Distribution & déploiement
@@ -116,12 +117,13 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 - **Diffusion testeurs** : **Firebase App Distribution** (`firebase appdistribution:distribute … --app <id> --testers …`).
 - **Page légale** : `docs/index.html` servie par **GitHub Pages** (`https://lelio88.github.io/dewdrop/`) ; à garder synchro avec `legal_screen.dart`.
 - **Cloud Supabase** : `supabase db push` (migrations) + `supabase config push` (auth). Build app : `--dart-define` URL/clé.
+- **iOS** : pas de Mac → CI **Codemagic** (`codemagic.yaml`, workflow iOS → TestFlight ; un script y injecte `GoogleService-Info.plist` dans la target Xcode « Runner »). **Prep faite** depuis Windows : app Firebase iOS + plist, scheme `dewdrop://`, `NSCameraUsageDescription`, bundle `app.dewdrop`, compte/repo/vars Codemagic. **Bloqué** sur le **compte Apple Developer (99 $/an)** — requis pour la signature, la clé **APNs** (push) et **TestFlight** ; aucun des trois n'a d'alternative gratuite.
 
 ## Anti-patterns à éviter
 
 - ❌ Réintroduire `riverpod_generator` / `riverpod_lint` (conflit freezed 3 / Dart 3.11) ; `AsyncValue.valueOrNull` → `.value`.
 - ❌ Un flux Realtime qui émet `void` (les ticks identiques sont avalés) → émettre un **compteur**.
-- ❌ `_apply()` audio non sérialisé (course → son bloqué) ; `play()` sans passer le volume (blast à 1.0).
+- ❌ `_apply()` audio non sérialisé (course → son bloqué) ; `play()` sans passer le volume (blast à 1.0) ; **lecteurs audio sans `AudioContext` global** (focus exclusif → ils se coupent l'un l'autre).
 - ❌ Commiter un secret (clé SMTP, keystore, service account) — repo public.
 - ❌ Créer une table sans **GRANT** ; éditer une migration déjà appliquée.
 - ❌ Un fragment shader runtime comme rendu principal sur desktop ; une variante = simple changement de couleur.

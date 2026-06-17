@@ -32,6 +32,7 @@ Topologie rapide :
 - **Amis** : `qr_flutter` (afficher un QR), `mobile_scanner` (scanner un QR).
 - **Son / capteurs** : `audioplayers`, `sensors_plus` (gyroscope), `shared_preferences`.
 - **Emails** : SMTP **Brevo** (configuré dans `supabase/config.toml` ; clé via env).
+- **CI iOS** : **Codemagic** (`codemagic.yaml`, runners macOS — build/signe iOS sans Mac).
 
 ## IV. Garde-Fous non négociables
 
@@ -41,7 +42,7 @@ Topologie rapide :
 4. **Décors en Canvas** : pas de fragment shader runtime (ne rend pas sur desktop) → `CustomPainter`. Fond statique vs couche animée (perf). Une **variante = une vraie scène** (même scène en Dessin **et** Photo), pas une teinte.
 5. **Aucun secret commité** (repo **public**) : clé SMTP via `env(BREVO_SMTP_KEY)` au `config push` ; keystore + `android/key.properties` gitignorés ; service account FCM dans `supabase/functions/.env` gitignoré.
 6. **Couplage** : `presentation` n'importe jamais `data` ; le cross-feature passe par `application` ; seule la composition root connecte les implémentations.
-7. **Temps réel & son** : les flux Realtime émettent un **compteur** (jamais `void` — sinon `==` avale les ticks et les listes ne se rafraîchissent pas) ; la réconciliation audio est **sérialisée** (sinon son bloqué). Voir docs.
+7. **Temps réel & son** : les flux Realtime émettent un **compteur** (jamais `void` — sinon `==` avale les ticks) ; un **`AudioContext` global** mixe les lecteurs (`AndroidAudioFocus.none`/`mixWithOthers` — sinon le focus exclusif coupe ambiance/musique/one-shots l'un l'autre) et la réconciliation audio est **sérialisée** (sinon son bloqué). Voir docs.
 
 ## V. Flux de Travail (Explore → Plan → Code → Verify)
 
@@ -78,10 +79,11 @@ supabase config push                   # pousser la config auth (SMTP, templates
 | Nouveau deep link | `lib/src/common/deep_links.dart` + `additional_redirect_urls` (`config.toml`) + manifeste Android / `Info.plist` |
 | Réglage parallaxe d'une scène | `SCENE_SETTINGS` (`split_all.py`) → re-run `split_all.py` + `export_webp.py` |
 | Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
+| Style/texte des notifs envoyées | listes émojis/phrases dans `thought_style.dart` ; assemblage par `send-thought-push` (les deux côtés) |
 | Nouveau son / piste audio | recette `tools/sounds/build_audio.sh` + attribution `CREDITS.md` |
 | Changement de dépendance critique | Section « Pile » + `pubspec.yaml` |
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : parallaxe — **neutre adaptatif** (`tilt.dart`) + inpainting **LaMa** (re-découpe GPU des 18 scènes photo). Avant : correctifs (son bloqué, listes temps réel), deep links, SMTP Brevo + templates FR, Crashlytics, signature release, page légale hébergée, diffusion **Firebase App Distribution**.
-- **Focus immédiat** : tests device (parallaxe, son, push, emails) ; cible **iOS** (Mac requis) ; déploiement Play Store.
+- **Dernier focus** : **notification personnalisable** (`profiles.thought_style` + page « Pensées » à machine à sous, appliqué par `send-thought-push`) ; correctifs son (**mixage** des lecteurs via `AudioContext`, sérialisation) ; **icône notif** monochrome ; **toggle parallaxe**. Diffusion testeurs **v0.3.0** (Firebase App Distribution).
+- **Focus immédiat** : **iOS** — prep faite (app Firebase iOS + `GoogleService-Info.plist`, `codemagic.yaml`, scheme, permission caméra) ; **bloqué sur le compte Apple Developer (99 $/an)** requis pour la signature + APNs + TestFlight. Puis déploiement **Play Store**.

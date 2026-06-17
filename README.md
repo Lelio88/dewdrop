@@ -9,7 +9,8 @@ Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douc
 
 ## Stack
 
-- **App** : Flutter (Riverpod **sans codegen**, GoRouter, freezed) — Android d'abord, iOS ensuite.
+- **App** : Flutter (Riverpod **sans codegen**, GoRouter, freezed). **Android** (live, testeurs via
+  Firebase App Distribution) ; **iOS** via **Codemagic** (CI macOS — pas besoin d'un Mac).
 - **Décors** : moteur Canvas maison (parallax gyroscope à **neutre adaptatif**, particules par
   variante, éclat à la réception) + un mode **photo** en parallax multi-couches (profondeur
   **Depth Anything V2** + inpainting **LaMa**).
@@ -28,7 +29,8 @@ Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douc
 - **Deep links** `dewdrop://` : confirmation d'inscription, reset, **invitation par lien**.
 - **Amis** : ajout par @handle / **QR** / **lien**, demandes en **temps réel**, **bloquer / signaler**.
 - **Pensées** : envoi (option **anonyme**), réception **live** (liste + éclat du décor),
-  **throttle** des notifs, **heures calmes**.
+  **throttle** des notifs, **heures calmes**, **notification personnalisable** (émojis + phrase au
+  choix sur une « machine à sous », page « Pensées »).
 - **Suppression de compte** (cascade) · **page légale** hébergée (GitHub Pages).
 
 ## Structure
@@ -95,9 +97,12 @@ python -m venv .venv
 
 ## État
 
-✅ Comptes + confirmation email · ✅ Profil/handle · ✅ Décors (dessin + photo, persistés) ·
-✅ Amis (QR / lien / handle, temps réel, bloquer/signaler) · ✅ Pensées (anonyme, live, throttle,
-heures calmes) · ✅ Push FCM · ✅ Son par décor · ✅ Deep links · ✅ SMTP Brevo · ✅ Crashlytics ·
-✅ Signature release · ✅ Page légale hébergée · ✅ Diffusion testeurs (Firebase App Distribution).
+✅ Comptes + confirmation email · ✅ Profil/handle · ✅ Décors (dessin + photo, persistés, **parallaxe
+désactivable**) · ✅ Amis (QR / lien / handle, temps réel, bloquer/signaler) · ✅ Pensées (anonyme,
+live, throttle, heures calmes, **notif personnalisable**) · ✅ Push FCM (**icône monochrome**) ·
+✅ Son par décor (lecteurs **mixés**) · ✅ Deep links · ✅ SMTP Brevo · ✅ Crashlytics ·
+✅ Signature release · ✅ Page légale hébergée · ✅ Diffusion testeurs (Firebase App Distribution, **v0.3.0**).
 
-🔜 Cible **iOS** (Mac requis) · déploiement Play Store.
+🔜 **iOS** : prep faite (app Firebase iOS, `codemagic.yaml`, scheme, permission caméra) — **bloqué
+sur le compte Apple Developer (99 $/an)** requis pour la signature + APNs + TestFlight.
+🔜 **Play Store** : déploiement prod.
