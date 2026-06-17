@@ -48,6 +48,13 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<void> signOut() => _client.auth.signOut();
 
   @override
+  Future<void> resendConfirmation(String email) => _client.auth.resend(
+    type: OtpType.signup,
+    email: email,
+    emailRedirectTo: DeepLinks.loginCallback,
+  );
+
+  @override
   Future<void> sendPasswordReset(String email) => _client.auth
       .resetPasswordForEmail(email, redirectTo: DeepLinks.resetPassword);
 

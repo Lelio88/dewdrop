@@ -24,6 +24,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   bool _showPassword = false;
   String? _error;
   String? _pendingEmail; // set when sign-up needs email confirmation
+  bool _resending = false;
+  bool _resent = false;
 
   @override
   void dispose() {
@@ -54,7 +56,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       if (_isSignUp) {
         final needsConfirm = await auth.signUp(email, password);
         if (needsConfirm) {
-          if (mounted) setState(() => _pendingEmail = email);
+          if (mounted) {
+            setState(() {
+              _pendingEmail = email;
+              _resent = false;
+            });
+          }
           return;
         }
       } else {
@@ -67,6 +74,27 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _resend() async {
+    final email = _pendingEmail;
+    if (email == null || _resending) return;
+    setState(() => _resending = true);
+    try {
+      await ref.read(authRepositoryProvider).resendConfirmation(email);
+      if (mounted) setState(() => _resent = true);
+    } on Exception catch (_) {
+      // Most likely Supabase's email rate-limit — keep it neutral, no leak.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Patiente un peu avant de redemander un lien.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _resending = false);
     }
   }
 
@@ -133,6 +161,20 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           _isSignUp = false;
                           _password.clear();
                         }),
+                      ),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: (_resending || _resent) ? null : _resend,
+                        child: Text(
+                          _resent
+                              ? 'Lien renvoyé ✓'
+                              : (_resending ? 'Envoi…' : 'Renvoyer le lien'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: white.withValues(alpha: 0.6),
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     ] else ...[
                       Text(
