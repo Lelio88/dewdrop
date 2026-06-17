@@ -5,10 +5,13 @@ import 'package:dewdrop/src/features/auth/presentation/forgot_password_screen.da
 import 'package:dewdrop/src/features/auth/presentation/reset_password_screen.dart';
 import 'package:dewdrop/src/features/auth/presentation/sign_in_screen.dart';
 import 'package:dewdrop/src/features/friends/presentation/friends_screen.dart';
+import 'package:dewdrop/src/features/groups/domain/group.dart';
+import 'package:dewdrop/src/features/groups/presentation/group_screen.dart';
 import 'package:dewdrop/src/features/home/presentation/home_screen.dart';
 import 'package:dewdrop/src/features/settings/presentation/about_screen.dart';
 import 'package:dewdrop/src/features/settings/presentation/legal_screen.dart';
 import 'package:dewdrop/src/features/settings/presentation/settings_screen.dart';
+import 'package:dewdrop/src/features/thoughts/presentation/send_thoughts_screen.dart';
 import 'package:dewdrop/src/features/thoughts/presentation/thought_settings_screen.dart';
 import 'package:dewdrop/src/features/thoughts/presentation/thoughts_screen.dart';
 import 'package:flutter/foundation.dart';
@@ -45,7 +48,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ResetPasswordScreen(),
       ),
       GoRoute(path: '/home', builder: (_, _) => const HomeGate()),
+      GoRoute(path: '/send', builder: (_, _) => const SendThoughtsScreen()),
       GoRoute(path: '/friends', builder: (_, _) => const FriendsScreen()),
+      GoRoute(
+        path: '/group',
+        builder: (_, state) => GroupScreen(group: state.extra as Group),
+      ),
       GoRoute(path: '/thoughts', builder: (_, _) => const ThoughtsScreen()),
       GoRoute(
         path: '/thought-settings',

@@ -4,9 +4,11 @@ import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/friends/presentation/qr_invite.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
-import 'package:dewdrop/src/features/thoughts/presentation/send_thought_sheet.dart';
+import 'package:dewdrop/src/features/groups/application/group_providers.dart';
+import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
@@ -95,19 +97,39 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     }
   }
 
-  Future<void> _sendTo(Profile p) async {
-    final sent = await showModalBottomSheet<bool>(
+  void _openGroup(Group g) => context.push('/group', extra: g);
+
+  Future<void> _createGroup() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
       context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.2),
-      isScrollControlled: true,
-      builder: (_) => SendThoughtSheet(to: p),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nouveau groupe'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 60,
+          decoration: const InputDecoration(hintText: 'Nom du groupe'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Créer'),
+          ),
+        ],
+      ),
     );
-    if (sent == true) {
-      final name = p.displayName?.isNotEmpty == true
-          ? p.displayName!
-          : '@${p.handle}';
-      _snack('Pensée envoyée à $name 💭');
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      final g = await ref.read(groupRepositoryProvider).createGroup(name);
+      ref.invalidate(myGroupsProvider);
+      if (mounted) _openGroup(g); // jump in to add members
+    } on Exception catch (_) {
+      _snack('Création impossible pour le moment.');
     }
   }
 
@@ -116,6 +138,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final white = Colors.white;
     final requests = ref.watch(incomingRequestsProvider);
     final friends = ref.watch(friendsProvider);
+    final groups = ref.watch(myGroupsProvider);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -204,6 +227,37 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                           ],
                         ),
                 ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _section(white, 'Mes groupes'),
+                    TextButton.icon(
+                      onPressed: _createGroup,
+                      icon: const Icon(
+                        Icons.add,
+                        size: 18,
+                        color: Color(0xFF8FE3A8),
+                      ),
+                      label: const Text(
+                        'Créer',
+                        style: TextStyle(color: Color(0xFF8FE3A8)),
+                      ),
+                    ),
+                  ],
+                ),
+                groups.when(
+                  loading: () => const _Loading(),
+                  error: (_, _) => _error(white),
+                  data: (list) => list.isEmpty
+                      ? _empty(
+                          white,
+                          'Aucun groupe. Crée un cercle pour envoyer à plusieurs amis d\'un coup.',
+                        )
+                      : Column(
+                          children: [for (final g in list) _groupTile(white, g)],
+                        ),
+                ),
               ],
             ),
           ),
@@ -246,9 +300,22 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   Widget _friendTile(Color w, Friend f) => _personTile(
     w,
     f.profile,
-    onTap: () => _sendTo(f.profile),
-    onLongPress: () => _friendActions(f.profile),
-    trailing: Icon(Icons.send_rounded, color: w.withValues(alpha: 0.5)),
+    onTap: () => _friendActions(f.profile),
+    trailing: Icon(Icons.more_horiz, color: w.withValues(alpha: 0.5)),
+  );
+
+  Widget _groupTile(Color w, Group g) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: ListTile(
+      onTap: () => _openGroup(g),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+      leading: CircleAvatar(
+        backgroundColor: const Color(0xFF8FB7FF).withValues(alpha: 0.18),
+        child: Icon(Icons.group_rounded, color: w.withValues(alpha: 0.9), size: 20),
+      ),
+      title: Text(g.name),
+      trailing: Icon(Icons.chevron_right, color: w.withValues(alpha: 0.5)),
+    ),
   );
 
   /// Long-press a friend → block or report them.

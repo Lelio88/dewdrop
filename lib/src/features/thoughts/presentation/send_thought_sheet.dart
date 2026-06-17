@@ -1,18 +1,22 @@
 import 'dart:ui';
 
 import 'package:dewdrop/src/common/glass.dart';
+import 'package:dewdrop/src/features/groups/application/group_providers.dart';
+import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Glass sheet to send a "pensée" to [to], with an anonymity toggle.
-/// Pops `true` on success.
+/// Glass sheet to send a "pensée" to a friend ([to]) OR a whole [group], with an
+/// anonymity toggle. Pops `true` on success. Exactly one of [to]/[group] is set.
 class SendThoughtSheet extends ConsumerStatefulWidget {
-  const SendThoughtSheet({super.key, required this.to});
+  const SendThoughtSheet({super.key, this.to, this.group})
+    : assert(to != null || group != null, 'send to a friend or a group');
 
-  final Profile to;
+  final Profile? to;
+  final Group? group;
 
   @override
   ConsumerState<SendThoughtSheet> createState() => _SendThoughtSheetState();
@@ -31,9 +35,16 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
   Future<void> _send() async {
     setState(() => _sending = true);
     try {
-      await ref
-          .read(thoughtRepositoryProvider)
-          .sendThought(widget.to.id, anonymous: _anonymous);
+      final group = widget.group;
+      if (group != null) {
+        await ref
+            .read(groupRepositoryProvider)
+            .sendToGroup(group.id, anonymous: _anonymous);
+      } else {
+        await ref
+            .read(thoughtRepositoryProvider)
+            .sendThought(widget.to!.id, anonymous: _anonymous);
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on Exception catch (_) {
       if (!mounted) return;
@@ -47,9 +58,9 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
   @override
   Widget build(BuildContext context) {
     final w = Colors.white;
-    final name = widget.to.displayName?.isNotEmpty == true
-        ? widget.to.displayName!
-        : '@${widget.to.handle}';
+    final target = widget.group != null
+        ? 'au groupe ${widget.group!.name}'
+        : 'à ${widget.to!.displayName?.isNotEmpty == true ? widget.to!.displayName! : '@${widget.to!.handle}'}';
     final bottom = MediaQuery.of(context).padding.bottom;
 
     return ClipRRect(
@@ -95,7 +106,7 @@ class _SendThoughtSheetState extends ConsumerState<SendThoughtSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                'à $name',
+                target,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: w.withValues(alpha: 0.7)),
               ),
