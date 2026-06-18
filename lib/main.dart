@@ -63,6 +63,7 @@ Future<void> main() async {
       ),
     );
   }
+  SupabaseConfig.assertConsistent();
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
