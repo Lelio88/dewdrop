@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
@@ -29,12 +30,16 @@ class UnderwaterDecor extends StatefulWidget {
     this.reception,
     this.parallax = true,
     this.child,
+    this.assetRoot = 'photo',
   });
 
   final int variant;
   final ReceptionSignal? reception;
   final bool parallax;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the ambient FX (fish,
+  // plankton, bubbles) sit on.
+  final String assetRoot;
 
   @override
   State<UnderwaterDecor> createState() => _UnderwaterDecorState();
@@ -286,9 +291,11 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   // A handful of little fish cross horizontally at varied depths, speeds and
   // directions, looping around when they leave the screen, with a gentle
   // vertical bob. Variant 0 has marine snow instead, so no fish there.
+  // Fish removed per design. Generating zero keeps the _Fish type / _paintFish
+  // referenced (no dead-code warnings) while nothing is ever drawn.
   List<_Fish> _genFish() {
     if (widget.variant != 1) return <_Fish>[];
-    return List.generate(7, (_) {
+    return List.generate(0, (_) {
       return _Fish(
         x: _rng.nextDouble(),
         y: 0.18 + _rng.nextDouble() * 0.55,
@@ -316,6 +323,29 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     return Stack(
       children: [
         Positioned.fill(
+          child: DecorBackdrop(
+            env: 'underwater',
+            variant: widget.variant,
+            assetRoot: widget.assetRoot,
+            parallax: widget.parallax,
+            fallback: RepaintBoundary(
+              child: CustomPaint(
+                painter: _UWPainter(
+                  model: _model,
+                  snow: _snow,
+                  bubbles: _bubbles,
+                  rays: _rays,
+                  weeds: _weeds,
+                  rocks: _rocks,
+                  fish: _fish,
+                  config: config,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Ambient FX (fish, plankton, bubbles, glow) overlaid on the image.
+        Positioned.fill(
           child: RepaintBoundary(
             child: CustomPaint(
               painter: _UWPainter(
@@ -327,6 +357,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
                 rocks: _rocks,
                 fish: _fish,
                 config: config,
+                overlay: true,
               ),
             ),
           ),
@@ -527,6 +558,7 @@ class _UWPainter extends CustomPainter {
     required this.rocks,
     required this.fish,
     required this.config,
+    this.overlay = false,
   }) : super(repaint: model);
 
   final _UWModel model;
@@ -537,6 +569,11 @@ class _UWPainter extends CustomPainter {
   final List<_Rock> rocks;
   final List<_Fish> fish;
   final _UWConfig config;
+  // When true, skip the static scene (gradient, surface rays, seabed, reef) and
+  // draw ONLY the ambient FX (fish, plankton, bubbles, glow) — the overlay above
+  // a DecorBackdrop image. When false it draws the full procedural scene (the
+  // load-time fallback).
+  final bool overlay;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -547,23 +584,25 @@ class _UWPainter extends CustomPainter {
     final lookX = model.look.dx;
     final bright = config.brightness;
 
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(w / 2, 0), Offset(w / 2, h), [
-          config.top,
-          config.bottom,
-        ]),
-    );
+    if (!overlay) {
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = ui.Gradient.linear(Offset(w / 2, 0), Offset(w / 2, h), [
+            config.top,
+            config.bottom,
+          ]),
+      );
 
-    _paintRays(canvas, w, h, time, lookX);
-    if (config.showSeabed) _paintPrimaryBeam(canvas, w, h, time, lookX);
+      _paintRays(canvas, w, h, time, lookX);
+      if (config.showSeabed) _paintPrimaryBeam(canvas, w, h, time, lookX);
 
-    if (config.showSeabed) {
-      _paintSeabed(canvas, w, h, time);
-    }
-    if (config.showReef) {
-      _paintReef(canvas, w, h, time);
+      if (config.showSeabed) {
+        _paintSeabed(canvas, w, h, time);
+      }
+      if (config.showReef) {
+        _paintReef(canvas, w, h, time);
+      }
     }
     if (config.showFish) {
       for (final f in fish) {
