@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,27 +9,32 @@ import 'package:flutter/services.dart';
 
 /// Immersive "bibliothèque" decor — a warm reading sanctuary. Two variants:
 ///  - 0 "Cosy": a night reading nook — a window onto a lamplit street, a tall
-///    bookshelf, a crackling fireplace, a green armchair with a blanket and a
-///    glowing table lamp. Flickering fire and warm embers that rise off the
-///    hearth, twinkling as they climb.
+///    bookshelf, a green armchair with a blanket and a glowing table lamp.
+///    Warm golden dust motes drift through the lamp's glow.
 ///  - 1 "Ancienne": a grand old hall — a vaulted ceiling, a tall arched gothic
 ///    window casting a cool light shaft, bookshelves along the walls and a long
-///    table with an open book and a single candle. Cold pale dust hangs
-///    suspended in the light beam, drifting almost imperceptibly.
+///    table with an open book. Cold pale-grey dust hangs suspended in the beam.
 ///
-/// The ambient particle layer is the same [_Mote] system driven two different
-/// ways by [variant]: rising warm embers vs slow cool suspended dust. Distinct
-/// in TYPE, not just recoloured.
+/// The ambient particle layer is the same [_Mote] system tinted two ways by
+/// [variant]: warm lamp-lit dust vs cold suspended dust — round motes either way.
 ///
-/// Walls, furniture, shelves and windows are static; the fire / candle flames,
-/// the warm glow pulse and the dust motes animate on top. A "pensée" (tap)
-/// makes the flame flare and scatters sparks. Pure Canvas.
+/// Walls, furniture, shelves and windows are static; the lamp glow pulse and
+/// the dust motes animate on top. A received pensée swells a denser flurry of
+/// lit motes that rise and fade. Pure Canvas.
 class LibraryDecor extends StatefulWidget {
-  const LibraryDecor({super.key, this.variant = 0, this.reception, this.child});
+  const LibraryDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+    this.assetRoot = 'photo',
+  });
 
   final int variant;
   final ReceptionSignal? reception;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke FX sit on.
+  final String assetRoot;
 
   @override
   State<LibraryDecor> createState() => _LibraryDecorState();
@@ -73,8 +79,8 @@ class _LibraryDecorState extends State<LibraryDecor>
       final remove = <_Spark>[];
       for (final s in _sparks) {
         s.life -= dt / s.ttl;
-        s.y -= s.rise * dt;
-        if (s.life <= 0 || s.y < -0.05) remove.add(s);
+        s.y += s.fall * dt;
+        if (s.life <= 0 || s.y > 1.05) remove.add(s);
       }
       if (remove.isNotEmpty) _sparks.removeWhere(remove.contains);
     }
@@ -82,84 +88,68 @@ class _LibraryDecorState extends State<LibraryDecor>
     _model.notify();
   }
 
-  /// Ambient particles, distinct in TYPE per variant:
-  ///  - Cosy (0): warm fireplace embers — glowing points that RISE off the
-  ///    hearth (so [speed] drives upward travel), twinkle, and cluster toward
-  ///    the lower-right fire. Sparse (~38), bright core + additive glow.
-  ///  - Ancienne (1): cold dust motes suspended in the light shaft — pale cool
-  ///    specks drifting almost imperceptibly (slow sink + sway), concentrated
-  ///    in the central beam. Sparse (~36), soft and dim.
+  /// Ambient particles — round dust motes for BOTH variants, suspended and
+  /// barely sinking, distinguished only by tint (the fx painter colours them):
+  ///  - Cosy (0): warm golden dust biased toward the lamp pool, catching its
+  ///    glow (brighter the nearer it drifts to the lamp).
+  ///  - Ancienne (1): cold pale-grey dust suspended in the central light shaft.
   List<_Mote> _genMotes(bool cosy) {
-    final count = cosy ? 38 : 36;
-    return List.generate(count, (_) {
-      // Spawn position biased to where each particle "belongs": embers low
-      // near the hearth, dust spread through the central shaft band.
-      final x = cosy
-          ? 0.58 +
-                _rng.nextDouble() *
-                    0.40 // hearth side (right)
-          : 0.28 + _rng.nextDouble() * 0.44; // central light shaft
+    return List.generate(60, (_) {
+      // Dust drifts across the FULL width of the screen (not a central band),
+      // spread over most of the height too.
+      final x = 0.02 + _rng.nextDouble() * 0.96;
       final y = cosy
-          ? 0.55 +
-                _rng.nextDouble() *
-                    0.42 // lower part (the fire)
-          : 0.15 + _rng.nextDouble() * 0.68; // along the beam
+          ? 0.20 + _rng.nextDouble() * 0.70
+          : 0.12 + _rng.nextDouble() * 0.76;
       return _Mote(
         x: x,
         y: y,
-        // Embers a touch larger so the glow reads; dust tiny and faint.
-        r: cosy ? 0.8 + _rng.nextDouble() * 1.4 : 0.5 + _rng.nextDouble() * 1.1,
-        // Embers rise briskly; dust barely sinks (almost suspended).
-        speed: cosy
-            ? 0.030 + _rng.nextDouble() * 0.055
-            : 0.002 + _rng.nextDouble() * 0.005,
+        // Fine floating dust — visible but not chunky.
+        r: 1.2 + _rng.nextDouble() * 1.8,
+        // Both barely sink — dust suspended in the air, not falling.
+        speed: 0.002 + _rng.nextDouble() * 0.006,
         phase: _rng.nextDouble() * math.pi * 2,
-        // Embers sway a little as they rise; dust drifts very slowly sideways.
-        drift: cosy
-            ? 0.012 + _rng.nextDouble() * 0.03
-            : 0.006 + _rng.nextDouble() * 0.02,
+        drift: 0.006 + _rng.nextDouble() * 0.02,
       );
     });
   }
 
-  /// Light manual preview: a single flame flare, like before.
+  /// Light manual preview: a small puff of drifting dust — a reduced version of
+  /// the reception swell, so a tap shows something instead of nothing.
   void _tap() {
-    _model.flare = _model.time;
-    _model.flareScale = 1.0;
+    _spawnDust(18);
     HapticFeedback.lightImpact();
   }
 
-  /// A pensée arrived: an AMPLIFIED celebratory swell. The flame flares far
-  /// harder than a tap, and a dense flurry of drifting motes/glints rises and
-  /// fades across the whole room. Variant-flavoured: warm golden embers in the
-  /// Cosy nook (0), cool pale dust in the Ancienne hall's light shaft (1).
+  /// A pensée arrived: an AMPLIFIED celebratory swell — a dense flurry of
+  /// drifting motes rises and fades across the whole room. Variant-flavoured by
+  /// the fx painter: warm golden dust in the Cosy nook (0), cool pale dust in
+  /// the Ancienne hall (1).
   void _onReception() {
-    // 0 = Cosy (warm), 1 = Ancienne (cool).
+    _spawnDust(54);
+    HapticFeedback.mediumImpact();
+  }
+
+  /// Spawn [count] ephemeral drifting motes that settle DOWNWARD, sway and fade.
+  /// Shared by a tap (small puff) and a reception (large swell).
+  void _spawnDust(int count) {
     final cosy = widget.variant == 0;
-
-    _model.flare = _model.time;
-    _model.flareScale = 2.4; // much bigger than a tap's 1.0
-
-    // A swell of ~54 drifting motes — far denser than the 40 ambient ones, and
-    // ephemeral so the room settles back to calm afterwards.
-    for (var i = 0; i < 54; i++) {
+    for (var i = 0; i < count; i++) {
       _sparks.add(
         _Spark(
           x: _rng.nextDouble(),
-          // Bias warm embers toward the lower-right hearth in Cosy; spread the
-          // cool dust across the central light shaft in Ancienne.
-          y: cosy
-              ? 0.55 + _rng.nextDouble() * 0.40
-              : 0.25 + _rng.nextDouble() * 0.55,
+          // Spawn across the upper-mid room (full width either variant) so the
+          // kicked-up dust has room to settle DOWNWARD as it fades.
+          y: 0.15 + _rng.nextDouble() * 0.5,
           r: (cosy ? 0.8 : 0.6) + _rng.nextDouble() * 2.2,
-          rise: 0.06 + _rng.nextDouble() * 0.12,
+          // Faster settle than the ambient motes — kicked-up dust dropping back.
+          fall: 0.10 + _rng.nextDouble() * 0.12,
           drift: 0.02 + _rng.nextDouble() * 0.05,
           phase: _rng.nextDouble() * math.pi * 2,
           ttl: 1.4 + _rng.nextDouble() * 1.6,
         ),
       );
     }
-    HapticFeedback.mediumImpact();
   }
 
   @override
@@ -176,8 +166,13 @@ class _LibraryDecorState extends State<LibraryDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _LibraryBgPainter(cosy: cosy)),
+          child: DecorBackdrop(
+            env: 'library',
+            variant: widget.variant,
+            assetRoot: widget.assetRoot,
+            fallback: RepaintBoundary(
+              child: CustomPaint(painter: _LibraryBgPainter(cosy: cosy)),
+            ),
           ),
         ),
         Positioned.fill(
@@ -203,17 +198,13 @@ class _LibraryDecorState extends State<LibraryDecor>
 
 class _LibraryModel extends ChangeNotifier {
   double time = 0;
-  double flare = -10;
-  // How big the most recent flare is: 1.0 for a tap, larger for a reception.
-  double flareScale = 1.0;
   void notify() => notifyListeners();
 }
 
-/// An ambient particle. Its motion is reinterpreted per variant by the fx
-/// painter: in Cosy (0) it's a fireplace ember that RISES ([speed] = upward
-/// travel) and glows; in Ancienne (1) it's a cold dust mote that sinks almost
-/// imperceptibly ([speed] = very slow downward drift) and just catches light.
-/// [drift] is the sideways sway amplitude; [phase] desyncs twinkle/sway.
+/// An ambient dust mote, suspended and barely sinking ([speed] = a very slow
+/// downward drift). The fx painter tints it per variant — warm golden, lamp-lit
+/// in Cosy (0), cold pale-grey in the Ancienne (1) light shaft. [drift] is the
+/// sideways sway amplitude; [phase] desyncs the twinkle/sway.
 class _Mote {
   const _Mote({
     required this.x,
@@ -231,14 +222,14 @@ class _Mote {
   final double drift;
 }
 
-/// An ephemeral reception spark: a mote that rises, sways and fades. Mutable —
-/// the ticker advances [y] and [life]; the fx painter renders it by [life].
+/// An ephemeral reception spark: a mote that drifts DOWN, sways and fades.
+/// Mutable — the ticker advances [y] and [life]; the fx painter renders by [life].
 class _Spark {
   _Spark({
     required this.x,
     required this.y,
     required this.r,
-    required this.rise,
+    required this.fall,
     required this.drift,
     required this.phase,
     required this.ttl,
@@ -246,7 +237,7 @@ class _Spark {
   final double x;
   double y;
   final double r;
-  final double rise;
+  final double fall;
   final double drift;
   final double phase;
   final double ttl;
@@ -806,20 +797,9 @@ class _LibraryFxPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final time = model.time;
-    // Scale the flare envelope by how big the triggering pulse was (a reception
-    // flares far harder, and for a touch longer, than a manual tap).
-    final flareScale = model.flareScale;
-    final flare =
-        ((1 - (time - model.flare) / 1.2).clamp(0.0, 1.0)) * flareScale;
 
     if (cosy) {
-      _paintFire(
-        canvas,
-        Rect.fromLTRB(w * 0.62, h * 0.60, w * 0.93, h * 0.85),
-        time,
-        flare,
-      );
-      // Lamp warm pool of light.
+      // Soft table-lamp pool of light (no fireplace fire any more).
       _glow(
         canvas,
         Offset(w * 0.54, h * 0.565),
@@ -827,79 +807,68 @@ class _LibraryFxPainter extends CustomPainter {
         const Color(0xFFFFD884),
         0.12 + 0.02 * math.sin(time * 2),
       );
-    } else {
-      // Cool light shaft from the window.
-      _paintLightShaft(canvas, w, h, time);
-      // Candle flame on the table.
-      _paintCandle(canvas, Offset(w * 0.606, h * 0.73), time, flare);
     }
 
-    // Ambient particle layer — distinct TYPE per variant. Gentler than the
-    // reception burst (_paintSparks), but continuously alive.
-    if (cosy) {
-      _paintEmbers(canvas, w, h, time);
-    } else {
-      _paintColdDust(canvas, w, h, time);
-    }
+    // Ambient round dust motes on BOTH variants — warm golden lamp-lit dust in
+    // the Cosy nook; cold pale-grey suspended dust in the Ancienne shaft.
+    _paintDust(canvas, w, h, time);
 
     _paintSparks(canvas, w, h, time);
   }
 
-  // Ambient variant 0 — fireplace embers. Warm glowing points that RISE off
-  // the hearth (subtract `time * speed` from y so they travel upward), twinkle,
-  // and sway a touch. Additive glow + bright core so they read as live sparks.
-  void _paintEmbers(Canvas canvas, double w, double h, double time) {
-    const core = Color(0xFFFFC766); // warm amber core
-    const halo = Color(0xFFFF8A3A); // orange glow
+  // Ambient round dust motes, one tint per variant. Cosy (0): warm golden dust
+  // that brightens as it nears the lamp pool, drawn additively so it reads as
+  // catching the light. Ancienne (1): cold pale-grey dust suspended in the
+  // shaft, drawn flat and faint. Both barely sink + sway — suspended, not snow.
+  void _paintDust(Canvas canvas, double w, double h, double time) {
+    final dustColor = cosy
+        ? const Color(0xFFFFD8A0) // warm golden
+        : const Color(0xFFE6ECF2); // cold pale-grey
+    // Centre of the lamp pool (Cosy), used to brighten nearby motes.
+    const lamp = Offset(0.54, 0.565);
     for (final m in motes) {
-      // Rise from the spawn band toward the top, looping in the lower-2/3 so
-      // embers stay biased to the fire rather than filling the whole ceiling.
-      final travel = (time * m.speed) % 0.95;
-      final y = m.y - travel;
-      if (y < 0.02) continue; // faded out above the hearth's reach
-      final x = m.x + math.sin(time * 0.7 + m.phase) * m.drift;
-      // Twinkle, and dim as the ember climbs (cools as it rises).
-      final twinkle = 0.5 + 0.5 * math.sin(time * 3.0 + m.phase);
-      final climbFade = (1.0 - travel / 0.95).clamp(0.0, 1.0);
-      final a = (0.22 + 0.30 * twinkle) * climbFade;
-      final px = x * w;
-      final py = y * h;
-      // Soft halo.
-      canvas.drawCircle(
-        Offset(px, py),
-        m.r * 2.2,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..color = halo.withValues(alpha: 0.22 * a),
-      );
-      // Bright core.
-      canvas.drawCircle(
-        Offset(px, py),
-        m.r * 0.9,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..color = core.withValues(alpha: a),
-      );
-    }
-  }
-
-  // Ambient variant 1 — cold dust in the light shaft. Pale cool specks drifting
-  // almost imperceptibly: a very slow sink plus a faint sideways sway, dim and
-  // suspended. No additive blend — they just catch the light softly.
-  void _paintColdDust(Canvas canvas, double w, double h, double time) {
-    const dustColor = Color(0xFFEAF2FA); // pale cool
-    for (final m in motes) {
-      // Barely sinks; wraps over the shaft band so density stays where the
-      // beam is rather than streaming off the floor.
       final y = (m.y + time * m.speed) % 1.0;
       final x = m.x + math.sin(time * 0.18 + m.phase) * m.drift;
-      // Slow shimmer; overall faint so it reads as suspended motes, not snow.
-      final a = 0.07 + 0.07 * (0.5 + 0.5 * math.sin(time * 0.8 + m.phase));
-      canvas.drawCircle(
-        Offset(x * w, y * h),
-        m.r,
-        Paint()..color = dustColor.withValues(alpha: a),
-      );
+      final tw = 0.5 + 0.5 * math.sin(time * 0.8 + m.phase);
+      var a = cosy ? 0.18 + 0.20 * tw : 0.16 + 0.14 * tw;
+      if (cosy) {
+        // Catch the lamp glow: brighter the nearer the mote is to the lamp.
+        final near = (1 - (Offset(x, y) - lamp).distance / 0.42).clamp(
+          0.0,
+          1.0,
+        );
+        a *= 0.5 + 0.9 * near;
+      }
+      a = a.clamp(0.0, 1.0);
+      final c = Offset(x * w, y * h);
+      if (cosy) {
+        canvas.drawCircle(
+          c,
+          m.r * 2.2,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = dustColor.withValues(alpha: 0.30 * a),
+        );
+        canvas.drawCircle(
+          c,
+          m.r,
+          Paint()..color = dustColor.withValues(alpha: a),
+        );
+      } else {
+        // Soft halo so the cold dust reads against the dark hall, plus the mote.
+        canvas.drawCircle(
+          c,
+          m.r * 2.0,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = dustColor.withValues(alpha: 0.20 * a),
+        );
+        canvas.drawCircle(
+          c,
+          m.r,
+          Paint()..color = dustColor.withValues(alpha: a),
+        );
+      }
     }
   }
 
@@ -908,30 +877,30 @@ class _LibraryFxPainter extends CustomPainter {
   // embers in the Cosy nook, cool pale dust in the Ancienne light shaft.
   void _paintSparks(Canvas canvas, double w, double h, double time) {
     if (sparks.isEmpty) return;
-    // A touch brighter/warmer than the ambient motes for a celebratory feel.
-    final core = cosy ? const Color(0xFFFFC766) : const Color(0xFFEAF2FA);
-    final halo = cosy ? const Color(0xFFFF8A3A) : const Color(0xFFBFD4E8);
+    // Same palette + luminance as the ambient dust — it's the room's own dust
+    // kicked up, just more of it and settling faster. NOT a brighter burst.
+    final dustColor = cosy
+        ? const Color(0xFFFFD8A0) // warm golden
+        : const Color(0xFFE6ECF2); // cold pale-grey
     for (final s in sparks) {
-      // Ease-out fade (bright at birth, gentle tail).
+      // Ease-out fade (present at birth, gentle tail).
       final fade = (s.life * s.life).clamp(0.0, 1.0);
       final x = (s.x + math.sin(time * 0.6 + s.phase) * s.drift) * w;
       final y = s.y * h;
       final r = s.r;
-      // Soft halo.
+      // Soft halo, matching the ambient mote halo.
       canvas.drawCircle(
         Offset(x, y),
-        r * 2.4,
+        r * 2.2,
         Paint()
           ..blendMode = BlendMode.plus
-          ..color = halo.withValues(alpha: 0.28 * fade),
+          ..color = dustColor.withValues(alpha: 0.16 * fade),
       );
-      // Bright core.
+      // Core at the ambient mote's luminance (not brighter).
       canvas.drawCircle(
         Offset(x, y),
         r,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..color = core.withValues(alpha: 0.85 * fade),
+        Paint()..color = dustColor.withValues(alpha: 0.38 * fade),
       );
     }
   }
@@ -946,126 +915,6 @@ class _LibraryFxPainter extends CustomPainter {
           color.withValues(alpha: a),
           color.withValues(alpha: 0),
         ]),
-    );
-  }
-
-  void _paintFire(Canvas canvas, Rect hearth, double time, double flare) {
-    final base = Offset(hearth.center.dx, hearth.bottom - 8);
-    final intensity = 1.0 + flare * 0.6;
-    // Pulsing warm glow on the room.
-    _glow(
-      canvas,
-      base,
-      hearth.width * (0.9 + 0.1 * math.sin(time * 6)) * intensity,
-      const Color(0xFFFF8A3A),
-      (0.22 + 0.05 * math.sin(time * 7)) * intensity,
-    );
-    // Flame tongues.
-    for (var i = 0; i < 5; i++) {
-      final sway = math.sin(time * 5 + i * 1.3) * hearth.width * 0.04;
-      final fx = base.dx + (i - 2) * hearth.width * 0.10 + sway;
-      final fh =
-          hearth.height *
-          (0.34 + 0.16 * (0.5 + 0.5 * math.sin(time * 8 + i))) *
-          intensity;
-      final fw = hearth.width * 0.10;
-      final flame = Path()
-        ..moveTo(fx - fw / 2, base.dy)
-        ..quadraticBezierTo(fx - fw * 0.2, base.dy - fh * 0.6, fx, base.dy - fh)
-        ..quadraticBezierTo(
-          fx + fw * 0.2,
-          base.dy - fh * 0.6,
-          fx + fw / 2,
-          base.dy,
-        )
-        ..close();
-      canvas.drawPath(
-        flame,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.linear(
-            Offset(fx, base.dy),
-            Offset(fx, base.dy - fh),
-            const [Color(0xFFFFE26A), Color(0xFFFF6A1E), Color(0x00FF4A0E)],
-            const [0.0, 0.5, 1.0],
-          ),
-      );
-    }
-    // Rising embers.
-    final rng = math.Random(2);
-    for (var i = 0; i < 8; i++) {
-      final t =
-          (time * (0.3 + rng.nextDouble() * 0.3) + rng.nextDouble()) % 1.0;
-      final x = base.dx + (rng.nextDouble() - 0.5) * hearth.width * 0.6;
-      final y = base.dy - t * hearth.height * 1.1;
-      canvas.drawCircle(
-        Offset(x + math.sin(time * 3 + i) * 4, y),
-        1.2 * (1 - t),
-        Paint()
-          ..color = const Color(0xFFFFB860).withValues(alpha: (1 - t) * 0.8),
-      );
-    }
-  }
-
-  void _paintCandle(Canvas canvas, Offset wick, double time, double flare) {
-    final intensity = 1.0 + flare * 0.8;
-    final fh = 26.0 * (0.85 + 0.15 * math.sin(time * 9)) * intensity;
-    final sway = math.sin(time * 6) * 2;
-    _glow(
-      canvas,
-      wick + const Offset(0, -6),
-      90 * intensity,
-      const Color(0xFFFFC766),
-      0.16 + 0.04 * math.sin(time * 8),
-    );
-    final flame = Path()
-      ..moveTo(wick.dx - 5, wick.dy)
-      ..quadraticBezierTo(
-        wick.dx - 3 + sway,
-        wick.dy - fh * 0.6,
-        wick.dx + sway,
-        wick.dy - fh,
-      )
-      ..quadraticBezierTo(
-        wick.dx + 3 + sway,
-        wick.dy - fh * 0.6,
-        wick.dx + 5,
-        wick.dy,
-      )
-      ..close();
-    canvas.drawPath(
-      flame,
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(
-          Offset(wick.dx, wick.dy),
-          Offset(wick.dx, wick.dy - fh),
-          const [Color(0xFFFFF0A0), Color(0xFFFF9A3A), Color(0x00FF6A1E)],
-          const [0.0, 0.5, 1.0],
-        ),
-    );
-  }
-
-  void _paintLightShaft(Canvas canvas, double w, double h, double time) {
-    final shaft = Path()
-      ..moveTo(w * 0.40, h * 0.18)
-      ..lineTo(w * 0.60, h * 0.18)
-      ..lineTo(w * 0.74, h * 0.78)
-      ..lineTo(w * 0.30, h * 0.78)
-      ..close();
-    final a = 0.06 + 0.02 * math.sin(time * 0.8);
-    canvas.drawPath(
-      shaft,
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(
-          Offset(w * 0.5, h * 0.18),
-          Offset(w * 0.5, h * 0.78),
-          [
-            const Color(0xFFDCEAF6).withValues(alpha: a),
-            const Color(0x00DCEAF6),
-          ],
-        ),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/sky_clock.dart';
 import 'package:dewdrop/decor/tilt.dart';
@@ -52,12 +53,17 @@ class SpaceDecor extends StatefulWidget {
     this.reception,
     this.parallax = true,
     this.child,
+    this.assetRoot = 'photo',
   });
 
   final SpaceVariant variant;
   final ReceptionSignal? reception;
   final bool parallax;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop sits behind. The
+  // procedural starfield is the load-time fallback; the photo/illustrated image
+  // already has stars, so only the shooting-star shower overlays the image.
+  final String assetRoot;
 
   @override
   State<SpaceDecor> createState() => _SpaceDecorState();
@@ -275,16 +281,22 @@ class _SpaceDecorState extends State<SpaceDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(
-              painter: _SpacePainter(
-                model: _model,
-                stars: _stars,
-                nebulae: _nebulae,
-                planets: _planets,
-                debris: _debris,
-                orbits: _orbits,
-                config: config,
+          child: DecorBackdrop(
+            env: 'space',
+            variant: widget.variant.index,
+            assetRoot: widget.assetRoot,
+            parallax: widget.parallax,
+            fallback: RepaintBoundary(
+              child: CustomPaint(
+                painter: _SpacePainter(
+                  model: _model,
+                  stars: _stars,
+                  nebulae: _nebulae,
+                  planets: _planets,
+                  debris: _debris,
+                  orbits: _orbits,
+                  config: config,
+                ),
               ),
             ),
           ),

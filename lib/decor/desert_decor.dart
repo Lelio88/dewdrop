@@ -1,27 +1,34 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 /// Immersive "désert" decor — flowing sand dunes. Two variants:
-///  - 0 "Dunes": warm golden dunes under a clear blue sky, a high sun, drifting
-///    wind streaks blowing off the crests and a faint heat shimmer.
-///  - 1 "Étoilé": the same dunes at night as cool moonlit silhouettes under a
-///    vivid Milky Way and a field of twinkling stars.
+///  - 0 "Dunes": warm golden dunes under a clear blue sky and a high sun.
+///  - 1 "Étoilé": the same dunes at night under a vivid Milky Way and a field
+///    of twinkling stars, with an OCCASIONAL shooting star passing behind them.
 ///
-/// Sky, sun/galaxy, dune layers and rippled foreground are static; the wind
-/// streaks (day) or twinkling stars + slow galaxy drift (night) animate on top.
-/// A "pensée" (tap) puffs sand into the wind (day) or sends a shooting star
-/// (night). Pure Canvas.
+/// Both variants carry ambient wind-blown sand drifting left → right over the
+/// parallax backdrop. A tap or a received pensée raises a SANDSTORM — a dense
+/// fast wall of sand sweeping the scene for ~7s. Pure Canvas.
 class DesertDecor extends StatefulWidget {
-  const DesertDecor({super.key, this.variant = 0, this.reception, this.child});
+  const DesertDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+    this.assetRoot = 'photo',
+  });
 
   final int variant;
   final ReceptionSignal? reception;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke FX sit on.
+  final String assetRoot;
 
   @override
   State<DesertDecor> createState() => _DesertDecorState();
@@ -33,16 +40,25 @@ class _DesertDecorState extends State<DesertDecor>
   final math.Random _rng = math.Random(19);
   late final Ticker _ticker;
   late final List<_DStar> _stars = _genStars();
+  late final List<_Grain> _grains = _genGrains();
+  double _lastTick = 0;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker((e) {
       final now = e.inMicroseconds / 1e6;
+      final dt = (now - _lastTick).clamp(0.0, 0.05);
+      _lastTick = now;
       _model.time = now;
-      // Reap finished shower entries so the list stays bounded over a session.
-      if (_model.showers.isNotEmpty) {
-        _model.showers.removeWhere((s) => now - s.start > s.life);
+      // Drift the ambient sand grains left → right; faster during a sandstorm.
+      final boost = (now - _model.storm) < _stormLife ? 3.0 : 1.0;
+      for (final g in _grains) {
+        g.x += g.speed * boost * dt;
+        if (g.x > 1.06) {
+          g.x = -0.06;
+          g.y = _grainY(_rng);
+        }
       }
       _model.notify();
     })..start();
@@ -68,57 +84,30 @@ class _DesertDecorState extends State<DesertDecor>
     );
   });
 
-  /// Manual preview: the lighter single-event tap — one sand puff (day) or one
-  /// shooting star (night), rendered by the painter off [_DesertModel.burst].
+  // Ambient wind-blown sand: ~70 short streaks drifting left → right. TUNABLE:
+  // count (density of the breeze) and speed range below.
+  List<_Grain> _genGrains() => List.generate(140, (_) {
+    return _Grain(
+      x: _rng.nextDouble(),
+      y: _grainY(_rng),
+      speed: 0.04 + _rng.nextDouble() * 0.10,
+      len: 4 + _rng.nextDouble() * 10,
+      alpha: 0.20 + _rng.nextDouble() * 0.30,
+    );
+  });
+
+  /// Manual preview: triggers the full sandstorm (same as a received pensée) so
+  /// the effect is visible on a tap.
   void _tap() {
-    _model.burst = _model.time;
+    _model.storm = _model.time;
     HapticFeedback.lightImpact();
   }
 
-  /// A pensée arrived: an AMPLIFIED, variant-flavoured *shower* — not the single
-  /// tap event but a whole staggered volley seeded into [_model.showers]. The
-  /// painter renders each entry like a tap burst but driven by its own start
-  /// time, so day = a sweeping fan of sand puffs blown across several origins
-  /// and night = a rain of shooting stars streaking in from staggered angles.
+  /// A pensée arrived: a SANDSTORM — a dense, fast wall of sand sweeps left →
+  /// right across the whole scene for ~1.8s then settles. Same flavour on both
+  /// variants (the ambient grains also speed up during the window — see ticker).
   void _onReception() {
-    final night = widget.variant != 0;
-    final now = _model.time;
-    final count = night ? 7 : 6;
-    for (var i = 0; i < count; i++) {
-      // Stagger the volley so the shower rolls in instead of flashing at once.
-      final start = now + i * (night ? 0.16 : 0.1);
-      if (night) {
-        // Shooting stars: vary the entry corridor and slope across the sky.
-        final fromX = 0.05 + _rng.nextDouble() * 0.5;
-        final fromY = 0.04 + _rng.nextDouble() * 0.16;
-        final span = 0.4 + _rng.nextDouble() * 0.35;
-        final drop = 0.18 + _rng.nextDouble() * 0.22;
-        _model.showers.add(
-          _Shower(
-            start: start,
-            night: true,
-            ox: fromX,
-            oy: fromY,
-            dx: span,
-            dy: drop,
-            seed: _rng.nextInt(1 << 20),
-          ),
-        );
-      } else {
-        // Sand puffs blown off several crest origins across the width.
-        _model.showers.add(
-          _Shower(
-            start: start,
-            night: false,
-            ox: 0.12 + _rng.nextDouble() * 0.76,
-            oy: 0.72 + _rng.nextDouble() * 0.16,
-            dx: 0,
-            dy: 0,
-            seed: _rng.nextInt(1 << 20),
-          ),
-        );
-      }
-    }
+    _model.storm = _model.time;
     HapticFeedback.mediumImpact();
   }
 
@@ -136,8 +125,23 @@ class _DesertDecorState extends State<DesertDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _DesertBgPainter(cfg)),
+          child: DecorBackdrop(
+            env: 'desert',
+            variant: widget.variant,
+            assetRoot: widget.assetRoot,
+            // Night: shooting stars stream from the deepest mid-stack slot so
+            // they pass BEHIND the dunes. Several ambient meteors at once.
+            midFx: cfg.night
+                ? RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _DesertShootingStarsPainter(model: _model),
+                    ),
+                  )
+                : null,
+            midFxBelow: 1,
+            fallback: RepaintBoundary(
+              child: CustomPaint(painter: _DesertBgPainter(cfg)),
+            ),
           ),
         ),
         Positioned.fill(
@@ -147,7 +151,7 @@ class _DesertDecorState extends State<DesertDecor>
                 model: _model,
                 cfg: cfg,
                 stars: _stars,
-                showers: _model.showers,
+                grains: _grains,
               ),
             ),
           ),
@@ -199,43 +203,34 @@ const _starry = _DesertConfig(
 
 const double _dHorizon = 0.42;
 
+// Sandstorm duration (seconds) — fired by a tap or a received pensée.
+const double _stormLife = 4.5;
+
+// Where ambient sand drifts vertically — mostly across the lower two-thirds.
+double _grainY(math.Random r) => 0.34 + r.nextDouble() * 0.62;
+
 class _DesertModel extends ChangeNotifier {
   double time = 0;
-  double burst = -10;
-
-  /// Active reception-shower bursts. Each plays out from its own [_Shower.start]
-  /// and is reaped by the ticker once past its life span. The single-event tap
-  /// stays on [burst]; the amplified "many" lives here.
-  final List<_Shower> showers = [];
+  double storm = -10; // sandstorm trigger time (tap or reception)
 
   void notify() => notifyListeners();
 }
 
-/// One staggered burst within a reception shower. [night] picks the flavour:
-/// a shooting star streaking from ([ox],[oy]) along ([dx],[dy]) (night) or a
-/// sand puff erupting at ([ox],[oy]) (day). [seed] keeps each burst's particle
-/// spread deterministic across frames.
-class _Shower {
-  _Shower({
-    required this.start,
-    required this.night,
-    required this.ox,
-    required this.oy,
-    required this.dx,
-    required this.dy,
-    required this.seed,
+/// One ambient wind-blown sand streak drifting left → right. [x]/[y] mutate as
+/// the ticker advances it; [speed] is in screen-fractions per second.
+class _Grain {
+  _Grain({
+    required this.x,
+    required this.y,
+    required this.speed,
+    required this.len,
+    required this.alpha,
   });
-  final double start;
-  final bool night;
-  final double ox;
-  final double oy;
-  final double dx;
-  final double dy;
-  final int seed;
-
-  /// How long this burst animates (seconds) — matches the per-flavour painter
-  /// timing (shooting star 1.2s, sand puff 1.1s) used for the single tap.
-  double get life => night ? 1.2 : 1.1;
+  double x;
+  double y;
+  final double speed;
+  final double len;
+  final double alpha;
 }
 
 class _DStar {
@@ -423,13 +418,18 @@ class _DesertFxPainter extends CustomPainter {
     required this.model,
     required this.cfg,
     required this.stars,
-    required this.showers,
+    required this.grains,
   }) : super(repaint: model);
 
   final _DesertModel model;
   final _DesertConfig cfg;
   final List<_DStar> stars;
-  final List<_Shower> showers;
+  final List<_Grain> grains;
+
+  // Real sand colour — warm BEIGE (not white), a touch lighter at night so the
+  // grains still read on the dark dunes.
+  Color get _sand =>
+      cfg.night ? const Color(0xFFE0CDA2) : const Color(0xFFCBB082);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -438,7 +438,8 @@ class _DesertFxPainter extends CustomPainter {
     final time = model.time;
 
     if (cfg.night) {
-      // Twinkling stars.
+      // Twinkling stars — the shooting stars live in the mid-stack painter so
+      // they pass behind the dunes (see _DesertShootingStarsPainter).
       for (final s in stars) {
         final a = s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase));
         canvas.drawCircle(
@@ -447,87 +448,103 @@ class _DesertFxPainter extends CustomPainter {
           Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
         );
       }
-      // Shooting star on tap (single, lighter preview).
-      _shootingStar(
-        canvas,
-        w,
-        h,
-        elapsed: time - model.burst,
-        from: Offset(w * 0.2, h * 0.1),
-        to: Offset(w * 0.7, h * 0.4),
+    }
+
+    // Ambient wind-blown sand drifting left → right (both variants): real
+    // GRAINS (tiny round specks), not streaks. Brighter while a storm sweeps.
+    final storming = (time - model.storm) < _stormLife;
+    final grainPaint = Paint()..style = PaintingStyle.fill;
+    for (final g in grains) {
+      final x = g.x * w;
+      final y = g.y * h;
+      final gr = (g.len * 0.16).clamp(1.0, 2.4);
+      canvas.drawCircle(
+        Offset(x, y),
+        gr,
+        grainPaint
+          ..color = _sand.withValues(
+            alpha: (g.alpha * (storming ? 1.8 : 1.0)).clamp(0.0, 1.0),
+          ),
       );
-      // Reception shower: a rain of staggered shooting stars.
-      for (final s in showers) {
-        if (!s.night) continue;
-        _shootingStar(
-          canvas,
-          w,
-          h,
-          elapsed: time - s.start,
-          from: Offset(s.ox * w, s.oy * h),
-          to: Offset((s.ox + s.dx) * w, (s.oy + s.dy) * h),
-        );
-      }
-    } else {
-      // Wind streaks blowing off the dune crests.
-      final paint = Paint()
-        ..strokeWidth = 1.4
-        ..strokeCap = StrokeCap.round;
-      for (var i = 0; i < 7; i++) {
-        final crestY = (0.40 + i * 0.055) * h;
-        final phase = time * (0.25 + i * 0.04) + i;
-        for (var k = 0; k < 3; k++) {
-          final prog = (phase + k * 0.33) % 1.0;
-          final x = prog * w;
-          final a = math.sin(prog * math.pi) * 0.18;
-          canvas.drawLine(
-            Offset(x, crestY - 2),
-            Offset(x + w * 0.09, crestY - h * 0.02),
-            paint..color = const Color(0xFFFFF3D6).withValues(alpha: a),
-          );
-        }
-      }
-      // Faint heat shimmer near the horizon.
-      final shimmer = Paint()
-        ..strokeWidth = 2
-        ..color = Colors.white.withValues(alpha: 0.04);
-      for (var i = 0; i < 5; i++) {
-        final y = (_dHorizon + 0.01 + i * 0.012) * h;
-        final path = Path()..moveTo(0, y);
-        for (var x = 0; x <= 24; x++) {
-          final xN = x / 24;
-          path.lineTo(xN * w, y + math.sin(time * 2 + xN * 18 + i) * 1.4);
-        }
-        canvas.drawPath(path, shimmer..style = PaintingStyle.stroke);
-      }
-      // Sand puff on tap (single, lighter preview).
-      _sandPuff(
-        canvas,
-        w,
-        h,
-        elapsed: time - model.burst,
-        origin: Offset(w * 0.5, h * 0.82),
-        seed: 8,
+    }
+
+    // SANDSTORM (big, dense, full-screen wall of grains): a fast cloud of sand
+    // specks sweeps left → right. Fired by both a tap and a received pensée.
+    _sweep(canvas, w, h, time - model.storm, _stormLife, 850, 1.5);
+  }
+
+  // A burst of fast wind-blown sand GRAINS sweeping left → right over [life]
+  // seconds. [count] specks spread across the FULL height (a real storm wall),
+  // faded in/out by an envelope and scaled by [strength].
+  void _sweep(
+    Canvas canvas,
+    double w,
+    double h,
+    double elapsed,
+    double life,
+    int count,
+    double strength,
+  ) {
+    if (elapsed < 0 || elapsed > life) return;
+    final t = elapsed / life;
+    final env = (t < 0.18 ? t / 0.18 : 1 - (t - 0.18) / 0.82).clamp(0.0, 1.0);
+    final rng = math.Random(1234);
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (var i = 0; i < count; i++) {
+      final baseX = rng.nextDouble();
+      final y = rng.nextDouble() * h; // full-height wall of sand
+      final speed = 1.1 + rng.nextDouble() * 1.2;
+      final x = ((baseX + elapsed * speed) % 1.2 - 0.1) * w;
+      final gr = 0.8 + rng.nextDouble() * 1.8;
+      canvas.drawCircle(
+        Offset(x, y),
+        gr,
+        paint
+          ..color = _sand.withValues(
+            alpha: (0.6 * env * strength * (0.4 + rng.nextDouble() * 0.6))
+                .clamp(0.0, 1.0),
+          ),
       );
-      // Reception shower: a sweep of sand puffs blown across several crests.
-      for (final s in showers) {
-        if (s.night) continue;
-        _sandPuff(
-          canvas,
-          w,
-          h,
-          elapsed: time - s.start,
-          origin: Offset(s.ox * w, s.oy * h),
-          seed: s.seed,
-        );
-      }
     }
   }
 
-  /// One shooting star — the night flavour. Shared by the single tap and every
-  /// staggered burst of a reception shower so they look identical in motion and
-  /// colour, only differing in their from/to corridor.
-  void _shootingStar(
+  @override
+  bool shouldRepaint(_DesertFxPainter old) => false;
+}
+
+/// Night shooting stars, rendered as a mid-stack [DecorBackdrop.midFx] so they
+/// pass BEHIND the dunes. OCCASIONAL only — a meteor now and then, with gaps —
+/// never a stream (reception is a sandstorm, not a star shower). TUNABLE:
+/// _ambientTracks and _period set how often a star appears.
+class _DesertShootingStarsPainter extends CustomPainter {
+  _DesertShootingStarsPainter({required this.model}) : super(repaint: model);
+  final _DesertModel model;
+
+  // 2 tracks on a 12s cycle, offset by half a period → roughly one star every
+  // ~6s, never two at once: "de temps en temps".
+  static const int _ambientTracks = 2;
+  static const double _period = 12.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final time = model.time;
+    for (var k = 0; k < _ambientTracks; k++) {
+      final local = (time - k * (_period / _ambientTracks)) % _period;
+      final fromX = 0.06 + (k / _ambientTracks) * 0.5;
+      _star(
+        canvas,
+        w,
+        h,
+        elapsed: local,
+        from: Offset(w * fromX, h * (0.06 + (k % 3) * 0.04)),
+        to: Offset(w * (fromX + 0.45), h * (0.32 + (k % 3) * 0.05)),
+      );
+    }
+  }
+
+  void _star(
     Canvas canvas,
     double w,
     double h, {
@@ -554,32 +571,6 @@ class _DesertFxPainter extends CustomPainter {
     );
   }
 
-  /// One sand puff — the day flavour. Shared by the single tap and every
-  /// staggered burst of a reception shower; [seed] keeps each puff's spread
-  /// deterministic across frames while differing between origins.
-  void _sandPuff(
-    Canvas canvas,
-    double w,
-    double h, {
-    required double elapsed,
-    required Offset origin,
-    required int seed,
-  }) {
-    final sp = (1 - elapsed / 1.1).clamp(0.0, 1.0);
-    if (sp <= 0) return;
-    final rng = math.Random(seed);
-    for (var i = 0; i < 18; i++) {
-      final ang = -math.pi * (0.2 + rng.nextDouble() * 0.6);
-      final dist = (1 - sp) * w * 0.25 * (0.4 + rng.nextDouble());
-      final p = origin + Offset(math.cos(ang), math.sin(ang)) * dist;
-      canvas.drawCircle(
-        p,
-        1 + rng.nextDouble() * 2,
-        Paint()..color = const Color(0xFFE9C079).withValues(alpha: sp * 0.5),
-      );
-    }
-  }
-
   @override
-  bool shouldRepaint(_DesertFxPainter old) => false;
+  bool shouldRepaint(_DesertShootingStarsPainter old) => false;
 }

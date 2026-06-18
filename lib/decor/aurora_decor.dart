@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -16,11 +17,19 @@ import 'package:flutter/services.dart';
 /// the aurora curtains (waving) and the tap "flash" animate on top. A "pensée"
 /// (tap) makes the aurora surge brighter. Rendered entirely on the Canvas.
 class AuroraDecor extends StatefulWidget {
-  const AuroraDecor({super.key, this.variant = 0, this.reception, this.child});
+  const AuroraDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+    this.assetRoot = 'photo',
+  });
 
   final int variant;
   final ReceptionSignal? reception;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke FX sit on.
+  final String assetRoot;
 
   @override
   State<AuroraDecor> createState() => _AuroraDecorState();
@@ -35,11 +44,8 @@ class _AuroraDecorState extends State<AuroraDecor>
   late final List<_Star> _stars = _genStars();
   late final List<_Curtain> _curtains = _genCurtains();
 
-  // Always-on ambient particle layer, calm and sparse. Its behaviour is chosen
-  // by the variant so each scene reads as a genuinely different texture, not
-  // just a recolour of the same particles:
-  //  - variant 0 "Émeraude": pale snowflakes drifting slowly DOWNWARD.
-  //  - variant 1 "Magenta":  warm embers / sparks drifting slowly UPWARD.
+  // Always-on ambient particle layer, calm and sparse: real WHITE snowflakes
+  // (six-branched ice crystals) drifting slowly DOWNWARD on BOTH variants.
   // Generated once; the ticker advances them and wraps them around the screen
   // so the layer runs forever at constant density (distinct from the ephemeral
   // reception sparkles below, which self-cull).
@@ -126,19 +132,15 @@ class _AuroraDecorState extends State<AuroraDecor>
   /// upward with the same lateral wander. Particles wrap around the opposite
   /// edge so the layer keeps a constant, calm density forever.
   void _advanceAmbient(double dt) {
-    final bool rising = widget.variant.clamp(0, 1) == 1;
+    // Snowflakes always drift DOWN now (both variants — Magenta no longer rises).
     final double time = _model.time;
     for (final p in _ambient) {
-      // Vertical drift: up for embers, down for snow.
-      p.y += (rising ? -p.speed : p.speed) * dt;
+      p.y += p.speed * dt;
       // Lateral sway, each particle on its own phase/frequency.
       p.x += math.sin(time * p.swayFreq + p.swayPhase) * p.swayAmp * dt;
 
       // Wrap vertically; re-randomise x so the recycled particle reads as new.
-      if (rising && p.y < -0.04) {
-        p.y = 1.04;
-        p.x = _rng.nextDouble();
-      } else if (!rising && p.y > 1.04) {
+      if (p.y > 1.04) {
         p.y = -0.04;
         p.x = _rng.nextDouble();
       }
@@ -184,8 +186,6 @@ class _AuroraDecorState extends State<AuroraDecor>
       swayAmp: 0.006 + _rng.nextDouble() * 0.018,
       swayFreq: 0.4 + _rng.nextDouble() * 0.9,
       swayPhase: _rng.nextDouble() * math.pi * 2,
-      twPhase: _rng.nextDouble() * math.pi * 2,
-      twSpeed: 1.5 + _rng.nextDouble() * 2.5,
     );
   });
 
@@ -203,8 +203,13 @@ class _AuroraDecorState extends State<AuroraDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _AuroraBgPainter(variant: v)),
+          child: DecorBackdrop(
+            env: 'aurora',
+            variant: v,
+            assetRoot: widget.assetRoot,
+            fallback: RepaintBoundary(
+              child: CustomPaint(painter: _AuroraBgPainter(variant: v)),
+            ),
           ),
         ),
         Positioned.fill(
@@ -297,8 +302,6 @@ class _Ambient {
     required this.swayAmp,
     required this.swayFreq,
     required this.swayPhase,
-    required this.twPhase,
-    required this.twSpeed,
   });
   double x;
   double y;
@@ -307,8 +310,6 @@ class _Ambient {
   final double swayAmp;
   final double swayFreq;
   final double swayPhase;
-  final double twPhase;
-  final double twSpeed;
 }
 
 /// A falling shimmer crystal spawned by a reception burst. [tint] (0..1) blends
@@ -454,7 +455,13 @@ class _AuroraFxPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final time = model.time;
-    final surge = (1 - (time - model.flash) / 1.6).clamp(0.0, 1.0);
+    // Tap/reception surge: instead of a single fade it now BLINKS ~4× and a
+    // touch brighter (per design — « ça clignote 3-5 fois, plus fort »).
+    final flashAge = time - model.flash;
+    final flashFade = (1 - flashAge / 2.0).clamp(0.0, 1.0);
+    final surge =
+        (flashFade * (0.55 + 0.45 * math.cos(flashAge * 2 * math.pi * 4)))
+            .clamp(0.0, 1.0);
     // The reception swell: bigger amplitude, longer decay than a tap surge, so
     // the whole sky visibly intensifies for the celebratory burst.
     final burst = (1 - (time - model.burst) / 2.8).clamp(0.0, 1.0);
@@ -476,7 +483,7 @@ class _AuroraFxPainter extends CustomPainter {
 
     // Aurora curtains — the tap surge plus the amplified reception swell sweep
     // every curtain to its brightest.
-    final drive = (surge * 0.5 + burst).clamp(0.0, 1.0);
+    final drive = (surge * 0.85 + burst).clamp(0.0, 1.0);
     for (final c in curtains) {
       _paintCurtain(canvas, w, h, time, c, cols, drive);
     }
@@ -552,14 +559,11 @@ class _AuroraFxPainter extends CustomPainter {
     );
   }
 
-  // Always-on ambient layer, two genuinely different looks per variant:
-  //  - variant 0 (Émeraude): pale white / faintly teal snowflakes — soft,
-  //    steady (no twinkle), drawn as plain opaque-ish dabs that read as snow
-  //    settling through the night.
-  //  - variant 1 (Magenta): warm pink / magenta embers — small glowing points
-  //    with a soft additive halo and a gentle twinkle, reading as sparks rising.
-  // Kept low-alpha and small so it stays a calm background texture, never
-  // competing with the curtains or the reception burst.
+  // Always-on ambient layer: real WHITE snowflakes — six-branched ice crystals
+  // (not circles) — on BOTH variants. Each is drawn as 6 barbed arms radiating
+  // from the centre, slowly rotating, with a faint soft halo so it doesn't look
+  // harsh. Kept small and low-alpha so it stays a calm texture that never
+  // competes with the curtains or the reception burst.
   void _paintAmbient(
     Canvas canvas,
     double w,
@@ -567,38 +571,6 @@ class _AuroraFxPainter extends CustomPainter {
     double time,
     List<Color> cols,
   ) {
-    if (variant == 1) {
-      // Embers: warm magenta glow, additive, twinkling.
-      final glow = cols[0]; // magenta
-      final core = Color.lerp(glow, Colors.white, 0.55)!;
-      for (final p in ambient) {
-        final px = p.x * w;
-        final py = p.y * h;
-        final tw =
-            0.4 + 0.6 * (0.5 + 0.5 * math.sin(time * p.twSpeed + p.twPhase));
-        final r = p.size;
-        // Soft halo.
-        canvas.drawCircle(
-          Offset(px, py),
-          r * 2.4,
-          Paint()
-            ..blendMode = BlendMode.plus
-            ..color = glow.withValues(alpha: 0.16 * tw),
-        );
-        // Bright warm core.
-        canvas.drawCircle(
-          Offset(px, py),
-          r * 0.7,
-          Paint()
-            ..blendMode = BlendMode.plus
-            ..color = core.withValues(alpha: 0.65 * tw),
-        );
-      }
-      return;
-    }
-
-    // Snow: pale flakes, faintly tinted by the emerald palette, steady alpha.
-    final flake = Color.lerp(Colors.white, cols[0], 0.18)!;
     for (final p in ambient) {
       final px = p.x * w;
       final py = p.y * h;
@@ -607,18 +579,39 @@ class _AuroraFxPainter extends CustomPainter {
       final fade = p.y > _snowLine
           ? (1 - (p.y - _snowLine) / (1 - _snowLine))
           : 1.0;
-      final a = (0.55 * fade).clamp(0.0, 1.0);
-      // Soft outer glow so the flake doesn't look like a hard dot.
+      final a = (0.6 * fade).clamp(0.0, 1.0);
+      final arm = p.size * 1.75; // crystal radius (kept small/delicate)
+
+      // Faint soft halo (white) so the crystal sits softly on the sky.
       canvas.drawCircle(
         Offset(px, py),
-        p.size * 1.8,
-        Paint()..color = flake.withValues(alpha: 0.12 * fade),
+        arm * 0.9,
+        Paint()..color = Colors.white.withValues(alpha: 0.07 * fade),
       );
-      canvas.drawCircle(
-        Offset(px, py),
-        p.size * 0.85,
-        Paint()..color = flake.withValues(alpha: a),
-      );
+
+      // Six barbed arms — a proper snowflake, slowly turning.
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.rotate(p.swayPhase + time * 0.15);
+      final stroke = Paint()
+        ..color = Colors.white.withValues(alpha: a)
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = (p.size * 0.32).clamp(0.6, 1.3);
+      for (var k = 0; k < 6; k++) {
+        canvas.drawLine(Offset.zero, Offset(arm, 0), stroke);
+        canvas.drawLine(
+          Offset(arm * 0.6, 0),
+          Offset(arm * 0.8, arm * 0.18),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(arm * 0.6, 0),
+          Offset(arm * 0.8, -arm * 0.18),
+          stroke,
+        );
+        canvas.rotate(math.pi / 3);
+      }
+      canvas.restore();
     }
   }
 

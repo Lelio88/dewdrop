@@ -26,11 +26,16 @@ class PhotoDecor extends StatefulWidget {
     this.parallax = true,
     this.reception,
     this.child,
+    this.assetRoot = 'photo',
   });
 
   final Environment environment;
   final int variant;
   final bool parallax;
+  // Which bundled asset tree the parallax layers come from: 'photo' for the
+  // photographic decors, 'illustrated' for the hand-painted (drawn) ones. Same
+  // engine (parallax + overlay + burst), different source images.
+  final String assetRoot;
   // Pulsed when a pensée is received, so the scene bursts (same as a tap, but
   // bigger). When null (e.g. the decor preview), only taps burst.
   final ReceptionSignal? reception;
@@ -82,7 +87,8 @@ class _PhotoDecorState extends State<PhotoDecor>
 
   Future<void> _loadLayers() async {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final prefix = 'assets/photo/${widget.environment.name}/${widget.variant}/';
+    final prefix =
+        'assets/${widget.assetRoot}/${widget.environment.name}/${widget.variant}/';
     final layers =
         manifest
             .listAssets()

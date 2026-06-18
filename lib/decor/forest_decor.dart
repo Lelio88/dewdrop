@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/forest_tree.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
@@ -19,11 +20,20 @@ import 'package:flutter/services.dart';
 /// leaves, light and water shimmer animate on top. A "pensée" (tap) sends a
 /// gust. Rendered entirely on the Canvas.
 class ForestDecor extends StatefulWidget {
-  const ForestDecor({super.key, this.variant = 0, this.reception, this.child});
+  const ForestDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+    this.assetRoot = 'photo',
+  });
 
   final int variant;
   final ReceptionSignal? reception;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke forest FX
+  // (god-rays, falling leaves/petals, birds, water shimmer) sit on top of.
+  final String assetRoot;
 
   @override
   State<ForestDecor> createState() => _ForestDecorState();
@@ -78,7 +88,6 @@ class _ForestDecorState extends State<ForestDecor>
   late final List<_Place> _places = _genPlaces();
   late final List<_Crown> _crowns = _genCrowns();
   late final List<_Leaf> _leaves = _genLeaves();
-  late final List<_Ray> _rays = _genRays();
   late final List<_Bird> _birds = _genBirds();
 
   double _lastTick = 0;
@@ -233,15 +242,6 @@ class _ForestDecorState extends State<ForestDecor>
     );
   });
 
-  List<_Ray> _genRays() => List.generate(5, (_) {
-    return _Ray(
-      x: _rng.nextDouble(),
-      width: 0.04 + _rng.nextDouble() * 0.07,
-      slant: (_rng.nextDouble() - 0.5) * 0.25,
-      phase: _rng.nextDouble() * math.pi * 2,
-    );
-  });
-
   List<_Bird> _genBirds() => List.generate(3, (_) {
     return _Bird(
       x: _rng.nextDouble(),
@@ -267,14 +267,33 @@ class _ForestDecorState extends State<ForestDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(
-              painter: _ForestBgPainter(
-                variant: v,
-                shapes: v == 1 ? _cherries : _oaks,
-                style: v == 1 ? _cherryStyle : _oakStyle,
-                places: _places,
-                crowns: _crowns,
+          child: DecorBackdrop(
+            env: 'forest',
+            variant: v,
+            assetRoot: widget.assetRoot,
+            // Canopy birds glide BETWEEN the parallax layers (occluded by the
+            // nearer foliage) for real depth, not pasted flat on top.
+            midFx: v == 2
+                ? RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _ForestBirdsPainter(
+                        model: _model,
+                        birds: _birds,
+                      ),
+                    ),
+                  )
+                : null,
+            midFxBelow: 1,
+            // The old procedural scene now serves as the load-time fallback.
+            fallback: RepaintBoundary(
+              child: CustomPaint(
+                painter: _ForestBgPainter(
+                  variant: v,
+                  shapes: v == 1 ? _cherries : _oaks,
+                  style: v == 1 ? _cherryStyle : _oakStyle,
+                  places: _places,
+                  crowns: _crowns,
+                ),
               ),
             ),
           ),
@@ -286,8 +305,6 @@ class _ForestDecorState extends State<ForestDecor>
                 model: _model,
                 variant: v,
                 leaves: _leaves,
-                rays: _rays,
-                birds: _birds,
               ),
             ),
           ),
@@ -397,19 +414,6 @@ class _Leaf {
   final double rotSpeed;
   final double phase;
   final bool ephemeral;
-}
-
-class _Ray {
-  const _Ray({
-    required this.x,
-    required this.width,
-    required this.slant,
-    required this.phase,
-  });
-  final double x;
-  final double width;
-  final double slant;
-  final double phase;
 }
 
 class _Bird {
@@ -875,15 +879,11 @@ class _ForestFxPainter extends CustomPainter {
     required this.model,
     required this.variant,
     required this.leaves,
-    required this.rays,
-    required this.birds,
   }) : super(repaint: model);
 
   final _ForestModel model;
   final int variant;
   final List<_Leaf> leaves;
-  final List<_Ray> rays;
-  final List<_Bird> birds;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -891,9 +891,6 @@ class _ForestFxPainter extends CustomPainter {
     final h = size.height;
     final time = model.time;
 
-    if (variant != 2) _paintRays(canvas, w, h, time);
-    if (variant == 1) _paintWaterShimmer(canvas, w, h, time);
-    if (variant == 2) _paintBirds(canvas, w, h, time);
     _paintParticles(canvas, w, h, time);
 
     canvas.drawRect(
@@ -906,73 +903,6 @@ class _ForestFxPainter extends CustomPainter {
           const [0.42, 1.0],
         ),
     );
-  }
-
-  void _paintRays(Canvas canvas, double w, double h, double time) {
-    final rayColor = variant == 1
-        ? const Color(0xFFFFE0EC)
-        : const Color(0xFFFFF2C0);
-    for (final r in rays) {
-      final sway = math.sin(time * 0.1 + r.phase) * 0.03;
-      final topX = (r.x + sway) * w;
-      final botX = (r.x + sway + r.slant) * w;
-      final halfTop = r.width * 0.5 * w;
-      final halfBot = r.width * 1.8 * 0.5 * w;
-      final path = Path()
-        ..moveTo(topX - halfTop, 0)
-        ..lineTo(topX + halfTop, 0)
-        ..lineTo(botX + halfBot, h)
-        ..lineTo(botX - halfBot, h)
-        ..close();
-      canvas.drawPath(
-        path,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.linear(
-            Offset(0, 0),
-            Offset(0, h),
-            [rayColor.withValues(alpha: 0.14), rayColor.withValues(alpha: 0)],
-            const [0.0, 0.85],
-          ),
-      );
-    }
-  }
-
-  void _paintWaterShimmer(Canvas canvas, double w, double h, double time) {
-    for (var i = 0; i < 9; i++) {
-      final yN = _horizon + (i + 1) / 10 * (1 - _horizon);
-      final cx = _wayCenter(yN) + math.sin(time * 0.8 + i) * _wayHalf(yN) * 0.4;
-      final half = _wayHalf(yN) * w * 0.7;
-      final a = 0.12 + 0.08 * math.sin(time * 1.4 + i * 1.7).abs();
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(cx * w, yN * h),
-          width: half,
-          height: 3 + yN * 3,
-        ),
-        Paint()..color = Color.fromRGBO(230, 245, 255, a),
-      );
-    }
-  }
-
-  void _paintBirds(Canvas canvas, double w, double h, double time) {
-    for (final bird in birds) {
-      final flap = 0.6 + 0.4 * math.sin(time * 6 + bird.phase);
-      final c = Offset(bird.x * w, bird.y * h);
-      final s = bird.size;
-      final path = Path()
-        ..moveTo(c.dx - s, c.dy)
-        ..quadraticBezierTo(c.dx - s * 0.4, c.dy - s * flap, c.dx, c.dy)
-        ..quadraticBezierTo(c.dx + s * 0.4, c.dy - s * flap, c.dx + s, c.dy);
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round
-          ..color = const Color(0xAA10220C),
-      );
-    }
   }
 
   void _paintParticles(Canvas canvas, double w, double h, double time) {
@@ -1015,4 +945,41 @@ class _ForestFxPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ForestFxPainter old) => old.variant != variant;
+}
+
+/// Canopy birds — rendered as a mid-stack [DecorBackdrop.midFx] so the nearer
+/// foliage layers occlude them (they glide BETWEEN the treetops for real depth).
+class _ForestBirdsPainter extends CustomPainter {
+  _ForestBirdsPainter({required this.model, required this.birds})
+    : super(repaint: model);
+
+  final _ForestModel model;
+  final List<_Bird> birds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final time = model.time;
+    for (final bird in birds) {
+      final flap = 0.6 + 0.4 * math.sin(time * 6 + bird.phase);
+      final c = Offset(bird.x * w, bird.y * h);
+      final s = bird.size;
+      final path = Path()
+        ..moveTo(c.dx - s, c.dy)
+        ..quadraticBezierTo(c.dx - s * 0.4, c.dy - s * flap, c.dx, c.dy)
+        ..quadraticBezierTo(c.dx + s * 0.4, c.dy - s * flap, c.dx + s, c.dy);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0xAA10220C),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ForestBirdsPainter old) => false;
 }

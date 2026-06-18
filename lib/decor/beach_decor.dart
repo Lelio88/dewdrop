@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -13,16 +14,24 @@ import 'package:flutter/services.dart';
 ///  - 1 "Coucher": the same scene at golden hour — warm pink/orange sky, the
 ///    sun melting on the sea, everything rendered as warm silhouettes.
 ///
-/// Sky, sun, island, sea base, sand, palms and props are static; the sea
-/// shimmer, the sun's reflection, the wave wash and the birds animate on top.
-/// A "pensée" (tap) sends a soft sparkle across the water. A reception (the host
-/// pulsing [reception]) sends an amplified shower of sea-foam glints — a far
-/// bigger, denser, longer burst than a tap. Pure Canvas.
+/// Sky, sun, island, sea base, sand, palms and props are static; the gliding
+/// birds and ambient fireflies animate on top. A received pensée (the host
+/// pulsing [reception]) makes the fireflies surge — every one flares bright and
+/// a small extra swarm drifts in, then it settles. Pure Canvas.
 ///
 /// Fronds are built as explicit tapering polygons (not stroked spokes) so the
 /// palms read as full, lush leaves.
 class BeachDecor extends StatefulWidget {
-  const BeachDecor({super.key, this.variant = 0, this.reception, this.child});
+  const BeachDecor({
+    super.key,
+    this.variant = 0,
+    this.reception,
+    this.child,
+    this.assetRoot = 'photo',
+  });
+
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke FX sit on.
+  final String assetRoot;
 
   final int variant;
   final ReceptionSignal? reception;
@@ -34,110 +43,32 @@ class BeachDecor extends StatefulWidget {
 
 const double _horizon = 0.50;
 
-// Ambient particle counts per variant — sparse, calm, always-on.
-const int _sprayCount = 38; // Jour: sea-spray droplets
-const int _fireflyCount = 32; // Coucher: golden fireflies
-
-/// One ambient particle, living in normalized [0,1] scene coordinates so it is
-/// resolution-independent (scaled to pixels at paint time, like the rest of the
-/// scene). Its meaning depends on the variant: a drifting sea-spray droplet
-/// (Jour) or a wandering golden firefly (Coucher). [phase] seeds the per-particle
-/// twinkle/wander so they are individually out of step; [seed] gives each one a
-/// stable size/brightness jitter.
-class _Ambient {
-  _Ambient({
-    required this.x,
-    required this.y,
-    required this.vx,
-    required this.vy,
-    required this.phase,
-    required this.seed,
-  });
-
-  double x;
-  double y;
-  final double vx; // base horizontal drift (normalized units / second)
-  final double vy; // base vertical drift
-  final double phase; // twinkle + wander offset
-  final double seed; // 0..1 stable per-particle size/brightness jitter
-}
-
 class _BeachDecorState extends State<BeachDecor>
     with SingleTickerProviderStateMixin {
   final _model = _BeachModel();
+  final math.Random _rng = math.Random(23);
   late final Ticker _ticker;
-
-  // Ambient particle layer (drifting spray by day, fireflies at sunset). Built
-  // once for the active variant; advanced every frame in the ticker; drawn by
-  // the fx painter. Separate from — and far gentler than — the reception burst.
-  late final List<_Ambient> _ambient;
-  double _lastTime = 0;
+  late final List<_Firefly> _fireflies = _genFireflies();
+  // Ephemeral extra fireflies that drift in on a reception "surge"; self-cull.
+  final List<_Firefly> _surge = [];
+  double _lastTick = 0;
 
   @override
   void initState() {
     super.initState();
-    _ambient = _buildAmbient(widget.variant);
     _ticker = createTicker((e) {
-      final t = e.inMicroseconds / 1e6;
-      _advanceAmbient(t);
-      _model.time = t;
+      final now = e.inMicroseconds / 1e6;
+      final dt = (now - _lastTick).clamp(0.0, 0.05);
+      _lastTick = now;
+      _model.time = now;
+      _advanceFireflies(_fireflies, dt);
+      if (_surge.isNotEmpty) {
+        _advanceFireflies(_surge, dt);
+        _surge.removeWhere((f) => now - f.born > _surgeFlyLife);
+      }
       _model.notify();
     })..start();
     widget.reception?.addListener(_onReception);
-  }
-
-  // Seed the ambient particles for a variant. Day spray hugs the lower sea/shore
-  // band and drifts gently; sunset fireflies roam the air above the water.
-  List<_Ambient> _buildAmbient(int variant) {
-    final rng = math.Random(variant == 0 ? 1207 : 2406);
-    final isDay = variant == 0;
-    final count = isDay ? _sprayCount : _fireflyCount;
-    return List<_Ambient>.generate(count, (_) {
-      // Spray lives low over the water; fireflies float across the dusk air.
-      final y = isDay
-          ? 0.52 +
-                rng.nextDouble() *
-                    0.30 // sea / wet-sand band
-          : 0.18 + rng.nextDouble() * 0.52; // air above the horizon
-      return _Ambient(
-        x: rng.nextDouble(),
-        y: y,
-        vx: (rng.nextDouble() - 0.5) * (isDay ? 0.05 : 0.012),
-        vy: isDay
-            ? -0.010 -
-                  rng.nextDouble() *
-                      0.012 // spray lifts faintly upward
-            : (rng.nextDouble() - 0.5) * 0.010, // fireflies bob both ways
-        phase: rng.nextDouble() * math.pi * 2,
-        seed: rng.nextDouble(),
-      );
-    });
-  }
-
-  // Advance every ambient particle by the real frame delta, adding a slow sine
-  // wander so motion reads organic rather than linear, and wrapping at the
-  // scene edges so the layer is seamless and perpetual.
-  void _advanceAmbient(double t) {
-    final dt = (t - _lastTime).clamp(0.0, 0.05); // guard first frame / hitches
-    _lastTime = t;
-    if (dt == 0) return;
-    final isDay = widget.variant == 0;
-    for (final p in _ambient) {
-      // Gentle horizontal wander velocity; fireflies meander more than spray.
-      final wanderV = math.cos(t * 0.6 + p.phase) * (isDay ? 0.012 : 0.05);
-      p.x += (p.vx + wanderV) * dt;
-      p.y += p.vy * dt;
-      // Wrap around — keep the field continuous and bounded to its band.
-      if (p.x < -0.02) p.x += 1.04;
-      if (p.x > 1.02) p.x -= 1.04;
-      if (isDay) {
-        // Spray that floated up re-enters low, like fresh mist off a wave.
-        if (p.y < 0.50) p.y = 0.82;
-      } else {
-        if (p.y < 0.16) p.y = 0.70;
-        if (p.y > 0.72) p.y = 0.18;
-      }
-    }
   }
 
   @override
@@ -149,21 +80,63 @@ class _BeachDecorState extends State<BeachDecor>
     }
   }
 
-  // Lighter manual preview: a single soft sparkle pass across the water.
-  void _sparkle() {
-    _model.sparkle = _model.time;
-    HapticFeedback.lightImpact();
+  // ~28 fireflies drifting slowly in the lower half, blinking out of phase.
+  // TUNABLE: count (density) and the drift/size ranges below.
+  List<_Firefly> _genFireflies() => List.generate(28, (_) {
+    return _Firefly(
+      x: _rng.nextDouble(),
+      y: 0.48 + _rng.nextDouble() * 0.52,
+      vx: (_rng.nextDouble() - 0.5) * 0.04,
+      vy: (_rng.nextDouble() - 0.5) * 0.03,
+      phase: _rng.nextDouble() * math.pi * 2,
+      freq: 0.8 + _rng.nextDouble() * 1.4,
+      size: 1.2 + _rng.nextDouble() * 1.4,
+    );
+  });
+
+  void _advanceFireflies(List<_Firefly> flies, double dt) {
+    for (final f in flies) {
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      // Keep them wandering within the lower-half band; wrap at the edges.
+      if (f.x < -0.04) f.x = 1.04;
+      if (f.x > 1.04) f.x = -0.04;
+      if (f.y < 0.42) f.y = 1.02;
+      if (f.y > 1.04) f.y = 0.44;
+    }
   }
 
-  /// A pensée arrived: fire an amplified celebratory shower — a fresh random
-  /// seed each time so successive bursts differ, recorded as its own event so
-  /// it renders far denser, larger and longer than a tap [_sparkle]. The fx
-  /// painter colours every glint per variant (cool foam by day, warm gold at
-  /// sunset), so the burst matches the current scene for free.
+  /// Spawn the firefly surge: every ambient fly flares at once and a small extra
+  /// swarm drifts in (ephemeral), then it all settles back. Shared by the
+  /// reception pulse and the manual tap preview.
+  void _spawnSurge() {
+    _model.surge = _model.time;
+    for (var i = 0; i < 16; i++) {
+      _surge.add(
+        _Firefly(
+          x: _rng.nextDouble(),
+          y: 0.5 + _rng.nextDouble() * 0.5,
+          vx: (_rng.nextDouble() - 0.5) * 0.06,
+          vy: (_rng.nextDouble() - 0.5) * 0.05,
+          phase: _rng.nextDouble() * math.pi * 2,
+          freq: 1.0 + _rng.nextDouble() * 1.6,
+          size: 1.4 + _rng.nextDouble() * 1.6,
+          born: _model.time,
+        ),
+      );
+    }
+  }
+
+  /// A pensée arrived: fire the firefly surge.
   void _onReception() {
-    _model.reception = _model.time;
-    _model.receptionSeed = _model.receptionSeed + 1;
+    _spawnSurge();
     HapticFeedback.mediumImpact();
+  }
+
+  /// Manual preview: tapping the scene fires the same surge (lighter haptic).
+  void _tap() {
+    _spawnSurge();
+    HapticFeedback.lightImpact();
   }
 
   @override
@@ -177,11 +150,18 @@ class _BeachDecorState extends State<BeachDecor>
   @override
   Widget build(BuildContext context) {
     final cfg = widget.variant == 0 ? _day : _sunset;
+    // Beach: gliding birds + ambient fireflies; a received pensée makes the
+    // fireflies surge (every one flares + a small extra swarm drifts in).
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _BeachBgPainter(cfg)),
+          child: DecorBackdrop(
+            env: 'beach',
+            variant: widget.variant,
+            assetRoot: widget.assetRoot,
+            fallback: RepaintBoundary(
+              child: CustomPaint(painter: _BeachBgPainter(cfg)),
+            ),
           ),
         ),
         Positioned.fill(
@@ -190,17 +170,14 @@ class _BeachDecorState extends State<BeachDecor>
               painter: _BeachFxPainter(
                 model: _model,
                 cfg: cfg,
-                ambient: _ambient,
-                variant: widget.variant,
+                fireflies: _fireflies,
+                surge: _surge,
               ),
             ),
           ),
         ),
         Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _sparkle,
-          ),
+          child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: _tap),
         ),
         if (widget.child != null) Positioned.fill(child: widget.child!),
       ],
@@ -288,12 +265,38 @@ const _sunset = _BeachConfig(
   island: Color(0xFF231526),
 );
 
+// Reception "surge" flare window, and how long the extra swarm flies live (s).
+const double _surgeLife = 1.6;
+const double _surgeFlyLife = 2.6;
+
 class _BeachModel extends ChangeNotifier {
   double time = 0;
-  double sparkle = -10;
-  double reception = -10;
-  int receptionSeed = 0;
+  double surge = -10; // last reception surge trigger time
   void notify() => notifyListeners();
+}
+
+/// A drifting, blinking firefly. [born] is the spawn time for ephemeral surge
+/// flies (so they can fade out); persistent ambient flies use -1. Mutable: the
+/// ticker advances [x]/[y].
+class _Firefly {
+  _Firefly({
+    required this.x,
+    required this.y,
+    required this.vx,
+    required this.vy,
+    required this.phase,
+    required this.freq,
+    required this.size,
+    this.born = -1,
+  });
+  double x;
+  double y;
+  final double vx;
+  final double vy;
+  final double phase;
+  final double freq;
+  final double size;
+  final double born;
 }
 
 class _BeachBgPainter extends CustomPainter {
@@ -686,133 +689,32 @@ class _BeachFxPainter extends CustomPainter {
   _BeachFxPainter({
     required this.model,
     required this.cfg,
-    required this.ambient,
-    required this.variant,
+    required this.fireflies,
+    required this.surge,
   }) : super(repaint: model);
 
   final _BeachModel model;
   final _BeachConfig cfg;
-  final List<_Ambient> ambient;
-  final int variant;
+  final List<_Firefly> fireflies;
+  final List<_Firefly> surge;
+
+  // Firefly glow halo — warm yellow-green.
+  static const Color _fireflyGlow = Color(0xFFB6FF5A);
+  // Saturated firefly core — drawn with a NORMAL blend so the firefly reads the
+  // SAME yellow-green on the bright day sky as on the dark sunset (an additive
+  // core washes out to white over a light background).
+  static const Color _fireflyCore = Color(0xFF8FE000);
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final hy = _horizon * h;
     final time = model.time;
-    final sunX = cfg.sunX * w;
 
-    // Sun reflection column on the sea — only when the sun is low (sunset).
-    if (cfg.sunY > 0.30) {
-      final reflectTop = hy;
-      final reflectBot = _BeachBgPainter.sandLine(cfg.sunX) * h;
-      for (var i = 0; i < 14; i++) {
-        final t = i / 13;
-        final y = reflectTop + (reflectBot - reflectTop) * t;
-        final width = (0.02 + t * 0.10) * w;
-        final wob = math.sin(time * 1.6 + i * 1.1) * (2 + t * 8);
-        final a = (0.5 - t * 0.35) * (0.6 + 0.4 * math.sin(time * 3 + i));
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(sunX + wob, y),
-            width: width,
-            height: 2.5 + t * 2,
-          ),
-          Paint()..color = cfg.sunGlow.withValues(alpha: a.clamp(0.0, 1.0)),
-        );
-      }
-    }
-
-    // Horizontal wave shimmer lines on the sea.
-    for (var i = 0; i < 9; i++) {
-      final t = (i + 1) / 10;
-      final y = hy + (_BeachBgPainter.sandLine(0) * h - hy) * t;
-      final a = 0.05 + 0.06 * (0.5 + 0.5 * math.sin(time * 1.2 + i * 1.6));
-      canvas.drawLine(
-        Offset(0, y + math.sin(time + i) * 1.5),
-        Offset(w, y + math.sin(time + i + 1) * 1.5),
-        Paint()
-          ..strokeWidth = 1 + t * 1.5
-          ..color = Color.fromRGBO(255, 255, 255, a),
-      );
-    }
-
-    // Wave wash sliding up the wet sand.
-    final wash = 0.5 + 0.5 * math.sin(time * 0.6);
-    final washY = (_BeachBgPainter.sandLine(0.5) + 0.02 + wash * 0.06) * h;
-    final foam = Path()..moveTo(0, washY);
-    for (var i = 0; i <= 20; i++) {
-      final xN = i / 20;
-      foam.lineTo(xN * w, washY + math.sin(time * 2 + xN * 12) * 3);
-    }
-    canvas.drawPath(
-      foam,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..color = const Color(0x66FFFFFF),
-    );
-
+    // Gliding birds…
     _paintBirds(canvas, w, h, time);
-
-    // Ambient particle layer — the always-on, low-density mood layer. Genuinely
-    // different per variant: a fine pale sea spray by day, warm twinkling
-    // fireflies at sunset. Sits beneath the tap/reception bursts.
-    _paintAmbient(canvas, w, h, time);
-
-    // Tap sparkle across the water.
-    final sp = (1 - (time - model.sparkle) / 1.4).clamp(0.0, 1.0);
-    if (sp > 0) {
-      final rng = math.Random(3);
-      for (var i = 0; i < 24; i++) {
-        final x = rng.nextDouble() * w;
-        final y =
-            hy + rng.nextDouble() * (_BeachBgPainter.sandLine(0) * h - hy);
-        canvas.drawCircle(
-          Offset(x, y),
-          1.5 + rng.nextDouble() * 2,
-          Paint()..color = Colors.white.withValues(alpha: sp * 0.8),
-        );
-      }
-    }
-
-    // Reception burst: an amplified, variant-flavoured shower of sea-foam
-    // glints — denser (110 vs 24), bigger, drifting upward, and longer-lived
-    // (2.0s vs 1.4s) than a tap. By day the glints are cool foam tinted with
-    // the lagoon's sun glow; at sunset they take the sky's warm sun colours.
-    final rp = (1 - (time - model.reception) / 2.0).clamp(0.0, 1.0);
-    if (rp > 0) {
-      // Eased fade so the shower lands with a bright crest then settles.
-      final crest = rp * rp;
-      final rise = (1 - rp) * h * 0.10; // glints drift up as the burst ages
-      final seaBot = _BeachBgPainter.sandLine(0) * h;
-      // Re-seed per reception so successive bursts read differently.
-      final rng = math.Random(model.receptionSeed * 2654435761 & 0x7fffffff);
-      final glow = cfg.sunGlow;
-      final core = cfg.daytime ? Colors.white : cfg.sun;
-      for (var i = 0; i < 110; i++) {
-        final x = rng.nextDouble() * w;
-        // Spread the shower over the whole sea band, biased toward the surface.
-        final t = rng.nextDouble() * rng.nextDouble();
-        final y = hy + t * (seaBot - hy) - rise;
-        // Per-glint twinkle so the shower shimmers rather than fading flatly.
-        final tw = 0.55 + 0.45 * math.sin(time * 9 + i * 1.3);
-        final a = (crest * tw).clamp(0.0, 1.0);
-        final r = 2.0 + rng.nextDouble() * 3.5;
-        // Soft halo (variant glow) + bright core (white by day / warm sun).
-        canvas.drawCircle(
-          Offset(x, y),
-          r * 1.9,
-          Paint()..color = glow.withValues(alpha: a * 0.32),
-        );
-        canvas.drawCircle(
-          Offset(x, y),
-          r,
-          Paint()..color = core.withValues(alpha: a * 0.92),
-        );
-      }
-    }
+    // …and ambient fireflies (which surge on reception).
+    _paintFireflies(canvas, w, h, time);
 
     // Vignette.
     canvas.drawRect(
@@ -845,76 +747,57 @@ class _BeachFxPainter extends CustomPainter {
     }
   }
 
-  // The ambient layer, dispatched by variant. Both share the same particle
-  // list and drift, but the look and twinkle are deliberately distinct:
-  //  - Jour: pale misty water droplets — small, faint, steady, a fine spray.
-  //  - Coucher: golden fireflies — warm glowing points that twinkle on/off
-  //    with a soft halo, evoking magical dusk.
-  void _paintAmbient(Canvas canvas, double w, double h, double time) {
-    if (variant == 0) {
-      _paintSpray(canvas, w, h, time);
-    } else {
-      _paintFireflies(canvas, w, h, time);
-    }
-  }
-
-  // Sea spray / water droplets: small pale-white dots drifting up off the
-  // waves. A gentle, near-uniform shimmer — misty, not sparkly.
-  void _paintSpray(Canvas canvas, double w, double h, double time) {
-    for (var i = 0; i < ambient.length; i++) {
-      final p = ambient[i];
-      // Slow breathing opacity so the mist softly pulses without twinkling.
-      final breathe = 0.5 + 0.5 * math.sin(time * 1.4 + p.phase);
-      final a = (0.18 + 0.22 * breathe).clamp(0.0, 1.0);
-      final r = 0.8 + p.seed * 1.4;
-      final c = Offset(p.x * w, p.y * h);
-      // Faint halo for a misty bloom, then a crisp pale core.
-      canvas.drawCircle(
-        c,
-        r * 2.2,
-        Paint()..color = Colors.white.withValues(alpha: a * 0.18),
-      );
-      canvas.drawCircle(
-        c,
-        r,
-        Paint()..color = Colors.white.withValues(alpha: a * 0.85),
-      );
-    }
-  }
-
-  // Golden fireflies: warm glowing motes that wander and twinkle on and off,
-  // each with a soft glow. Tinted with the sunset's warm sun colours so they
-  // belong to the scene's palette.
+  // Ambient fireflies: warm yellow-green points that drift and blink out of
+  // phase. On a reception surge every one flares bright and an extra swarm
+  // (the ephemeral [surge] list) fades in then out.
   void _paintFireflies(Canvas canvas, double w, double h, double time) {
-    final glow = cfg.sunGlow; // warm orange bloom
-    final core = cfg.sun; // bright warm gold
-    for (var i = 0; i < ambient.length; i++) {
-      final p = ambient[i];
-      // Per-firefly twinkle: a slow on/off cycle that dips toward dark, so they
-      // appear to blink rather than merely fade.
-      final blink = math.sin(time * (1.6 + p.seed) + p.phase * 3);
-      final lit = (blink * 0.5 + 0.5); // 0 (off) .. 1 (full glow)
-      final a = (lit * lit).clamp(0.0, 1.0); // ease so "off" lingers darker
-      if (a < 0.02) continue;
-      final r = 1.1 + p.seed * 1.6;
-      final c = Offset(p.x * w, p.y * h);
-      // Soft warm halo + a bright gold core — a tiny glowing lantern.
-      canvas.drawCircle(
-        c,
-        r * 3.0,
-        Paint()..color = glow.withValues(alpha: a * 0.22),
-      );
-      canvas.drawCircle(
-        c,
-        r * 1.6,
-        Paint()..color = glow.withValues(alpha: a * 0.35),
-      );
-      canvas.drawCircle(
-        c,
-        r,
-        Paint()..color = core.withValues(alpha: a * 0.95),
-      );
+    final flare = (1 - (time - model.surge) / _surgeLife).clamp(0.0, 1.0);
+
+    void drawFlies(List<_Firefly> flies, {required bool ephemeral}) {
+      for (final f in flies) {
+        // Sharp blink: mostly dim with brief bright pulses.
+        final pulse = math
+            .pow(0.5 + 0.5 * math.sin(time * f.freq + f.phase), 3)
+            .toDouble();
+        var a = (0.22 + 0.78 * pulse + flare).clamp(0.0, 1.0);
+        if (ephemeral) {
+          final age = time - f.born;
+          final inFade = (age / 0.3).clamp(0.0, 1.0);
+          final outFade = (1 - age / _surgeFlyLife).clamp(0.0, 1.0);
+          a *= inFade * outFade;
+        }
+        if (a <= 0.02) continue;
+        final c = Offset(f.x * w, f.y * h);
+        // Additive glow halo (reads as light bloom on either background).
+        canvas.drawCircle(
+          c,
+          f.size * 3.0,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = _fireflyGlow.withValues(alpha: 0.18 * a),
+        );
+        // Saturated coloured core (NORMAL blend) — same hue on both variants.
+        canvas.drawCircle(
+          c,
+          f.size * 1.2,
+          Paint()
+            ..color = _fireflyCore.withValues(
+              alpha: (0.95 * a).clamp(0.0, 1.0),
+            ),
+        );
+        // Tiny additive hot point for a glint.
+        canvas.drawCircle(
+          c,
+          f.size * 0.5,
+          Paint()
+            ..blendMode = BlendMode.plus
+            ..color = Colors.white.withValues(alpha: 0.7 * a),
+        );
+      }
     }
+
+    drawFlies(fireflies, ephemeral: false);
+    drawFlies(surge, ephemeral: true);
   }
 
   @override

@@ -4,7 +4,6 @@ import 'package:dewdrop/decor/desert_decor.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
-import 'package:dewdrop/decor/photo_decor.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/decor/space_decor.dart';
 import 'package:dewdrop/decor/underwater_decor.dart';
@@ -45,55 +44,59 @@ Widget buildDecor(
   bool parallax = true,
 }) {
   final v = variant.clamp(0, env.variantCount - 1);
-  if (mode == RenderMode.photo) {
-    return PhotoDecor(
-      environment: env,
-      variant: v,
-      parallax: parallax,
-      reception: reception,
-      child: child,
-    );
-  }
+  final assetRoot = mode == RenderMode.photo ? 'photo' : 'illustrated';
+
+  // Every decor runs through the unified pipeline: a parallax [DecorBackdrop]
+  // from the 'photo' or 'illustrated' asset tree (the same scene either way),
+  // with the decor's bespoke animated FX layered on top.
   return switch (env) {
     Environment.space => SpaceDecor(
       variant: SpaceVariant.values[v],
+      assetRoot: assetRoot,
       reception: reception,
       parallax: parallax,
       child: child,
     ),
     Environment.underwater => UnderwaterDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       parallax: parallax,
       child: child,
     ),
     Environment.forest => ForestDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),
     Environment.beach => BeachDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),
     Environment.library => LibraryDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),
     Environment.mountain => MountainDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),
     Environment.desert => DesertDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),
     Environment.aurora => AuroraDecor(
       variant: v,
+      assetRoot: assetRoot,
       reception: reception,
       child: child,
     ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -8,28 +9,28 @@ import 'package:flutter/services.dart';
 
 /// Immersive "montagne" decor — jagged alpine peaks. Two variants:
 ///  - 0 "Aube": snow peaks lit by pink dawn alpenglow over a sea of fog, a pine
-///    forest band and a foreground flower meadow. Drifting fog + warm sun rays.
+///    forest band and a foreground flower meadow. Gently drifting valley fog.
 ///  - 1 "Nuit": dark snowy peaks under a vivid Milky Way and twinkling stars,
-///    with a snowy foreground ridge and pine silhouettes.
+///    with OCCASIONAL shooting stars passing behind the peak.
 ///
-/// Sky, sun/galaxy, peak ranges and foreground are static; the drifting fog
-/// (dawn) or twinkling stars (night) animate on top. A "pensée" (tap) releases
-/// a single flurry of petals (dawn) or one shooting star (night) — a light
-/// manual preview. When a real "pensée" arrives, the host pulses
-/// [reception] and the decor plays an *amplified* celebratory burst: a whole
-/// shower of staggered shooting stars (night) or a dense, multi-wave petal
-/// cascade (dawn). Pure Canvas.
+/// Sky, peak ranges and foreground are static; the drifting fog (dawn) or
+/// twinkling + occasional shooting stars (night) animate on top. A tap or a
+/// received "pensée" rolls soft white fog in from the left and right edges
+/// toward the centre — like real fog — on BOTH variants. Pure Canvas.
 class MountainDecor extends StatefulWidget {
   const MountainDecor({
     super.key,
     this.variant = 0,
     this.reception,
     this.child,
+    this.assetRoot = 'photo',
   });
 
   final int variant;
   final ReceptionSignal? reception;
   final Widget? child;
+  // 'photo' or 'illustrated' — which parallax backdrop the bespoke FX sit on.
+  final String assetRoot;
 
   @override
   State<MountainDecor> createState() => _MountainDecorState();
@@ -48,7 +49,6 @@ class _MountainDecorState extends State<MountainDecor>
     super.initState();
     _ticker = createTicker((e) {
       _model.time = e.inMicroseconds / 1e6;
-      _model.prune(); // drop bursts that have fully faded
       _model.notify();
     })..start();
     widget.reception?.addListener(_onReception);
@@ -85,24 +85,16 @@ class _MountainDecorState extends State<MountainDecor>
   });
 
   void _tap() {
-    _model.burst = _model.time;
+    // Both variants: roll the soft fog in from the edges (manual preview).
+    _model.fogBurst = _model.time;
     HapticFeedback.lightImpact();
   }
 
-  /// A pensée arrived: an *amplified*, variant-flavoured shower. Where [_tap]
-  /// fires one event, reception seeds a handful of staggered bursts so the
-  /// painter renders a real wave — several shooting stars trailing across the
-  /// sky (Nuit) or successive denser petal cascades (Aube). Each burst carries
-  /// its own launch time and seed so they never overlap into a single blob.
+  /// A pensée arrived (both variants): soft white fog rolls in from the left and
+  /// right edges, drifts toward the centre, then dissipates — like real fog. The
+  /// occasional ambient shooting stars (Nuit) are unaffected.
   void _onReception() {
-    const count = 6;
-    for (var i = 0; i < count; i++) {
-      _model.addShowerBurst(
-        start: _model.time + i * 0.18, // staggered launches
-        lane: (i + _model.bursts.length) % count,
-        seed: _rng.nextInt(1 << 20),
-      );
-    }
+    _model.fogBurst = _model.time;
     HapticFeedback.mediumImpact();
   }
 
@@ -120,8 +112,23 @@ class _MountainDecorState extends State<MountainDecor>
     return Stack(
       children: [
         Positioned.fill(
-          child: RepaintBoundary(
-            child: CustomPaint(painter: _MountainBgPainter(cfg, _flowers)),
+          child: DecorBackdrop(
+            env: 'mountain',
+            variant: widget.variant,
+            assetRoot: widget.assetRoot,
+            // Night: shooting stars stream from the deepest mid-stack slot so
+            // they vanish BEHIND the peak. Several ambient meteors at once.
+            midFx: cfg.night
+                ? RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _MountainShootingStarsPainter(model: _model),
+                    ),
+                  )
+                : null,
+            midFxBelow: 1,
+            fallback: RepaintBoundary(
+              child: CustomPaint(painter: _MountainBgPainter(cfg, _flowers)),
+            ),
           ),
         ),
         Positioned.fill(
@@ -189,43 +196,13 @@ const _night = _MountainConfig(
   rock: Color(0xFF222A40),
 );
 
-// One staggered event inside a reception shower. [start] is the launch time
-// (model clock), [lane] spreads the shooting-star trajectories / petal columns
-// across the width, and [seed] flavours its random scatter so each looks
-// distinct. The painter derives its own progress from `time - start`.
-class _ShowerBurst {
-  const _ShowerBurst({
-    required this.start,
-    required this.lane,
-    required this.seed,
-  });
-  final double start;
-  final int lane;
-  final int seed;
-}
+// How long the soft edge-fog takes to roll in and dissipate (seconds). Longer
+// so the fog ARRIVES slowly (the rise/reach phases stretch over most of it).
+const double _fogLife = 4.5;
 
 class _MountainModel extends ChangeNotifier {
   double time = 0;
-  double burst = -10; // single-tap preview event
-  final List<_ShowerBurst> bursts = []; // amplified reception shower
-
-  // Longest visual lifetime of a single burst (the petal cascade), used to
-  // know when a burst can be dropped. Shooting stars live ~1.2s, petals ~1.6s.
-  static const double burstLifetime = 1.6;
-
-  void addShowerBurst({
-    required double start,
-    required int lane,
-    required int seed,
-  }) {
-    bursts.add(_ShowerBurst(start: start, lane: lane, seed: seed));
-  }
-
-  // Drop bursts whose animation has fully elapsed so the list stays bounded.
-  void prune() {
-    if (bursts.isEmpty) return;
-    bursts.removeWhere((b) => time - b.start > burstLifetime);
-  }
+  double fogBurst = -10; // fog-billow trigger (tap or reception), both variants
 
   void notify() => notifyListeners();
 }
@@ -564,6 +541,8 @@ class _MountainFxPainter extends CustomPainter {
     final time = model.time;
 
     if (cfg.night) {
+      // Twinkling stars only — the shooting stars live in the mid-stack painter
+      // so they pass behind the peak (see _MountainShootingStarsPainter).
       for (final s in stars) {
         final a = s.twinkle * (0.55 + 0.45 * math.sin(time * 1.5 + s.phase));
         canvas.drawCircle(
@@ -572,21 +551,9 @@ class _MountainFxPainter extends CustomPainter {
           Paint()..color = Color.fromRGBO(255, 255, 255, a.clamp(0.0, 1.0)),
         );
       }
-      // Single-tap preview: one shooting star on the centre lane.
-      _paintShootingStar(canvas, w, h, start: model.burst, lane: 2, seed: 0);
-      // Reception shower: a staggered volley of stars across all lanes.
-      for (final b in model.bursts) {
-        _paintShootingStar(
-          canvas,
-          w,
-          h,
-          start: b.start,
-          lane: b.lane,
-          seed: b.seed,
-        );
-      }
     } else {
-      // Drifting sea-of-fog ribbons in the valley.
+      // Aube ambient (unchanged): the gently drifting sea-of-fog ribbons that
+      // hang in the valley below the peaks.
       for (var i = 0; i < 5; i++) {
         final baseY = (0.58 + i * 0.028) * h;
         final drift = (time * (0.01 + i * 0.004) + i * 0.3) % 1.2 - 0.1;
@@ -599,11 +566,12 @@ class _MountainFxPainter extends CustomPainter {
           ),
           Paint()
             ..color = Colors.white.withValues(
-              alpha: 0.10 + 0.04 * math.sin(time * 0.5 + i),
+              alpha: (0.10 + 0.04 * math.sin(time * 0.5 + i)).clamp(0.0, 1.0),
             )
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
         );
       }
+
       // Gentle flower sway.
       for (final f in flowers) {
         final sway = math.sin(time * 1.5 + f.phase) * 1.2;
@@ -613,38 +581,105 @@ class _MountainFxPainter extends CustomPainter {
           Paint()..color = f.color.withValues(alpha: 0.5),
         );
       }
-      // Single-tap preview: one light petal flurry.
-      _paintPetalFlurry(canvas, w, h, start: model.burst, seed: 8, count: 22);
-      // Reception shower: each staggered burst is a denser petal cascade,
-      // its column offset by the lane so the waves don't stack into one blob.
-      for (final b in model.bursts) {
-        _paintPetalFlurry(
-          canvas,
-          w,
-          h,
-          start: b.start,
-          seed: b.seed,
-          count: 40,
-          lane: b.lane,
-        );
-      }
+    }
+
+    // Soft fog rolling in from BOTH screen edges on tap / reception — both
+    // variants. Real-fog feel: gentle rise and fall, banks drifting to centre.
+    _paintEdgeFog(canvas, w, h, time - model.fogBurst);
+  }
+
+  /// Soft white fog that rolls in from BOTH edges, fills the WHOLE width as a
+  /// homogeneous veil at its peak, then dissipates GLOBALLY (a uniform alpha
+  /// fade everywhere at once — the banks never retreat to the edges, which would
+  /// re-expose a visible front). Three-phase time envelope on [elapsed]:
+  ///  (a) rise — banks slide in from the edges to centred / full coverage;
+  ///  (b) plateau — wide, overlapping, blurred banks = seamless full-width veil;
+  ///  (c) fall — opacity drops uniformly across the whole screen.
+  void _paintEdgeFog(Canvas canvas, double w, double h, double elapsed) {
+    if (elapsed < 0 || elapsed > _fogLife) return;
+    final p = elapsed / _fogLife;
+    // Global opacity envelope: a SLOW rise (long arrival), a plateau, then a
+    // slightly quicker uniform fade-out.
+    final double env;
+    if (p < 0.40) {
+      env = Curves.easeIn.transform(p / 0.40);
+    } else if (p < 0.74) {
+      env = 1.0;
+    } else {
+      env = 1.0 - Curves.easeInOut.transform((p - 0.74) / 0.26);
+    }
+    // How far the banks have rolled in. Rolls in SLOWLY over the long rise and
+    // STAYS at full coverage through the fade, so dissipation is a global alpha
+    // drop, never a retreat that re-shows a bank's front.
+    final reach = Curves.easeOut.transform((p / 0.45).clamp(0.0, 1.0));
+    for (var i = 0; i < 4; i++) {
+      final fy = (0.48 + i * 0.08) * h;
+      final bh = h * (0.20 + i * 0.04);
+      // Banks are very wide (and the back layers wider than the screen) so when
+      // centred they overlap into a seamless full-width veil with no visible
+      // front and the screen edges fully covered.
+      final bw = w * (0.95 + i * 0.12);
+      final a = (env * (0.14 + 0.04 * math.sin(elapsed * 0.5 + i))).clamp(
+        0.0,
+        0.26,
+      );
+      // Left bank slides from off-screen-left to centre; right bank symmetric.
+      final lcx = ui.lerpDouble(-0.55, 0.5, reach)! * w;
+      final rcx = ui.lerpDouble(1.55, 0.5, reach)! * w;
+      final fogPaint = Paint()
+        ..color = Colors.white.withValues(alpha: a)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 44);
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(lcx, fy), width: bw, height: bh),
+        fogPaint,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(rcx, fy), width: bw, height: bh),
+        fogPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MountainFxPainter old) => false;
+}
+
+/// Night shooting stars, rendered as a mid-stack [DecorBackdrop.midFx] so they
+/// stream BEHIND the peak. OCCASIONAL ambient meteors only — one now and then,
+/// never on tap/reception (those roll the fog in instead).
+class _MountainShootingStarsPainter extends CustomPainter {
+  _MountainShootingStarsPainter({required this.model}) : super(repaint: model);
+  final _MountainModel model;
+
+  // Occasional ambient meteors: 2 tracks on a 12s cycle → ~one every ~6s, never
+  // two at once. "De temps en temps", not a stream.
+  static const int _ambientTracks = 2;
+  static const double _period = 12.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final time = model.time;
+    for (var k = 0; k < _ambientTracks; k++) {
+      final local = (time - k * (_period / _ambientTracks)) % _period;
+      _star(canvas, w, h, t: local / 1.2, lane: (k * 3) % 6, seed: 1000 + k);
     }
   }
 
   // One shooting star streaking from upper-left to mid-right. [lane] shifts the
   // trajectory across the sky and tilts its descent so a volley fans out.
-  void _paintShootingStar(
+  void _star(
     Canvas canvas,
     double w,
     double h, {
-    required double start,
+    required double t,
     required int lane,
     required int seed,
   }) {
-    final t = (model.time - start) / 1.2;
     if (t < 0 || t > 1) return;
     final rng = math.Random(seed);
-    final laneN = lane / 6; // 0..~0.83 across the lanes
+    final laneN = lane / 6;
     final jitter = (rng.nextDouble() - 0.5) * 0.12;
     final eased = Curves.easeOut.transform(t);
     final fromX = 0.12 + laneN * 0.5 + jitter;
@@ -666,33 +701,6 @@ class _MountainFxPainter extends CustomPainter {
     );
   }
 
-  // A flurry of falling petals fading over 1.6s. [count] controls density and
-  // [lane] nudges the horizontal spread so successive shower waves don't align.
-  void _paintPetalFlurry(
-    Canvas canvas,
-    double w,
-    double h, {
-    required double start,
-    required int seed,
-    required int count,
-    int lane = 0,
-  }) {
-    final sp = (1 - (model.time - start) / 1.6).clamp(0.0, 1.0);
-    if (sp <= 0) return;
-    final rng = math.Random(seed);
-    final laneShift = (lane / 6 - 0.4) * w * 0.25;
-    for (var i = 0; i < count; i++) {
-      final x = rng.nextDouble() * w + laneShift;
-      final fall = (1 - sp) * h * 0.5;
-      final y = rng.nextDouble() * h * 0.4 + fall;
-      canvas.drawCircle(
-        Offset(x + math.sin(model.time * 3 + i) * 6, y),
-        1.5 + rng.nextDouble() * 2,
-        Paint()..color = _flowerColor(rng).withValues(alpha: sp * 0.7),
-      );
-    }
-  }
-
   @override
-  bool shouldRepaint(_MountainFxPainter old) => false;
+  bool shouldRepaint(_MountainShootingStarsPainter old) => false;
 }
