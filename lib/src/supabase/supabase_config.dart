@@ -22,8 +22,32 @@ class SupabaseConfig {
     return 'http://$host:54321';
   }
 
+  /// The anon/publishable key of the **local** Supabase stack — the default when
+  /// no override is passed. It is NOT the cloud key: building with a remote URL
+  /// but this default makes every request 401 (see [assertConsistent]).
+  static const String _localDefaultAnonKey =
+      'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+
   static const String anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
+    defaultValue: _localDefaultAnonKey,
   );
+
+  /// Fail fast on the classic build mistake: a **remote** (https) URL paired
+  /// with the **local** default anon key — which makes every Supabase call
+  /// return `401 Invalid API key`, visible only as a generic runtime error.
+  /// Call once at startup, before [Supabase.initialize].
+  ///
+  /// No secret is referenced: the anon key is public (security comes from RLS,
+  /// not from hiding this key), and the thrown message never prints a key value.
+  static void assertConsistent() {
+    final isRemote = url.startsWith('https://');
+    if (isRemote && anonKey == _localDefaultAnonKey) {
+      throw StateError(
+        'Supabase config error: the remote URL ($url) is paired with the LOCAL '
+        'default anon key. Build with '
+        '--dart-define=SUPABASE_ANON_KEY=<your cloud publishable key>.',
+      );
+    }
+  }
 }
