@@ -48,6 +48,10 @@ app.*.map.json
 tools/depth_split/.venv/
 __pycache__/
 
+# Watermark-removal backups (the original watermarked source is recoverable
+# from git history; no need to track the *_wm.png copies).
+tools/depth_split/_src/**/*_wm.png
+
 # Supabase local working dirs (config + migrations ARE committed)
 supabase/.branches/
 supabase/.temp/
