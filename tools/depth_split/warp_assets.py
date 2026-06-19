@@ -43,8 +43,9 @@ def gen(src: str, out_dir: str, mesh_cols: int = 96, pipe=None) -> tuple[int, in
     h, w = rgb.shape[:2]
     os.makedirs(out_dir, exist_ok=True)
 
-    # 1) Full image — no cutting.
-    img.save(os.path.join(out_dir, "full.webp"), "WEBP", quality=88, method=6)
+    # 1) Full image — no cutting. q76 is visually indistinguishable from q88 here
+    # (verified on the worst case: palm fronds + sky gradient) at ~38% less size.
+    img.save(os.path.join(out_dir, "full.webp"), "WEBP", quality=76, method=6)
 
     # 2) Depth (DA-V2-Large) + edge-aware guided refine, normalised to [0,1].
     own_pipe = pipe is None
