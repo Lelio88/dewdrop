@@ -80,3 +80,6 @@ firebase-service-account.json
 # Audio working dir (raw downloads; final loops live in assets/audio)
 tools/sounds/
 tools/_*.png
+
+# Throwaway UI mockups / design previews (HTML + screenshots).
+tools/mockups/
