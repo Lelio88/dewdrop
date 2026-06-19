@@ -4,13 +4,14 @@ import 'dart:ui';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
+import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
-import 'package:dewdrop/src/features/settings/presentation/decor_picker.dart';
+import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
@@ -91,6 +92,8 @@ class _HomeViewState extends ConsumerState<HomeView>
     super.initState();
     _sound = ref.read(soundscapeProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
+    // The live decor goes fully immersive — system bars hidden, swiped back.
+    SystemUi.immersive();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncAmbient();
       unawaited(_checkUnseenOnOpen());
@@ -100,6 +103,8 @@ class _HomeViewState extends ConsumerState<HomeView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Leaving the decor (e.g. sign-out): bring the system bars back.
+    SystemUi.edgeToEdge();
     unawaited(_sound.pauseAll());
     _reception.dispose();
     super.dispose();
@@ -111,6 +116,11 @@ class _HomeViewState extends ConsumerState<HomeView>
       unawaited(_sound.resumeAll());
       // Realtime may have missed events while backgrounded — catch up.
       unawaited(_checkUnseenOnOpen());
+      // Re-assert immersive, but only if the decor is on top: a pushed screen
+      // (Settings, Friends…) needs the system bars back.
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+        SystemUi.immersive();
+      }
     } else if (state != AppLifecycleState.detached) {
       unawaited(_sound.pauseAll());
     }
@@ -176,36 +186,53 @@ class _HomeViewState extends ConsumerState<HomeView>
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.18),
+      isScrollControlled: true, // tall menu must never clip its bottom items
       builder: (_) => _HomeMenu(profile: widget.profile),
     ).then((result) {
-      if (!mounted) return;
-      if (result == 'decor') _openDecorPicker();
-      if (result == 'friends') context.push('/friends');
-      if (result == 'thoughts') context.push('/thoughts');
-      if (result == 'thought-settings') context.push('/thought-settings');
-      if (result == 'send') context.push('/send');
-      if (result == 'settings') context.push('/settings');
+      if (!mounted || result == null) return;
+      if (result == 'decor') {
+        _openDecorPicker();
+        return;
+      }
+      final route = switch (result) {
+        'friends' => '/friends',
+        'thoughts' => '/thoughts',
+        'thought-settings' => '/thought-settings',
+        'send' => '/send',
+        'settings' => '/settings',
+        _ => null,
+      };
+      if (route == null) return;
+      // Sub-screens want the system bars back; restore immersive on return.
+      SystemUi.edgeToEdge();
+      context.push(route).then((_) {
+        if (mounted) SystemUi.immersive();
+      });
     });
   }
 
   void _openDecorPicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.18),
-      isScrollControlled:
-          true, // tall content (decor list + sound panel) scrolls
-      builder: (_) => DecorPicker(
-        decor: _decor,
-        mode: _mode,
-        onChanged: (decor, mode) {
-          setState(() {
-            _decor = decor;
-            _mode = mode;
-          });
-          _syncAmbient();
-          unawaited(_persist(decor, mode));
-        },
+    // Full-screen "stories" world picker (fades in over the live home). Pushed
+    // on the same Navigator so HomeView stays mounted underneath and its
+    // immersive system-UI mode is preserved.
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 260),
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (_, _, _) => DecorStories(
+          decor: _decor,
+          mode: _mode,
+          onChanged: (decor, mode) {
+            setState(() {
+              _decor = decor;
+              _mode = mode;
+            });
+            _syncAmbient();
+            unawaited(_persist(decor, mode));
+          },
+        ),
+        transitionsBuilder: (_, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
       ),
     );
   }
@@ -268,186 +295,196 @@ class _HomeMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final white = Colors.white;
-    final bottom = MediaQuery.of(context).padding.bottom;
+    final media = MediaQuery.of(context);
+    // viewPadding (not padding): the inset survives even when the nav bar is
+    // hidden by immersive mode, so the bottom items stay above where it sits.
+    final bottom = media.viewPadding.bottom;
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
         child: Container(
           width: double.infinity,
+          // Cap the height + scroll, so a small screen never pushes the last
+          // items ("Réglages" / "Se déconnecter") off the bottom.
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.85),
           padding: EdgeInsets.fromLTRB(22, 14, 22, 18 + bottom),
           decoration: BoxDecoration(
             color: white.withValues(alpha: 0.10),
             border: Border.all(color: white.withValues(alpha: 0.18)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: white.withValues(alpha: 0.35),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Centered identity header — app name, then name + handle, no avatar.
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'DewDrop',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: 2,
-                        color: white,
-                      ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: white.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    const SizedBox(height: 10),
-                    if (profile.displayName?.isNotEmpty == true) ...[
-                      Text(
-                        profile.displayName!,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '@${profile.handle}',
-                        style: TextStyle(color: white.withValues(alpha: 0.55)),
-                      ),
-                    ] else
-                      Text(
-                        '@${profile.handle}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: white,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Divider(color: white.withValues(alpha: 0.15), height: 1),
-              const SizedBox(height: 6),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.auto_awesome_outlined,
-                  color: white.withValues(alpha: 0.85),
-                ),
-                title: const Text('Pensées reçues'),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
-                ),
-                onTap: () => Navigator.of(context).pop('thoughts'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.edit_note_rounded,
-                  color: white.withValues(alpha: 0.85),
-                ),
-                title: const Text('Pensées'),
-                subtitle: Text(
-                  'Anonymat + style de tes notifications',
-                  style: TextStyle(
-                    color: white.withValues(alpha: 0.5),
-                    fontSize: 12,
                   ),
                 ),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
+                const SizedBox(height: 14),
+                // Centered identity header — app name, then name + handle, no avatar.
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'DewDrop',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w300,
+                          letterSpacing: 2,
+                          color: white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (profile.displayName?.isNotEmpty == true) ...[
+                        Text(
+                          profile.displayName!,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '@${profile.handle}',
+                          style: TextStyle(
+                            color: white.withValues(alpha: 0.55),
+                          ),
+                        ),
+                      ] else
+                        Text(
+                          '@${profile.handle}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: white,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                onTap: () => Navigator.of(context).pop('thought-settings'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.send_rounded,
-                  color: white.withValues(alpha: 0.85),
+                const SizedBox(height: 16),
+                Divider(color: white.withValues(alpha: 0.15), height: 1),
+                const SizedBox(height: 6),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.auto_awesome_outlined,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Pensées reçues'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('thoughts'),
                 ),
-                title: const Text('Envoyer une pensée'),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.edit_note_rounded,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Pensées'),
+                  subtitle: Text(
+                    'Anonymat + style de tes notifications',
+                    style: TextStyle(
+                      color: white.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('thought-settings'),
                 ),
-                onTap: () => Navigator.of(context).pop('send'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.group_outlined,
-                  color: white.withValues(alpha: 0.85),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.send_rounded,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Envoyer une pensée'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('send'),
                 ),
-                title: const Text('Amis'),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.group_outlined,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Amis'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('friends'),
                 ),
-                onTap: () => Navigator.of(context).pop('friends'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.palette_outlined,
-                  color: white.withValues(alpha: 0.85),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.palette_outlined,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Univers'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('decor'),
                 ),
-                title: const Text('Univers'),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.tune_rounded,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Réglages'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('settings'),
                 ),
-                onTap: () => Navigator.of(context).pop('decor'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.tune_rounded,
-                  color: white.withValues(alpha: 0.85),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.logout_rounded,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Se déconnecter'),
+                  onTap: () async {
+                    // Capture before popping — the sheet's `ref` is gone after pop.
+                    final push = ref.read(pushServiceProvider);
+                    final auth = ref.read(authRepositoryProvider);
+                    Navigator.of(context).pop();
+                    try {
+                      // Drop the device token while still authenticated (RLS),
+                      // then sign out. Best-effort: a failure must not strand the
+                      // user in a half-signed-out state silently.
+                      await push.unregister();
+                      await auth.signOut();
+                    } on Exception catch (_) {
+                      // The router redirect handles navigation on success.
+                    }
+                  },
                 ),
-                title: const Text('Réglages'),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: white.withValues(alpha: 0.5),
-                ),
-                onTap: () => Navigator.of(context).pop('settings'),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.logout_rounded,
-                  color: white.withValues(alpha: 0.85),
-                ),
-                title: const Text('Se déconnecter'),
-                onTap: () async {
-                  // Capture before popping — the sheet's `ref` is gone after pop.
-                  final push = ref.read(pushServiceProvider);
-                  final auth = ref.read(authRepositoryProvider);
-                  Navigator.of(context).pop();
-                  try {
-                    // Drop the device token while still authenticated (RLS),
-                    // then sign out. Best-effort: a failure must not strand the
-                    // user in a half-signed-out state silently.
-                    await push.unregister();
-                    await auth.signOut();
-                  } on Exception catch (_) {
-                    // The router redirect handles navigation on success.
-                  }
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

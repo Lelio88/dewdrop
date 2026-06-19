@@ -5,7 +5,6 @@ import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
-import 'package:dewdrop/decor/photo_decor.dart';
 import 'package:dewdrop/decor/space_decor.dart';
 import 'package:dewdrop/decor/underwater_decor.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,49 +19,26 @@ void main() {
     }
   });
 
-  test('photo mode always builds a PhotoDecor', () {
-    for (final e in Environment.values) {
-      expect(
-        buildDecor(e, 0, RenderMode.photo),
-        isA<PhotoDecor>(),
-        reason: 'photo decor for ${e.name}',
-      );
+  test('every environment builds its bespoke renderer in both modes', () {
+    // Since the depth-warp rewrite, photo and drawn modes share one unified
+    // pipeline: buildDecor always returns the env's bespoke decor, differing
+    // only by the asset tree it pulls (photo vs illustrated). Both modes thus
+    // produce the same widget type per environment.
+    final expected = <Environment, Matcher>{
+      Environment.space: isA<SpaceDecor>(),
+      Environment.underwater: isA<UnderwaterDecor>(),
+      Environment.forest: isA<ForestDecor>(),
+      Environment.beach: isA<BeachDecor>(),
+      Environment.library: isA<LibraryDecor>(),
+      Environment.mountain: isA<MountainDecor>(),
+      Environment.desert: isA<DesertDecor>(),
+      Environment.aurora: isA<AuroraDecor>(),
+    };
+    for (final mode in RenderMode.values) {
+      expected.forEach((env, matcher) {
+        expect(buildDecor(env, 0, mode), matcher, reason: '${env.name}/$mode');
+      });
     }
-  });
-
-  test('drawn mode builds the bespoke renderer for every environment', () {
-    expect(
-      buildDecor(Environment.space, 0, RenderMode.drawn),
-      isA<SpaceDecor>(),
-    );
-    expect(
-      buildDecor(Environment.underwater, 0, RenderMode.drawn),
-      isA<UnderwaterDecor>(),
-    );
-    expect(
-      buildDecor(Environment.forest, 0, RenderMode.drawn),
-      isA<ForestDecor>(),
-    );
-    expect(
-      buildDecor(Environment.beach, 0, RenderMode.drawn),
-      isA<BeachDecor>(),
-    );
-    expect(
-      buildDecor(Environment.library, 0, RenderMode.drawn),
-      isA<LibraryDecor>(),
-    );
-    expect(
-      buildDecor(Environment.mountain, 0, RenderMode.drawn),
-      isA<MountainDecor>(),
-    );
-    expect(
-      buildDecor(Environment.desert, 0, RenderMode.drawn),
-      isA<DesertDecor>(),
-    );
-    expect(
-      buildDecor(Environment.aurora, 0, RenderMode.drawn),
-      isA<AuroraDecor>(),
-    );
   });
 
   test('out-of-range variants are clamped (never throw) in both modes', () {

@@ -3,6 +3,7 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:dewdrop/src/app.dart';
 import 'package:dewdrop/src/common/provider_error_logger.dart';
+import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
 import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
@@ -27,6 +28,9 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Decor-first: draw edge-to-edge under transparent system bars from the first
+  // frame (HomeView upgrades to fully immersive). No-op off mobile.
+  SystemUi.edgeToEdge();
   // Firebase/FCM is mobile-only here; desktop (decor dev) skips it so it never
   // fails to init without a native Firebase config.
   if (Platform.isAndroid || Platform.isIOS) {
