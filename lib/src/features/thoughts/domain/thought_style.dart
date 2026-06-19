@@ -48,27 +48,62 @@ class ThoughtStyle {
 }
 
 /// Shared emoji pool for both the leading and trailing slots. `''` = « none ».
+///
+/// MUST stay byte-for-byte in sync with `ALLOWED_EMOJIS` in the
+/// `send-thought-push` Edge Function — the server validates the sender's choice
+/// against that set and silently drops anything not in it.
 const List<String> kThoughtEmojis = [
-  '',
+  '', // « aucun »
+  // Cœurs & tendresse
   '💭',
   '💗',
-  '🌸',
-  '✨',
-  '☀️',
-  '🌙',
-  '🍀',
-  '💫',
   '💖',
-  '🌟',
+  '💕',
+  '💛',
   '🤍',
   '🫶',
+  '🥰',
+  '🤗',
+  // Fleurs & nature douce
+  '🌸',
+  '🌼',
+  '🌷',
+  '🌻',
+  '💐',
+  '🍀',
+  '🍃',
+  '🦋',
+  // Ciel & lumière
+  '✨',
+  '💫',
+  '🌟',
+  '🌠',
+  '⭐',
+  '☀️',
+  '🌙',
+  '🌈',
+  '☁️',
+  // Cosy
+  '🫧',
+  '☕',
 ];
 
 /// Phrase templates. `%s` is replaced by the sender's name (or « Quelqu'un »).
+///
+/// MUST stay byte-for-byte in sync with `ALLOWED_BODIES` in the
+/// `send-thought-push` Edge Function (same validation as the emojis).
 const List<String> kThoughtBodies = [
   '%s a pensé à toi',
   '%s pense fort à toi',
   "%s t'envoie une pensée",
   '%s a une pensée pour toi',
   'Une pensée de %s',
+  'Tu es dans les pensées de %s',
+  "%s t'envoie de la douceur",
+  '%s pense à toi en ce moment',
+  'Un petit coucou de %s',
+  'Une douce pensée de %s',
+  "%s ne t'oublie pas",
+  "%s t'envoie de bonnes ondes",
+  "%s t'envoie un câlin",
 ];
