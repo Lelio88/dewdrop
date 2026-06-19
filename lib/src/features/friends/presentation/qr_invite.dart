@@ -4,20 +4,31 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-/// QR-based friend invites — no deep link needed. Your QR encodes your @handle;
-/// scanning a friend's QR extracts their handle to send them a request. The QR
-/// is consumed entirely in-app (camera → handle → friend request), so it works
-/// without any URL/deep-link plumbing.
-const String _prefix = 'dewdrop:';
+/// QR-based friend invites. The QR encodes the same HTTPS invite link as the
+/// « Copier mon lien » button ([DeepLinks.invite]) — so it's scannable by any
+/// camera (it opens our landing page → install/open) as well as in-app. In-app,
+/// [parseInvite] pulls the bare @handle back out of whatever was scanned.
+String encodeInvite(String handle) => DeepLinks.invite(handle);
 
-String encodeInvite(String handle) => '$_prefix$handle';
-
-/// Lenient parse: a scanned value with or without the prefix (and with or
-/// without a leading '@') yields the bare handle, or null if empty.
+/// Lenient parse of a scanned value → the bare handle (or null). Accepts the
+/// HTTPS invite link, the `dewdrop://invite` / legacy `dewdrop:<handle>` forms,
+/// and a raw handle with or without a leading '@'.
 String? parseInvite(String? raw) {
   if (raw == null) return null;
-  final body = raw.startsWith(_prefix) ? raw.substring(_prefix.length) : raw;
-  final h = body.trim().replaceAll('@', '');
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  // Structured forms first: HTTPS web link or dewdrop://invite.
+  final uri = Uri.tryParse(trimmed);
+  if (uri != null) {
+    final h = DeepLinks.inviteHandle(uri);
+    if (h != null) return h;
+  }
+  // Fallback: a bare handle, optionally 'dewdrop:'-prefixed and/or '@'-prefixed.
+  const legacyPrefix = 'dewdrop:';
+  final body = trimmed.startsWith(legacyPrefix)
+      ? trimmed.substring(legacyPrefix.length)
+      : trimmed;
+  final h = body.replaceAll('@', '').trim();
   return h.isEmpty ? null : h;
 }
 
@@ -64,8 +75,8 @@ void showMyQrSheet(BuildContext context, String handle) {
               ),
             ),
             const SizedBox(height: 16),
-            // Loin du QR : un lien partageable (SMS, messagerie) qui rouvre
-            // l'app sur une demande d'ami. Ne marche que si l'app est installée.
+            // Un lien partageable (SMS, messagerie) cliquable partout : il ouvre
+            // une page proposant « Ouvrir dans DewDrop » ou « Installer ».
             TextButton.icon(
               onPressed: () async {
                 await Clipboard.setData(

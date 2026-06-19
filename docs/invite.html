@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Invitation DewDrop</title>
+<style>
+  :root {
+    --accent: #8ab4ff;
+    --txt: rgba(255, 255, 255, 0.95);
+    --txt-2: rgba(255, 255, 255, 0.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    color: var(--txt);
+    background:
+      radial-gradient(90% 60% at 30% 12%, #2a2150 0%, transparent 60%),
+      radial-gradient(80% 70% at 82% 95%, #16315e 0%, transparent 55%),
+      linear-gradient(170deg, #12162a 0%, #06070e 100%);
+    min-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px;
+  }
+  .card {
+    width: 100%; max-width: 380px; text-align: center;
+    padding: 40px 28px 32px; border-radius: 28px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+  }
+  .drop { font-size: 46px; line-height: 1; margin-bottom: 18px; }
+  h1 { font-weight: 400; font-size: 22px; letter-spacing: 0.3px; line-height: 1.35; }
+  h1 b { font-weight: 700; color: var(--accent); }
+  .sub { color: var(--txt-2); font-size: 14.5px; line-height: 1.5; margin: 14px 0 28px; }
+  .btn {
+    display: block; width: 100%; padding: 15px 18px; margin-top: 12px;
+    border-radius: 99px; font-size: 15px; font-weight: 600; letter-spacing: 0.2px;
+    text-decoration: none; transition: transform 0.12s ease, opacity 0.12s ease;
+    border: 1px solid rgba(255, 255, 255, 0.16); color: var(--txt);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary {
+    background: linear-gradient(180deg, #9cc0ff, #6f9bff);
+    color: #0a0e1c; border-color: transparent;
+    box-shadow: 0 10px 30px rgba(120, 160, 255, 0.35);
+  }
+  .hint { color: var(--txt-2); font-size: 12.5px; line-height: 1.5; margin-top: 22px; }
+  .wordmark { margin-top: 26px; font-size: 12px; letter-spacing: 3px; color: rgba(255,255,255,0.4); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="drop">💧</div>
+    <h1 id="title">Tu es invité·e sur DewDrop</h1>
+    <p class="sub">Envoie une douce pensée à ceux qui comptent — « X a pensé à toi », sur un décor immersif. ✨</p>
+    <a id="open" class="btn primary" href="#">Ouvrir dans DewDrop</a>
+    <a id="install" class="btn"
+       href="https://play.google.com/store/apps/details?id=app.dewdrop">Installer sur Google&nbsp;Play</a>
+    <p class="hint">Ouvre ce lien sur ton téléphone. Pas encore l'app ? Installe-la, puis rouvre le lien pour accepter l'invitation.</p>
+    <div class="wordmark">DEWDROP</div>
+  </main>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var raw = (params.get('handle') || '').replace(/^@/, '');
+      // Only accept a plausible handle — defends against reflected-content abuse.
+      var handle = /^[A-Za-z0-9_.]{1,30}$/.test(raw) ? raw : '';
+      var title = document.getElementById('title');
+      var open = document.getElementById('open');
+      if (handle) {
+        // textContent (never innerHTML) so the handle can never inject markup.
+        title.textContent = '@' + handle + ' t’invite sur DewDrop';
+        open.setAttribute('href', 'dewdrop://invite?handle=' + encodeURIComponent(handle));
+      } else {
+        // No / invalid handle: hide the hand-off button, keep "Installer".
+        open.style.display = 'none';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -3,13 +3,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('DeepLinks.invite', () {
-    test('builds a dewdrop invite link for a handle', () {
-      expect(DeepLinks.invite('alice'), 'dewdrop://invite?handle=alice');
+    test('builds an HTTPS, clickable invite link for a handle', () {
+      expect(
+        DeepLinks.invite('alice'),
+        'https://lelio88.github.io/dewdrop/invite.html?handle=alice',
+      );
+    });
+
+    test('inviteScheme builds the custom-scheme hand-off link', () {
+      expect(DeepLinks.inviteScheme('alice'), 'dewdrop://invite?handle=alice');
     });
   });
 
   group('DeepLinks.inviteHandle', () {
-    test('extracts the handle from an invite link', () {
+    test('extracts the handle from the HTTPS web link', () {
+      final uri = Uri.parse(DeepLinks.invite('alice'));
+      expect(DeepLinks.inviteHandle(uri), 'alice');
+    });
+
+    test('extracts the handle from the custom-scheme link', () {
       final uri = Uri.parse('dewdrop://invite?handle=alice');
       expect(DeepLinks.inviteHandle(uri), 'alice');
     });
@@ -35,8 +47,15 @@ void main() {
       );
     });
 
+    test('returns null for an HTTPS link on a foreign host', () {
+      final uri = Uri.parse(
+        'https://evil.example/dewdrop/invite.html?handle=alice',
+      );
+      expect(DeepLinks.inviteHandle(uri), isNull);
+    });
+
     test('returns null for a foreign scheme', () {
-      final uri = Uri.parse('https://invite?handle=alice');
+      final uri = Uri.parse('ftp://invite?handle=alice');
       expect(DeepLinks.inviteHandle(uri), isNull);
     });
 
