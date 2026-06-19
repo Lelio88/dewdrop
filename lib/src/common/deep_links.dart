@@ -1,22 +1,32 @@
-/// Single source of truth for DewDrop's custom-scheme deep links.
+/// Single source of truth for DewDrop's invite & auth deep links.
 ///
-/// We use a custom URL scheme (`dewdrop://`) rather than HTTPS App/Universal
-/// Links: the app isn't on a domain we own, and a custom scheme needs zero
-/// hosting (no `.well-known/assetlinks.json`) to route a link into the app.
-/// The trade-off — a custom-scheme link only resolves when the app is already
-/// installed — is acceptable here (in-person invites use the QR flow instead).
+/// Invite links are **HTTPS** (`https://lelio88.github.io/dewdrop/invite.html?handle=…`)
+/// so they are CLICKABLE in any messenger (SMS, WhatsApp, Instagram…) — a
+/// custom-scheme `dewdrop://` link is rendered there as plain, un-tappable text,
+/// and resolves only if the app is already installed. The HTTPS link opens a tiny
+/// landing page (hosted on our GitHub Pages, `docs/invite.html`) offering
+/// « Ouvrir dans DewDrop » (→ the [inviteScheme] custom link, which the app's
+/// `app_links` listener turns into a friend request) and « Installer » (Play
+/// Store) — so it works whether or not the app is already installed.
 ///
-/// Two of these hosts are consumed by `supabase_flutter`'s built-in deep-link
-/// handler (it carries the PKCE `code` for us): [loginCallback] is the redirect
-/// for sign-up confirmation emails, [resetPassword] for password-reset emails.
-/// They MUST be allow-listed in Supabase auth config (`site_url` /
-/// `additional_redirect_urls`) or Supabase refuses the redirect. [invite] is
-/// ours alone — Supabase ignores it (no auth params) and our own `app_links`
-/// listener turns it into a friend request.
+/// Auth callbacks ([loginCallback], [resetPassword]) stay on the custom scheme:
+/// they are consumed by `supabase_flutter`'s built-in deep-link handler (it
+/// carries the PKCE `code`) and MUST be allow-listed in Supabase auth config
+/// (`site_url` / `additional_redirect_urls`).
+///
+/// [inviteHandle] accepts BOTH the HTTPS link and the custom scheme, so a handle
+/// resolves whether it arrives via the landing-page hand-off or (future) an
+/// Android App Link. Mirror any change to the link shape in `docs/invite.html`.
 class DeepLinks {
   const DeepLinks._();
 
   static const String scheme = 'dewdrop';
+
+  /// Host serving our GitHub Pages site (the invite landing page lives there).
+  static const String webHost = 'lelio88.github.io';
+
+  /// Base URL of the hosted site (GitHub Pages serves `docs/` at this path).
+  static const String webBase = 'https://$webHost/dewdrop';
 
   /// Redirect for sign-up confirmation emails → opens the app signed-in.
   static const String loginCallback = '$scheme://login-callback';
@@ -24,16 +34,28 @@ class DeepLinks {
   /// Redirect for password-reset emails → opens the app in recovery mode.
   static const String resetPassword = '$scheme://reset-password';
 
-  /// Host of an invite link. Full link: `dewdrop://invite?handle=<handle>`.
+  /// Host of the custom-scheme invite link (`dewdrop://invite?handle=…`), used by
+  /// the landing page's « Ouvrir dans DewDrop » button.
   static const String inviteHost = 'invite';
 
-  /// Builds a shareable invite link for [handle].
-  static String invite(String handle) => '$scheme://$inviteHost?handle=$handle';
+  /// The shareable invite link for [handle] — an HTTPS link that is clickable
+  /// everywhere and falls back to the Play Store when the app isn't installed.
+  static String invite(String handle) => '$webBase/invite.html?handle=$handle';
 
-  /// Extracts the handle from an invite deep link, or null if [uri] is not one
+  /// The custom-scheme hand-off link the landing page opens to enter the app.
+  static String inviteScheme(String handle) =>
+      '$scheme://$inviteHost?handle=$handle';
+
+  /// Extracts the handle from an invite deep link — accepting BOTH the HTTPS web
+  /// link and the `dewdrop://invite` custom scheme — or null if [uri] is neither
   /// (e.g. an auth callback, which is supabase_flutter's job, not ours).
   static String? inviteHandle(Uri uri) {
-    if (uri.scheme != scheme || uri.host != inviteHost) return null;
+    final isScheme = uri.scheme == scheme && uri.host == inviteHost;
+    final isWeb =
+        uri.scheme == 'https' &&
+        uri.host == webHost &&
+        uri.path.endsWith('/invite.html');
+    if (!isScheme && !isWeb) return null;
     final h = uri.queryParameters['handle']?.trim().replaceAll('@', '');
     return (h == null || h.isEmpty) ? null : h;
   }
