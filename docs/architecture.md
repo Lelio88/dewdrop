@@ -33,7 +33,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 |---|---|
 | `auth` | Inscription/connexion email (**confirmation obligatoire**), **reset de mot de passe** + **confirmation d'inscription** par deep link, suppression de compte (Edge Function). Erreurs traduites FR (`authErrorMessage`) ; signup détecte « email déjà pris » (identities vide). |
 | `profile` | Profil 1:1 : handle unique, pseudo, décor/mode, heures calmes (IANA tz), anonymat, **`sound_prefs`**, **`thought_style`** (style de notif envoyée). Onboarding. |
-| `friends` | **Gestion** (l'envoi a migré vers « Envoyer une pensée ») : demandes d'ami par **@handle / QR / lien (`dewdrop://invite`)**, accepter/refuser, **bloquer / signaler**, + **création/gestion de groupes**. Listes **temps réel**. |
+| `friends` | **Gestion** (l'envoi a migré vers « Envoyer une pensée ») : demandes d'ami par **@handle / QR / lien HTTPS cliquable**, accepter/refuser, **bloquer / signaler**, + **création/gestion de groupes**. Listes **temps réel**. |
 | `groups` | **Cercles partagés** (`groups` / `group_members` / `group_blocks`). Le créateur gère les membres (parmi ses amis) ; **tout membre** envoie au groupe via le RPC **`send_to_group`** (fan-out). Quitter / **bloquer** / supprimer un groupe. |
 | `thoughts` | **« Envoyer une pensée »** (`send_thoughts_screen.dart`) : choisir un **ami ou un groupe** (option anonyme). Réception **live** + **éclat du décor**. Page **« Pensées »** (`thought_settings_screen.dart`) : anonymat + **style de notif** (machine à sous 3 rouleaux, aperçu live → `thought_style`). |
 | `settings` | Picker de décor + **Son par décor** (+ **aperçu ▶** par piste), **toggle parallaxe**, **heures calmes**, **toggle « notifications »** (`notifications_enabled`), liens → « Pensées », **suppression de compte**, À-propos / Crédits / Légal. |
@@ -47,7 +47,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 |---|---|
 | `lib/src/common/glass.dart` | Matériau UI signature (glassmorphism) : `GlassCard`, `GlassTextField`, `GlassButton`. |
 | `lib/src/common/decor_choice.dart` | (dé)sérialise `"env:variant"` ↔ `(Environment, int)` + `RenderMode`. |
-| `lib/src/common/deep_links.dart` | Source unique des deep links `dewdrop://` (login-callback, reset-password, invite) + parseur d'invitation. |
+| `lib/src/common/deep_links.dart` | Source unique des liens : auth `dewdrop://` (login-callback, reset-password) + **lien d'invitation HTTPS** (→ page `docs/invite.html`) + parseur (accepte HTTPS **et** `dewdrop://invite`). |
 | `lib/src/common/invite_links.dart` | Écoute (`app_links`) les liens `dewdrop://invite?handle=…` (cold start + à chaud) → demande d'ami. |
 | `lib/src/supabase/supabase_config.dart` | URL + clé Supabase (locale par défaut, **auto `10.0.2.2` sur Android émulateur** ; override `--dart-define`). |
 | `lib/src/routing/app_router.dart` | GoRouter + redirect auth ; routes publiques `/sign-in`, `/forgot-password` ; `/reset-password`. |
@@ -83,7 +83,8 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 
 ## Deep links & emails d'auth
 
-- **Scheme custom `dewdrop://`** (`lib/src/common/deep_links.dart`), déclaré côté Android (intent-filter) **et** iOS (`CFBundleURLTypes`). Trois usages : `login-callback` (confirmation d'inscription), `reset-password`, `invite`. Les deux premiers sont consommés par **supabase_flutter** (PKCE) ; `invite` par `InviteLinkListener`. Tout deep link d'auth **doit** figurer dans `additional_redirect_urls` (`config.toml`) sinon Supabase refuse la redirection.
+- **Scheme custom `dewdrop://`** (`lib/src/common/deep_links.dart`), déclaré côté Android (intent-filter) **et** iOS (`CFBundleURLTypes`). Usages auth : `login-callback` (confirmation d'inscription) + `reset-password`, consommés par **supabase_flutter** (PKCE) — ils **doivent** figurer dans `additional_redirect_urls` (`config.toml`) sinon Supabase refuse la redirection.
+- **Invitation** : le lien partagé est **HTTPS** (`lelio88.github.io/dewdrop/invite.html?handle=…`, page `docs/invite.html`) — cliquable dans toute messagerie, avec repli Play Store. La page propose « Ouvrir dans DewDrop » → `dewdrop://invite?handle=…`, capté par `InviteLinkListener` → demande d'ami. Le QR encode le même lien HTTPS. (App Links auto-vérifiés = amélioration future : nécessite `assetlinks.json` au root du domaine + SHA-256 Play App Signing.)
 - **Reset** : `sendPasswordReset(redirectTo: reset-password)` → email → l'app rouvre en mode recovery → `ResetPasswordScreen` → `updateUser(password)`. Formulation **anti-énumération** (ne révèle pas si l'email a un compte).
 - **Emails via Brevo (SMTP)** : `[auth.email.smtp]` dans `config.toml` (`pass = env(BREVO_SMTP_KEY)`, jamais commitée). Templates FR brandés `supabase/templates/{confirmation,recovery}.html` (sujet « …DewDrop » → filtrables). Poussés par `supabase config push`.
 
@@ -121,7 +122,7 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 
 - **Signature release** : `android/app/build.gradle.kts` lit `android/key.properties` (gitignoré) ; fallback clés debug si absent.
 - **Diffusion testeurs** : **Firebase App Distribution** (`firebase appdistribution:distribute … --app <id> --testers …`).
-- **Page légale** : `docs/index.html` servie par **GitHub Pages** (`https://lelio88.github.io/dewdrop/`) ; à garder synchro avec `legal_screen.dart`.
+- **GitHub Pages** (`https://lelio88.github.io/dewdrop/`, dossier `docs/`) : `index.html` (page légale, synchro avec `legal_screen.dart`) + **`invite.html`** (page d'atterrissage d'invitation, synchro avec `DeepLinks.invite`).
 - **Cloud Supabase** : `supabase db push` (migrations) + `supabase config push` (auth). Build app : `--dart-define` URL/clé.
 - **iOS** : pas de Mac → CI **Codemagic** (`codemagic.yaml`, workflow iOS → TestFlight ; un script y injecte `GoogleService-Info.plist` dans la target Xcode « Runner »). **Prep faite** depuis Windows : app Firebase iOS + plist, scheme `dewdrop://`, `NSCameraUsageDescription`, bundle `app.dewdrop`, compte/repo/vars Codemagic. **Bloqué** sur le **compte Apple Developer (99 $/an)** — requis pour la signature, la clé **APNs** (push) et **TestFlight** ; aucun des trois n'a d'alternative gratuite.
 
