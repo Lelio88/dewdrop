@@ -14,15 +14,33 @@ const FIREBASE_SERVICE_ACCOUNT = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
 // The fixed style lists the app offers (mirror of thought_style.dart). The
 // sender can only pick from these — any other value is ignored, so a push the
 // RECIPIENT sees can never contain arbitrary attacker-controlled text.
+// Mirror of kThoughtEmojis in thought_style.dart — keep byte-for-byte in sync.
 const ALLOWED_EMOJIS = new Set([
-  "", "💭", "💗", "🌸", "✨", "☀️", "🌙", "🍀", "💫", "💖", "🌟", "🤍", "🫶",
+  "",
+  // Cœurs & tendresse
+  "💭", "💗", "💖", "💕", "💛", "🤍", "🫶", "🥰", "🤗",
+  // Fleurs & nature douce
+  "🌸", "🌼", "🌷", "🌻", "💐", "🍀", "🍃", "🦋",
+  // Ciel & lumière
+  "✨", "💫", "🌟", "🌠", "⭐", "☀️", "🌙", "🌈", "☁️",
+  // Cosy
+  "🫧", "☕",
 ]);
+// Mirror of kThoughtBodies in thought_style.dart — keep byte-for-byte in sync.
 const ALLOWED_BODIES = new Set([
   "%s a pensé à toi",
   "%s pense fort à toi",
   "%s t'envoie une pensée",
   "%s a une pensée pour toi",
   "Une pensée de %s",
+  "Tu es dans les pensées de %s",
+  "%s t'envoie de la douceur",
+  "%s pense à toi en ce moment",
+  "Un petit coucou de %s",
+  "Une douce pensée de %s",
+  "%s ne t'oublie pas",
+  "%s t'envoie de bonnes ondes",
+  "%s t'envoie un câlin",
 ]);
 
 interface Thought {
