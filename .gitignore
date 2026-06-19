@@ -52,6 +52,9 @@ __pycache__/
 # from git history; no need to track the *_wm.png copies).
 tools/depth_split/_src/**/*_wm.png
 
+# Throwaway intermediates from the depth-split experiments.
+tools/depth_split/_test/
+
 # Supabase local working dirs (config + migrations ARE committed)
 supabase/.branches/
 supabase/.temp/
