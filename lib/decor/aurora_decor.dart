@@ -7,15 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-/// Immersive "aurores boréales" decor — the Arctic night: a deep starry sky
-/// with undulating aurora curtains over a snowy horizon that softly reflects
-/// the light. Two variants:
-///  - 0 "Émeraude": green / teal aurora.
-///  - 1 "Magenta": pink / violet aurora.
-///
-/// The sky gradient + snow horizon are a static layer; the stars (twinkle),
-/// the aurora curtains (waving) and the tap "flash" animate on top. A "pensée"
-/// (tap) makes the aurora surge brighter. Rendered entirely on the Canvas.
+/// Immersive "aurores boréales" decor — the Arctic night. Two variants
+/// (Émeraude / Magenta) supplied by the parallax photo/illustrated backdrop.
+/// The stars twinkle, the aurora curtains wave and white snowflakes drift on
+/// top. A tap makes the aurora surge brighter; a received pensée sweeps it to
+/// full brightness and rains shimmering ice crystals. FX in pure Canvas.
 class AuroraDecor extends StatefulWidget {
   const AuroraDecor({
     super.key,
@@ -127,12 +123,10 @@ class _AuroraDecorState extends State<AuroraDecor>
     HapticFeedback.lightImpact();
   }
 
-  /// Advances the always-on ambient layer. Émeraude (variant 0) snow drifts
-  /// downward with a gentle sinusoidal sway; Magenta (variant 1) embers rise
-  /// upward with the same lateral wander. Particles wrap around the opposite
-  /// edge so the layer keeps a constant, calm density forever.
+  /// Advances the always-on ambient snowflake layer: each flake drifts DOWN with
+  /// a gentle sinusoidal sway, wrapping around the opposite edge so the layer
+  /// keeps a constant, calm density forever.
   void _advanceAmbient(double dt) {
-    // Snowflakes always drift DOWN now (both variants — Magenta no longer rises).
     final double time = _model.time;
     for (final p in _ambient) {
       p.y += p.speed * dt;
@@ -174,9 +168,7 @@ class _AuroraDecorState extends State<AuroraDecor>
     );
   });
 
-  // ~38 ambient particles — sparse and calm. The same particle data drives both
-  // variants; only the tick direction (rise vs fall) and the paint differ, so
-  // density and motion feel are shared while the look is genuinely distinct.
+  // ~38 ambient particles — sparse and calm.
   List<_Ambient> _genAmbient() => List.generate(38, (_) {
     return _Ambient(
       x: _rng.nextDouble(),
@@ -207,9 +199,7 @@ class _AuroraDecorState extends State<AuroraDecor>
             env: 'aurora',
             variant: v,
             assetRoot: widget.assetRoot,
-            fallback: RepaintBoundary(
-              child: CustomPaint(painter: _AuroraBgPainter(variant: v)),
-            ),
+            baseColor: const Color(0xFF050A1E), // deep Arctic night sky
           ),
         ),
         Positioned.fill(
@@ -288,11 +278,8 @@ class _Curtain {
   final double bright;
 }
 
-/// An always-on ambient particle. The same shape drives both variants; the
-/// ticker moves it DOWN (snow, variant 0) or UP (embers, variant 1) and the fx
-/// painter colours it accordingly. Mutable: the ticker advances [x]/[y].
-/// [speed] is a fraction of the canvas height per second; [twPhase]/[twSpeed]
-/// drive the embers' twinkle (snow stays steady).
+/// An always-on ambient snowflake. Mutable: the ticker advances [x]/[y].
+/// [speed] is a fraction of the canvas height per second.
 class _Ambient {
   _Ambient({
     required this.x,
@@ -336,101 +323,6 @@ class _Sparkle {
   final double rotSpeed;
   final double phase;
   final double tint;
-}
-
-class _AuroraBgPainter extends CustomPainter {
-  const _AuroraBgPainter({required this.variant});
-
-  final int variant;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final glow = _auroraColors(variant).first;
-
-    // Night sky.
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(w / 2, 0),
-          Offset(w / 2, h),
-          const [Color(0xFF050A1E), Color(0xFF0A1530), Color(0xFF0E2240)],
-          const [0.0, 0.55, 1.0],
-        ),
-    );
-
-    // Faint horizon glow where the aurora meets the snow.
-    canvas.drawRect(
-      Rect.fromLTRB(0, _snowLine * h - h * 0.22, w, _snowLine * h),
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(
-          Offset(0, _snowLine * h - h * 0.22),
-          Offset(0, _snowLine * h),
-          [glow.withValues(alpha: 0), glow.withValues(alpha: 0.10)],
-        ),
-    );
-
-    // Distant snowy ridges.
-    _ridge(
-      canvas,
-      w,
-      h,
-      baseY: _snowLine,
-      amp: 0.04,
-      color: const Color(0xFF16263F),
-    );
-    _ridge(
-      canvas,
-      w,
-      h,
-      baseY: _snowLine + 0.015,
-      amp: 0.025,
-      color: const Color(0xFF22324C),
-    );
-
-    // Snowfield, softly lit by the aurora.
-    canvas.drawRect(
-      Rect.fromLTRB(0, _snowLine * h, w, h),
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(0, _snowLine * h), Offset(0, h), [
-          Color.lerp(const Color(0xFFAEC4DC), glow, 0.25)!,
-          const Color(0xFF2A3A52),
-        ]),
-    );
-  }
-
-  void _ridge(
-    Canvas canvas,
-    double w,
-    double h, {
-    required double baseY,
-    required double amp,
-    required Color color,
-  }) {
-    final path = Path()..moveTo(0, h);
-    path.lineTo(0, baseY * h);
-    const steps = 14;
-    for (var i = 0; i <= steps; i++) {
-      final xN = i / steps;
-      final y =
-          (baseY -
-              amp *
-                  (0.5 + 0.5 * math.sin(xN * math.pi * 3 + 1.2)) *
-                  (0.6 + 0.4 * math.sin(xN * 9))) *
-          h;
-      path.lineTo(xN * w, y);
-    }
-    path
-      ..lineTo(w, h)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_AuroraBgPainter old) => old.variant != variant;
 }
 
 class _AuroraFxPainter extends CustomPainter {
@@ -488,7 +380,7 @@ class _AuroraFxPainter extends CustomPainter {
       _paintCurtain(canvas, w, h, time, c, cols, drive);
     }
 
-    // Always-on ambient texture: snow (variant 0) or embers (variant 1).
+    // Always-on ambient texture: white snowflakes.
     _paintAmbient(canvas, w, h, time, cols);
 
     // Reception shower: shimmering ice crystals / star sparkles, variant-tinted.

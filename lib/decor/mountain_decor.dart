@@ -7,16 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-/// Immersive "montagne" decor — jagged alpine peaks. Two variants:
-///  - 0 "Aube": snow peaks lit by pink dawn alpenglow over a sea of fog, a pine
-///    forest band and a foreground flower meadow. Gently drifting valley fog.
-///  - 1 "Nuit": dark snowy peaks under a vivid Milky Way and twinkling stars,
-///    with OCCASIONAL shooting stars passing behind the peak.
-///
-/// Sky, peak ranges and foreground are static; the drifting fog (dawn) or
-/// twinkling + occasional shooting stars (night) animate on top. A tap or a
-/// received "pensée" rolls soft white fog in from the left and right edges
-/// toward the centre — like real fog — on BOTH variants. Pure Canvas.
+/// Immersive "montagne" decor — jagged alpine peaks. Two variants (Aube / Nuit)
+/// supplied by the parallax photo/illustrated backdrop. On Aube the valley fog
+/// drifts and the meadow flowers sway; on Nuit the stars twinkle and OCCASIONAL
+/// shooting stars pass behind the peak. A tap or a received pensée rolls soft
+/// white fog in from both edges toward the centre. FX in pure Canvas.
 class MountainDecor extends StatefulWidget {
   const MountainDecor({
     super.key,
@@ -116,6 +111,7 @@ class _MountainDecorState extends State<MountainDecor>
             env: 'mountain',
             variant: widget.variant,
             assetRoot: widget.assetRoot,
+            baseColor: cfg.skyTop,
             // Night: shooting stars stream from the deepest mid-stack slot so
             // they vanish BEHIND the peak. Several ambient meteors at once.
             midFx: cfg.night
@@ -126,9 +122,6 @@ class _MountainDecorState extends State<MountainDecor>
                   )
                 : null,
             midFxBelow: 1,
-            fallback: RepaintBoundary(
-              child: CustomPaint(painter: _MountainBgPainter(cfg, _flowers)),
-            ),
           ),
         ),
         Positioned.fill(
@@ -235,290 +228,6 @@ class _Flower {
   final double r;
   final Color color;
   final double phase;
-}
-
-// Triangle wave, period 1, ranging 0 → 1 → 0 with a sharp crest at 0.5.
-double _tri(double x) {
-  final f = x - x.floorToDouble();
-  return 1 - (2 * (f - 0.5)).abs();
-}
-
-// Jagged mountain ridge across the width, peaks at vertical [baseY] (fraction
-// of h) reaching up by [amp]. [freq] scales how many peaks (and how sharp).
-// Layered triangle waves give pointed alpine crests rather than round humps.
-Path _peakPath(
-  double w,
-  double h,
-  double baseY,
-  double amp,
-  double shift,
-  double freq,
-) {
-  final path = Path()..moveTo(0, h);
-  path.lineTo(0, baseY * h);
-  const steps = 96;
-  for (var i = 0; i <= steps; i++) {
-    final xN = i / steps;
-    final jag =
-        0.55 * _tri(xN * (3.0 * freq) + shift) +
-        0.30 * _tri(xN * (6.0 * freq) + shift * 1.7) +
-        0.15 * _tri(xN * (11.0 * freq) + shift * 0.6);
-    final y = baseY - amp * jag;
-    path.lineTo(xN * w, y * h);
-  }
-  path
-    ..lineTo(w, h)
-    ..close();
-  return path;
-}
-
-class _MountainBgPainter extends CustomPainter {
-  const _MountainBgPainter(this.cfg, this.flowers);
-  final _MountainConfig cfg;
-  final List<_Flower> flowers;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Sky.
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(0, 0),
-          Offset(0, h * 0.7),
-          [cfg.skyTop, cfg.skyMid, cfg.skyHorizon],
-          const [0.0, 0.55, 1.0],
-        ),
-    );
-
-    if (cfg.night) {
-      _paintMilkyWay(canvas, size);
-    } else {
-      // Soft dawn sun glow behind the peaks.
-      final sunPos = Offset(w * 0.5, h * 0.34);
-      canvas.drawCircle(
-        sunPos,
-        h * 0.26,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.radial(sunPos, h * 0.26, const [
-            Color(0x66FFE0C0),
-            Color(0x00FFE0C0),
-          ]),
-      );
-    }
-
-    // Mountain ranges, far (hazy) to near.
-    _paintRange(
-      canvas,
-      w,
-      h,
-      baseY: 0.46,
-      amp: 0.20,
-      shift: 0.5,
-      sharp: 1.6,
-      depth: 0.65,
-    );
-    _paintRange(
-      canvas,
-      w,
-      h,
-      baseY: 0.52,
-      amp: 0.26,
-      shift: 2.4,
-      sharp: 1.3,
-      depth: 0.30,
-    );
-    _paintRange(
-      canvas,
-      w,
-      h,
-      baseY: 0.58,
-      amp: 0.22,
-      shift: 4.1,
-      sharp: 1.1,
-      depth: 0.0,
-    );
-
-    if (!cfg.night) {
-      // Sea of fog in the valley + a band of pine forest below the peaks.
-      _paintPineBand(canvas, w, h, 0.64, const Color(0xFF2C4A30));
-      _paintMeadow(canvas, w, h);
-    } else {
-      // Snowy foreground ridge + pine silhouettes.
-      _paintSnowRidge(canvas, w, h);
-      _paintPineBand(canvas, w, h, 0.70, const Color(0xFF0C1322));
-    }
-
-    // Depth vignette.
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(w / 2, h * 0.45),
-          size.longestSide * 0.82,
-          [
-            const Color(0x00000000),
-            cfg.night ? const Color(0x66060B20) : const Color(0x2E2A1E26),
-          ],
-          const [0.5, 1.0],
-        ),
-    );
-  }
-
-  void _paintRange(
-    Canvas canvas,
-    double w,
-    double h, {
-    required double baseY,
-    required double amp,
-    required double shift,
-    required double sharp,
-    required double depth,
-  }) {
-    final path = _peakPath(w, h, baseY, amp, shift, sharp);
-    final rock = Color.lerp(cfg.rock, cfg.skyHorizon, depth * 0.55)!;
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, (baseY - amp) * h),
-          Offset(0, h),
-          [rock, Color.lerp(rock, Colors.black, 0.25)!],
-        ),
-    );
-    // Snow cap: a top-down white gradient clipped to the peaks (alpenglow tint).
-    canvas.save();
-    canvas.clipPath(path);
-    final snow = Color.lerp(cfg.snow, cfg.skyHorizon, depth * 0.4)!;
-    canvas.drawRect(
-      Rect.fromLTRB(0, (baseY - amp) * h, w, (baseY + amp * 0.3) * h),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, (baseY - amp) * h),
-          Offset(0, (baseY + amp * 0.4) * h),
-          [snow.withValues(alpha: 0.95), snow.withValues(alpha: 0)],
-        ),
-    );
-    canvas.restore();
-  }
-
-  void _paintPineBand(
-    Canvas canvas,
-    double w,
-    double h,
-    double yN,
-    Color color,
-  ) {
-    final rng = math.Random(31);
-    final y = yN * h;
-    for (var i = 0; i < 60; i++) {
-      final x = rng.nextDouble() * w;
-      final ph = h * (0.03 + rng.nextDouble() * 0.05);
-      final pw = ph * 0.5;
-      final yy = y + (rng.nextDouble() - 0.5) * h * 0.04;
-      final tri = Path()
-        ..moveTo(x, yy - ph)
-        ..lineTo(x - pw / 2, yy)
-        ..lineTo(x + pw / 2, yy)
-        ..close();
-      canvas.drawPath(tri, Paint()..color = color);
-    }
-  }
-
-  void _paintMeadow(Canvas canvas, double w, double h) {
-    canvas.drawRect(
-      Rect.fromLTRB(0, 0.72 * h, w, h),
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(0, 0.72 * h), Offset(0, h), const [
-          Color(0xFF4E7A3C),
-          Color(0xFF2A4A24),
-        ]),
-    );
-    // Flowers are drawn statically here; the fx layer adds a gentle sway.
-    for (final f in flowers) {
-      canvas.drawCircle(
-        Offset(f.x * w, f.y * h),
-        f.r,
-        Paint()..color = f.color,
-      );
-    }
-  }
-
-  void _paintSnowRidge(Canvas canvas, double w, double h) {
-    final path = Path()
-      ..moveTo(0, h)
-      ..lineTo(0, 0.82 * h);
-    for (var i = 0; i <= 20; i++) {
-      final xN = i / 20;
-      final y =
-          0.82 -
-          0.06 * math.sin(xN * math.pi * 1.3 + 0.5) -
-          0.02 * math.sin(xN * 7);
-      path.lineTo(xN * w, y * h);
-    }
-    path
-      ..lineTo(w, h)
-      ..close();
-    canvas.drawPath(
-      path,
-      Paint()
-        ..shader = ui.Gradient.linear(Offset(0, 0.74 * h), Offset(0, h), const [
-          Color(0xFFB8C8E4),
-          Color(0xFF3A4866),
-        ]),
-    );
-  }
-
-  // Colourful galactic band arcing across the night sky.
-  void _paintMilkyWay(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    canvas.save();
-    canvas.translate(w * 0.5, h * 0.22);
-    canvas.rotate(-0.35);
-    final bandW = size.longestSide * 1.4;
-    final bandH = h * 0.36;
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: bandW, height: bandH),
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(
-          Offset(0, -bandH / 2),
-          Offset(0, bandH / 2),
-          const [
-            Color(0x00284070),
-            Color(0x33425496),
-            Color(0x4A9A6AB0),
-            Color(0x33C08A6A),
-            Color(0x00284070),
-          ],
-          const [0.0, 0.35, 0.5, 0.65, 1.0],
-        ),
-    );
-    final rng = math.Random(13);
-    for (var i = 0; i < 16; i++) {
-      final x = (rng.nextDouble() - 0.5) * bandW * 0.82;
-      final y = (rng.nextDouble() - 0.5) * bandH * 0.5;
-      canvas.drawCircle(
-        Offset(x, y),
-        h * (0.02 + rng.nextDouble() * 0.05),
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20)
-          ..color = const Color(
-            0xFFC2CEF2,
-          ).withValues(alpha: 0.05 + rng.nextDouble() * 0.05),
-      );
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_MountainBgPainter old) => old.cfg.night != cfg.night;
 }
 
 class _MountainFxPainter extends CustomPainter {

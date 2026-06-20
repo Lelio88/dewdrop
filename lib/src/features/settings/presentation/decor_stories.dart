@@ -91,9 +91,13 @@ class _DecorStoriesState extends State<DecorStories> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1) The live worlds.
+          // 1) The live worlds. [allowImplicitScrolling] keeps the immediate
+          // neighbours (N±1) built off-screen so their backdrop image decodes
+          // BEFORE you swipe to them — the new world appears already painted
+          // instead of flashing its flat base colour mid-swipe.
           PageView.builder(
             controller: _pages,
+            allowImplicitScrolling: true,
             itemCount: _envs.length,
             onPageChanged: _onPage,
             itemBuilder: (_, i) => buildDecor(

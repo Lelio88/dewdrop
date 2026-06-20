@@ -27,7 +27,9 @@ import 'package:flutter/services.dart';
 ///
 /// The animated FX of a decor render ON TOP of this (the parent stacks its FX
 /// painter over the backdrop). While assets load — or if a scene ships neither —
-/// [fallback] is shown so a decor never flashes empty.
+/// a flat [baseColor] fill is shown so a decor never flashes empty (and never a
+/// black gap during a carousel swipe). The world's preloaded photo replaces it
+/// in one frame; there is no longer a procedural scene drawn underneath.
 class DecorBackdrop extends StatefulWidget {
   const DecorBackdrop({
     super.key,
@@ -35,7 +37,7 @@ class DecorBackdrop extends StatefulWidget {
     this.variant = 0,
     this.parallax = true,
     this.assetRoot = 'photo',
-    this.fallback,
+    this.baseColor = const Color(0xFF06070D),
     this.midFx,
     this.midFxBelow = 1,
   });
@@ -48,8 +50,10 @@ class DecorBackdrop extends StatefulWidget {
   /// Which bundled asset tree the layers come from: `'photo'` or `'illustrated'`.
   final String assetRoot;
 
-  /// Shown until the assets are loaded (or if none are bundled).
-  final Widget? fallback;
+  /// Flat colour shown until the image is decoded (or if none is bundled) — the
+  /// world's dominant tone, so the brief pre-decode frame reads as the scene,
+  /// not a black hole. Cheap `ColoredBox`, no animation.
+  final Color baseColor;
 
   /// Optional FX rendered on top of the backdrop. (In the legacy layer path it
   /// was inserted BETWEEN layers at [midFxBelow]; in the depth-warp path it
@@ -219,7 +223,7 @@ class _DecorBackdropState extends State<DecorBackdrop>
       );
     }
     if (_layers.isEmpty) {
-      return widget.fallback ?? const SizedBox.expand();
+      return ColoredBox(color: widget.baseColor);
     }
     return _buildLayers();
   }
