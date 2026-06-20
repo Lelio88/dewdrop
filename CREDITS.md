@@ -20,6 +20,19 @@
     android/app/src/main/res/raw/drop.wav
   ```
 
+## Écran de chargement — `assets/audio/oneshot/`
+
+- **`dewdrop_jingle.mp3`** — jingle 8-bit « harmonisé » **synthétisé par nous**
+  (réplique du mockup, script `tools/sounds/gen_loader_audio.py` → carrées
+  band-limitées + 2ᵉ voix d'harmonie + basse triangle + réverb de Schroeder) :
+  **œuvre originale, aucune attribution requise**.
+- **`water_drop.wav`** — le « ploc » de la goutte. **Copie conforme du `drop.wav`
+  de notification** (Freesound [#166325](https://freesound.org/s/166325/), **CC0
+  1.0** — domaine public, aucune attribution requise ; voir la 1ʳᵉ section). Un
+  premier SFX issu de YouTube avait été écarté faute de licence claire pour un
+  repo public ; le volume du loader (`_kDropVolume = 0.70`) a été calé en A/B
+  pour reproduire le niveau perçu qui avait été validé avec cet ancien son.
+
 ## Decor soundscapes — `assets/audio/`
 
 Each decor has **two layers** — a looping **ambiance** bed (`*_amb.ogg`) and a
