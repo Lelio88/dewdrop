@@ -3,26 +3,17 @@ import 'dart:ui' as ui;
 
 import 'package:dewdrop/decor/decor_backdrop.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
-import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
-/// Immersive "sous l'eau" decor with two distinct scenes:
-///  - variant 0 "Fonds marins": the seabed — an undulating floor, rocks, and
-///    swaying seaweed rising from it. Dark and deep. Its ambient particle layer
-///    is drifting marine snow / plankton — sparse pale specks sinking gently.
-///  - variant 1 "Poissons": brighter open water with bubbles rising, lit by
-///    surface god-rays. Its ambient particle layer is a handful of small fish
-///    silhouettes darting across at varied depths — no marine snow here.
-///
-/// Each variant therefore owns a *different* ambient particle TYPE (snow vs
-/// fish), gated by [_UWConfig.showSnow] / [_UWConfig.showFish]. Both share
-/// ambient bubbles and the bubble burst. A tap spawns a
-/// light preview burst ([_spawnBubbleBurst]); a decoupled [ReceptionSignal]
-/// pulse — fired by the host when a "pensée" actually arrives — spawns the big
-/// amplified celebratory swell ([_onReception]), flavoured per variant.
-/// Rendered entirely on the Canvas.
+/// Immersive "sous l'eau" decor with two scenes (Fonds marins / Poissons)
+/// supplied by the parallax photo/illustrated backdrop. Each variant owns a
+/// different ambient particle TYPE — drifting marine snow / plankton (variant 0)
+/// vs darting fish (variant 1) — gated by [_UWConfig.showSnow] /
+/// [_UWConfig.showFish]; both share rising bubbles and the bubble burst. A tap
+/// spawns a light preview burst; a received [ReceptionSignal] pulse spawns the
+/// big amplified celebratory swell, flavoured per variant. FX in pure Canvas.
 class UnderwaterDecor extends StatefulWidget {
   const UnderwaterDecor({
     super.key,
@@ -53,12 +44,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   late final Ticker _ticker;
   late final List<_Mote> _snow = _genSnow();
   late final List<_Bubble> _bubbles = _genBubbles();
-  late final List<_Ray> _rays = _genRays();
-  late final List<_Weed> _weeds = _genWeeds();
-  late final List<_Rock> _rocks = _genRocks();
   late final List<_Fish> _fish = _genFish();
-  // Tilt the phone to look around the scene (gyroscope-style, drift-free).
-  final TiltController _tilt = TiltController();
 
   double _lastTick = 0;
 
@@ -119,11 +105,6 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
       }
     }
 
-    final auto = Offset(math.sin(now * 0.05) * 0.005, 0);
-    final target = auto + (widget.parallax ? _tilt.look : Offset.zero);
-    final k = 1 - math.exp(-dt * 3);
-    _model.look = Offset.lerp(_model.look, target, k)!;
-
     _model.glows.removeWhere((g) => g.life(now) >= 1);
     _model.notify();
   }
@@ -154,12 +135,10 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   /// own register:
   ///  - variant 0 "Fonds marins": a deep, heavy welling that lifts off the
   ///    seabed floor itself — fewer, bigger, slower bubbles seeded along the
-  ///    undulating floor line, and a low cluster of teal glows hugging the bed,
-  ///    matching the dark/deep scene.
+  ///    undulating floor line, and a low cluster of teal glows hugging the bed.
   ///  - variant 1 "Poissons": a bright, fast, wide surge fanned across the full
-  ///    width and rising quickly toward the surface god-rays — many smaller
-  ///    bubbles (the brighter open water renders them more luminous for free)
-  ///    and glows spread higher where the light is.
+  ///    width and rising quickly toward the surface — many smaller bubbles and
+  ///    glows spread higher where the light is.
   void _onReception() {
     final isSeabed = widget.variant == 0;
 
@@ -251,46 +230,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
     );
   });
 
-  List<_Ray> _genRays() => List.generate(5, (_) {
-    return _Ray(
-      x: _rng.nextDouble(),
-      width: 0.05 + _rng.nextDouble() * 0.08,
-      slant: (_rng.nextDouble() - 0.5) * 0.3,
-      phase: _rng.nextDouble() * math.pi * 2,
-    );
-  });
-
-  List<_Weed> _genWeeds() => List.generate(26, (_) {
-    // Bias roots toward the edges so the kelp frames the open centre.
-    final e = _rng.nextDouble();
-    final rootX = (e < 0.5 ? e * 0.34 : 0.66 + (e - 0.5) * 0.68).clamp(
-      0.0,
-      1.0,
-    );
-    return _Weed(
-      rootX: rootX,
-      height: 0.24 + _rng.nextDouble() * 0.44,
-      amp: 0.015 + _rng.nextDouble() * 0.03,
-      width: 4 + _rng.nextDouble() * 5,
-      speed: 0.5 + _rng.nextDouble() * 0.6,
-      phase: _rng.nextDouble() * math.pi * 2,
-      color: Color.fromRGBO(
-        12,
-        46 + _rng.nextInt(34),
-        42 + _rng.nextInt(24),
-        0.78,
-      ),
-    );
-  });
-
-  List<_Rock> _genRocks() => List.generate(6, (_) {
-    return _Rock(x: _rng.nextDouble(), size: 0.08 + _rng.nextDouble() * 0.13);
-  });
-
   // Darting fish silhouettes — the open-water ambient layer (variant 1 only).
-  // A handful of little fish cross horizontally at varied depths, speeds and
-  // directions, looping around when they leave the screen, with a gentle
-  // vertical bob. Variant 0 has marine snow instead, so no fish there.
   // Fish removed per design. Generating zero keeps the _Fish type / _paintFish
   // referenced (no dead-code warnings) while nothing is ever drawn.
   List<_Fish> _genFish() {
@@ -311,7 +251,6 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   @override
   void dispose() {
     widget.reception?.removeListener(_onReception);
-    _tilt.dispose();
     _ticker.dispose();
     _model.dispose();
     super.dispose();
@@ -328,20 +267,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
             variant: widget.variant,
             assetRoot: widget.assetRoot,
             parallax: widget.parallax,
-            fallback: RepaintBoundary(
-              child: CustomPaint(
-                painter: _UWPainter(
-                  model: _model,
-                  snow: _snow,
-                  bubbles: _bubbles,
-                  rays: _rays,
-                  weeds: _weeds,
-                  rocks: _rocks,
-                  fish: _fish,
-                  config: config,
-                ),
-              ),
-            ),
+            baseColor: config.base,
           ),
         ),
         // Ambient FX (fish, plankton, bubbles, glow) overlaid on the image.
@@ -352,12 +278,8 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
                 model: _model,
                 snow: _snow,
                 bubbles: _bubbles,
-                rays: _rays,
-                weeds: _weeds,
-                rocks: _rocks,
                 fish: _fish,
                 config: config,
-                overlay: true,
               ),
             ),
           ),
@@ -383,70 +305,46 @@ Color _fishColor(math.Random rng) {
 }
 
 /// Floor height (normalized 0..1) at horizontal position [xN]. Lower value =
-/// higher on screen. Gentle dunes via two sine terms.
+/// higher on screen. Gentle dunes via two sine terms. Used to seed the seabed
+/// reception bubbles so they rise from the (photographed) floor line.
 double _floorY(double xN) =>
     0.84 -
     0.05 * math.sin(xN * math.pi * 2) -
     0.03 * math.sin(xN * math.pi * 5 + 1.3);
 
 const _seabed = _UWConfig(
-  top: Color(0xFF0A3038),
-  bottom: Color(0xFF02101A),
-  rayStrength: 0.12,
+  base: Color(0xFF06141A),
   brightness: 0.6,
-  showSeabed: true,
   showFish: false,
   showSnow: true,
 );
 const _openWater = _UWConfig(
-  top: Color(0xFF1C7FA0),
-  bottom: Color(0xFF083848),
-  rayStrength: 0.5,
+  base: Color(0xFF1C7FA0),
   brightness: 1.0,
-  showSeabed: false,
   showFish: true,
-  showReef: true,
   showSnow: false,
 );
 
 class _UWConfig {
   const _UWConfig({
-    required this.top,
-    required this.bottom,
-    required this.rayStrength,
+    required this.base,
     required this.brightness,
-    required this.showSeabed,
     required this.showFish,
     required this.showSnow,
-    this.showReef = false,
   });
 
-  final Color top;
-  final Color bottom;
-  final double rayStrength;
+  // Dominant tone shown for the one frame before the photo decodes.
+  final Color base;
   final double brightness;
-  final bool showSeabed;
   final bool showFish;
   // Marine snow / plankton drifts only in the deep seabed scene (variant 0).
   // The open-water scene (variant 1) uses darting fish silhouettes instead, so
   // each variant carries a genuinely distinct ambient particle type.
   final bool showSnow;
-  final bool showReef;
 }
-
-// Warm reef palette for the "Poissons" coral scene.
-const _coralColors = [
-  Color(0xFFCBA36A), // tan
-  Color(0xFFD98A52), // orange
-  Color(0xFFCE7F92), // pink
-  Color(0xFFB8A14C), // mustard
-  Color(0xFF6E9A86), // teal-green
-  Color(0xFFA07AA8), // mauve
-];
 
 class _UWModel extends ChangeNotifier {
   double time = 0;
-  Offset look = Offset.zero;
   final List<_Glow> glows = [];
   void notify() => notifyListeners();
 }
@@ -483,44 +381,6 @@ class _Bubble {
   final bool ephemeral;
 }
 
-class _Ray {
-  const _Ray({
-    required this.x,
-    required this.width,
-    required this.slant,
-    required this.phase,
-  });
-  final double x;
-  final double width;
-  final double slant;
-  final double phase;
-}
-
-class _Weed {
-  const _Weed({
-    required this.rootX,
-    required this.height,
-    required this.amp,
-    required this.width,
-    required this.speed,
-    required this.phase,
-    required this.color,
-  });
-  final double rootX;
-  final double height;
-  final double amp;
-  final double width;
-  final double speed;
-  final double phase;
-  final Color color;
-}
-
-class _Rock {
-  const _Rock({required this.x, required this.size});
-  final double x;
-  final double size;
-}
-
 class _Fish {
   _Fish({
     required this.x,
@@ -548,32 +408,23 @@ class _Glow {
   double life(double now) => ((now - startTime) / duration).clamp(0.0, 1.0);
 }
 
+/// Draws ONLY the ambient FX (fish, plankton, bubbles, bioluminescent glow)
+/// over the [DecorBackdrop] image — the scene itself is the photo, not a
+/// procedural drawing.
 class _UWPainter extends CustomPainter {
   _UWPainter({
     required this.model,
     required this.snow,
     required this.bubbles,
-    required this.rays,
-    required this.weeds,
-    required this.rocks,
     required this.fish,
     required this.config,
-    this.overlay = false,
   }) : super(repaint: model);
 
   final _UWModel model;
   final List<_Mote> snow;
   final List<_Bubble> bubbles;
-  final List<_Ray> rays;
-  final List<_Weed> weeds;
-  final List<_Rock> rocks;
   final List<_Fish> fish;
   final _UWConfig config;
-  // When true, skip the static scene (gradient, surface rays, seabed, reef) and
-  // draw ONLY the ambient FX (fish, plankton, bubbles, glow) — the overlay above
-  // a DecorBackdrop image. When false it draws the full procedural scene (the
-  // load-time fallback).
-  final bool overlay;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -581,29 +432,8 @@ class _UWPainter extends CustomPainter {
     final h = size.height;
     final rect = Offset.zero & size;
     final time = model.time;
-    final lookX = model.look.dx;
     final bright = config.brightness;
 
-    if (!overlay) {
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = ui.Gradient.linear(Offset(w / 2, 0), Offset(w / 2, h), [
-            config.top,
-            config.bottom,
-          ]),
-      );
-
-      _paintRays(canvas, w, h, time, lookX);
-      if (config.showSeabed) _paintPrimaryBeam(canvas, w, h, time, lookX);
-
-      if (config.showSeabed) {
-        _paintSeabed(canvas, w, h, time);
-      }
-      if (config.showReef) {
-        _paintReef(canvas, w, h, time);
-      }
-    }
     if (config.showFish) {
       for (final f in fish) {
         final cy = (f.y + math.sin(time * 1.5 + f.phase) * 0.01) * h;
@@ -670,262 +500,6 @@ class _UWPainter extends CustomPainter {
     );
   }
 
-  // One dominant light shaft from the upper-right (matches the seabed photo).
-  void _paintPrimaryBeam(
-    Canvas canvas,
-    double w,
-    double h,
-    double time,
-    double lookX,
-  ) {
-    final sway = math.sin(time * 0.08) * 0.015 - lookX * 0.2;
-    final topX = (0.78 + sway) * w;
-    final botX = (0.46 + sway) * w;
-    final halfTop = 0.04 * w;
-    final halfBot = 0.16 * w;
-    final endY = h * 0.72;
-    final path = Path()
-      ..moveTo(topX - halfTop, 0)
-      ..lineTo(topX + halfTop, 0)
-      ..lineTo(botX + halfBot, endY)
-      ..lineTo(botX - halfBot, endY)
-      ..close();
-    canvas.drawPath(
-      path,
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = ui.Gradient.linear(Offset(topX, 0), Offset(botX, endY), [
-          const Color(0xFFBFE6FF).withValues(alpha: 0.42),
-          const Color(0x00BFE6FF),
-        ]),
-    );
-  }
-
-  void _paintRays(
-    Canvas canvas,
-    double w,
-    double h,
-    double time,
-    double lookX,
-  ) {
-    for (final r in rays) {
-      final sway = math.sin(time * 0.12 + r.phase) * 0.04 - lookX * 0.25;
-      final topX = (r.x + sway) * w;
-      final botX = (r.x + sway + r.slant) * w;
-      final halfTop = r.width * 0.5 * w;
-      final halfBot = r.width * 1.7 * 0.5 * w;
-      final path = Path()
-        ..moveTo(topX - halfTop, 0)
-        ..lineTo(topX + halfTop, 0)
-        ..lineTo(botX + halfBot, h)
-        ..lineTo(botX - halfBot, h)
-        ..close();
-      canvas.drawPath(
-        path,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..shader = ui.Gradient.linear(
-            Offset(0, 0),
-            Offset(0, h),
-            [
-              Color.fromRGBO(200, 235, 255, config.rayStrength * 0.35),
-              const Color(0x00FFFFFF),
-            ],
-            const [0.0, 0.8],
-          ),
-      );
-    }
-  }
-
-  void _paintSeabed(Canvas canvas, double w, double h, double time) {
-    // Floor silhouette filled to the bottom.
-    final floor = Path()..moveTo(0, h);
-    for (var i = 0; i <= 24; i++) {
-      final xN = i / 24;
-      floor.lineTo(xN * w, _floorY(xN) * h);
-    }
-    floor
-      ..lineTo(w, h)
-      ..close();
-    canvas.drawPath(
-      floor,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, _floorY(0.5) * h),
-          Offset(0, h),
-          const [Color(0xFF13323A), Color(0xFF06141A)],
-        ),
-    );
-
-    // Seaweed swaying up from the floor.
-    for (final wd in weeds) {
-      final rootX = wd.rootX * w;
-      final rootY = _floorY(wd.rootX) * h;
-      final path = Path()..moveTo(rootX, rootY);
-      const steps = 10;
-      for (var i = 1; i <= steps; i++) {
-        final t = i / steps;
-        final sway =
-            math.sin(time * wd.speed + wd.phase + t * 3) * wd.amp * t * w;
-        path.lineTo(rootX + sway, rootY - t * wd.height * h);
-      }
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = wd.width
-          ..strokeCap = StrokeCap.round
-          ..color = wd.color,
-      );
-    }
-
-    // Rocks resting on the floor.
-    for (final rock in rocks) {
-      final cx = rock.x * w;
-      final fy = _floorY(rock.x) * h;
-      final rw = rock.size * w;
-      final rh = rw * 0.6;
-      final center = Offset(cx, fy - rh * 0.3);
-      canvas.drawOval(
-        Rect.fromCenter(center: center, width: rw, height: rh),
-        Paint()..color = const Color(0xFF0B1C22),
-      );
-      canvas.drawArc(
-        Rect.fromCenter(center: center, width: rw * 0.86, height: rh * 0.86),
-        math.pi,
-        math.pi,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..color = const Color.fromRGBO(120, 180, 190, 0.16),
-      );
-    }
-  }
-
-  // Sunlit coral reef bed (the "Poissons" photo's foreground).
-  void _paintReef(Canvas canvas, double w, double h, double time) {
-    double reefY(double xN) =>
-        0.82 -
-        0.05 * math.sin(xN * math.pi * 3 + 0.6) -
-        0.02 * math.sin(xN * math.pi * 7);
-
-    final bed = Path()..moveTo(0, h);
-    for (var i = 0; i <= 24; i++) {
-      final xN = i / 24;
-      bed.lineTo(xN * w, reefY(xN) * h);
-    }
-    bed
-      ..lineTo(w, h)
-      ..close();
-    canvas.drawPath(
-      bed,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, reefY(0.5) * h),
-          Offset(0, h),
-          const [Color(0xFF2E6E66), Color(0xFF0C2830)],
-        ),
-    );
-
-    final rng = math.Random(7); // deterministic layout, stable across frames
-    for (var i = 0; i < 16; i++) {
-      final xN = (i + 0.5) / 16 + (rng.nextDouble() - 0.5) * 0.04;
-      final s = h * (0.05 + rng.nextDouble() * 0.06);
-      final col = _coralColors[rng.nextInt(_coralColors.length)];
-      final seed = rng.nextDouble();
-      final base = Offset(xN * w, reefY(xN) * h + 4);
-      switch (i % 3) {
-        case 0:
-          _branchCoral(canvas, base, s, col, seed);
-        case 1:
-          _brainCoral(canvas, base, s, col);
-        default:
-          _fanCoral(canvas, base, s, col, time, seed);
-      }
-    }
-  }
-
-  void _branchCoral(
-    Canvas canvas,
-    Offset base,
-    double s,
-    Color col,
-    double seed,
-  ) {
-    final paint = Paint()
-      ..color = col
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s * 0.22
-      ..strokeCap = StrokeCap.round;
-    final n = 3 + (seed * 3).floor();
-    for (var i = 0; i < n; i++) {
-      final a = -math.pi / 2 + (i - (n - 1) / 2) * 0.5;
-      final mid = base + Offset(math.cos(a), math.sin(a)) * s * 0.6;
-      final tip = base + Offset(math.cos(a) * 1.3, math.sin(a) * 1.5) * s;
-      canvas.drawPath(
-        Path()
-          ..moveTo(base.dx, base.dy)
-          ..quadraticBezierTo(mid.dx, mid.dy, tip.dx, tip.dy),
-        paint,
-      );
-    }
-  }
-
-  void _brainCoral(Canvas canvas, Offset base, double s, Color col) {
-    final c = base.translate(0, -s * 0.5);
-    canvas.drawOval(
-      Rect.fromCenter(center: c, width: s * 2.0, height: s * 1.3),
-      Paint()..color = col,
-    );
-    final groove = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s * 0.07
-      ..color = Color.lerp(col, Colors.black, 0.35)!;
-    for (var i = 0; i < 3; i++) {
-      canvas.drawArc(
-        Rect.fromCenter(
-          center: c,
-          width: s * (1.4 - i * 0.4),
-          height: s * (0.9 - i * 0.25),
-        ),
-        math.pi,
-        math.pi,
-        false,
-        groove,
-      );
-    }
-  }
-
-  void _fanCoral(
-    Canvas canvas,
-    Offset base,
-    double s,
-    Color col,
-    double time,
-    double seed,
-  ) {
-    final sway = math.sin(time * 0.8 + seed * 6) * 0.12;
-    final paint = Paint()
-      ..color = col
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s * 0.05
-      ..strokeCap = StrokeCap.round;
-    const n = 7;
-    for (var i = 0; i < n; i++) {
-      final a = -math.pi / 2 + (i - (n - 1) / 2) * 0.16 + sway;
-      final mid =
-          base + Offset(math.cos(a) * 0.6 + sway, math.sin(a) * 0.8) * s;
-      final tip = base + Offset(math.cos(a), math.sin(a)) * s * 1.5;
-      canvas.drawPath(
-        Path()
-          ..moveTo(base.dx, base.dy)
-          ..quadraticBezierTo(mid.dx, mid.dy, tip.dx, tip.dy),
-        paint,
-      );
-    }
-  }
-
   void _paintFish(Canvas canvas, Offset c, double s, double dir, Color color) {
     final paint = Paint()..color = color;
     canvas.drawOval(
@@ -948,8 +522,7 @@ class _UWPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_UWPainter old) =>
-      old.config.top != config.top ||
-      old.config.showSeabed != config.showSeabed ||
+      old.config.base != config.base ||
       old.config.showFish != config.showFish ||
       old.config.showSnow != config.showSnow;
 }

@@ -14,7 +14,7 @@ Résolvez les problèmes sans introduire de régression ni de dette technique ar
 **Détails complets** (couches, moteur de décors, son, RLS/GRANT, mode photo, deep links, realtime, emails) : voir [`docs/architecture.md`](./docs/architecture.md).
 
 Topologie rapide :
-- `lib/decor/` — moteur de décors (Canvas) : `environment.dart` (registre 8 ambiances + `buildDecor`), `*_decor.dart`, `photo_decor.dart` (parallax photo), `tilt.dart` (parallax gyroscope à neutre adaptatif).
+- `lib/decor/` — moteur de décors (Canvas) : `environment.dart` (registre 8 ambiances + `buildDecor`), `*_decor.dart` (FX bespoke par décor, par-dessus la photo), `decor_backdrop.dart` (warp de profondeur photo/aquarelle + aplat `baseColor` au chargement), `tilt.dart` (parallax gyroscope à neutre adaptatif).
 - `lib/src/features/<f>/{domain,data,application,presentation}/` — auth · profile · friends · **groups** (cercles) · thoughts · settings · home · **ambient** (son) · **notifications** (push **groupé**).
 - `lib/src/{app,routing,common,supabase}/` — composition root, GoRouter, `common/deep_links.dart`, widgets glass, config Supabase.
 - `supabase/{migrations,functions,config.toml}` · `tools/depth_split/` (couches photo) · `docs/index.html` (page légale hébergée) · `assets/{photo,audio}/`.
