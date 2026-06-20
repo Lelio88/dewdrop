@@ -11,6 +11,7 @@ import 'package:dewdrop/src/features/notifications/application/push_providers.da
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
+import 'package:dewdrop/src/features/home/presentation/dewdrop_loader.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
@@ -19,49 +20,60 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// Decides between onboarding (no handle yet) and the home, once the profile
-/// has loaded.
-class HomeGate extends ConsumerWidget {
+/// has loaded. While loading, plays the DewDrop loader animation — kept on
+/// screen for at least one full cycle so it's always seen (tap to skip).
+class HomeGate extends ConsumerStatefulWidget {
   const HomeGate({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeGate> createState() => _HomeGateState();
+}
+
+class _HomeGateState extends ConsumerState<HomeGate> {
+  // Laisse l'animation de chargement se jouer en entier au moins une fois (même
+  // si le profil arrive plus vite), pour qu'on la voie toujours.
+  bool _minDone = false;
+  Timer? _minTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _minTimer = Timer(const Duration(milliseconds: 2300), () {
+      if (mounted) setState(() => _minDone = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _minTimer?.cancel();
+    super.dispose();
+  }
+
+  // Un tap sur l'écran saute l'attente (effectif dès que le profil est prêt).
+  void _skip() {
+    _minTimer?.cancel();
+    if (mounted && !_minDone) setState(() => _minDone = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(myProfileProvider);
-    return profile.when(
-      loading: () => const _DecorLoading(),
-      error: (_, _) => const Scaffold(
+    if (profile.hasError) {
+      return const Scaffold(
         body: Center(
           child: Text(
             'Une erreur est survenue.',
             style: TextStyle(color: Colors.white70),
           ),
         ),
-      ),
-      data: (p) {
-        if (p == null || !p.hasHandle) return const OnboardingView();
-        return HomeView(profile: p);
-      },
-    );
-  }
-}
-
-class _DecorLoading extends StatelessWidget {
-  const _DecorLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildDecor(
-        Environment.space,
-        0,
-        RenderMode.drawn,
-        child: const Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white70,
-          ),
-        ),
-      ),
-    );
+      );
+    }
+    if (!(profile.hasValue && _minDone)) {
+      return DewDropLoader(onTap: _skip);
+    }
+    final p = profile.value;
+    if (p == null || !p.hasHandle) return const OnboardingView();
+    return HomeView(profile: p);
   }
 }
 

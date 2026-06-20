@@ -65,6 +65,12 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 - **Mode dessin (aquarelle)** : `illustrate_all.py` stylise chaque source en **aquarelle storybook** (SDXL img2img), **sans humain** (negative prompt) ni **filigrane**. Le **même warp de profondeur** s'y applique — `assets/illustrated/<env>/<v>/{full,depth}.webp`.
 - **Burst de réception** : `buildDecor(..., {reception})` accepte un `ReceptionSignal` (`ChangeNotifier` découplé — pas de Riverpod dans le moteur). À la réception d'une pensée, le décor joue un **effet propre à la variante** (tempête de sable, nappe de brume, jaillissement de bulles, surge de lucioles, cascade de feuilles…) — **dans les deux modes**, le FX étant le même au-dessus du `DecorBackdrop`. Un **tap** en rejoue un aperçu. Le home alimente le signal depuis **Realtime** (live) **et** une détection **à l'ouverture/reprise** (un burst par pensée non vue, plafonné).
 
+## L'écran de chargement
+
+- **Animation signature** (`features/home/presentation/dewdrop_loader.dart`) : une **goutte de rosée** tombe sur une feuille, y **glisse** (easing sinus), se détache et tombe dans **l'eau** (onde), pendant que le nom **« DewDrop »** apparaît. Rendu **Canvas `CustomPainter`** (cohérent avec le moteur de décors), porté fidèlement du mockup validé `tools/mockups/dewdrop_loader.html`. VFX : rebond élastique de la feuille, reflet mobile sur la goutte, rayon de lumière, éclat d'étoiles 8-bit sur le nom.
+- **Son** : un **ploc** d'eau pile au contact (`oneshot/water_drop.wav`) + un **jingle 8-bit harmonisé** sur l'apparition du nom (`oneshot/dewdrop_jingle.mp3`, synthétisé — voir `CREDITS.md` + `tools/sounds/`).
+- **Affichage** : `HomeGate` montre le loader pendant le chargement du profil, avec une **durée minimale** (joué en entier au moins une fois, même si le profil arrive vite) et un **tap pour sauter**.
+
 ## Le son (soundscape)
 
 Deux couches **indépendantes** par décor (boucle) + sons ponctuels :
