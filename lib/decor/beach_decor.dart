@@ -52,7 +52,9 @@ class _BeachDecorState extends State<BeachDecor>
       _advanceFireflies(_fireflies, dt);
       if (_surge.isNotEmpty) {
         _advanceFireflies(_surge, dt);
-        _surge.removeWhere((f) => now - f.born > _surgeFlyLife);
+        _surge.removeWhere(
+          (f) => now - f.born > _surgeFlyLife * (1 + (_model.surgeK - 1) * 0.5),
+        );
       }
       _model.notify();
     })..start();
@@ -97,9 +99,10 @@ class _BeachDecorState extends State<BeachDecor>
   /// Spawn the firefly surge: every ambient fly flares at once and a small extra
   /// swarm drifts in (ephemeral), then it all settles back. Shared by the
   /// reception pulse and the manual tap preview.
-  void _spawnSurge() {
+  void _spawnSurge([double k = 1.0]) {
     _model.surge = _model.time;
-    for (var i = 0; i < 16; i++) {
+    _model.surgeK = k;
+    for (var i = 0; i < (16 * k).round(); i++) {
       _surge.add(
         _Firefly(
           x: _rng.nextDouble(),
@@ -115,9 +118,10 @@ class _BeachDecorState extends State<BeachDecor>
     }
   }
 
-  /// A pensée arrived: fire the firefly surge.
+  /// A pensée arrived: fire the firefly surge, scaled by how many pensées were
+  /// caught up at once (a bigger swarm that flares + lingers longer).
   void _onReception() {
-    _spawnSurge();
+    _spawnSurge(widget.reception?.intensity ?? 1.0);
     HapticFeedback.mediumImpact();
   }
 
@@ -180,6 +184,7 @@ const double _surgeFlyLife = 2.6;
 class _BeachModel extends ChangeNotifier {
   double time = 0;
   double surge = -10; // last reception surge trigger time
+  double surgeK = 1.0; // intensity of that surge (1 = one pensée / a tap)
   void notify() => notifyListeners();
 }
 
@@ -273,7 +278,11 @@ class _BeachFxPainter extends CustomPainter {
   // phase. On a reception surge every one flares bright and an extra swarm
   // (the ephemeral [surge] list) fades in then out.
   void _paintFireflies(Canvas canvas, double w, double h, double time) {
-    final flare = (1 - (time - model.surge) / _surgeLife).clamp(0.0, 1.0);
+    final flare =
+        (1 -
+                (time - model.surge) /
+                    (_surgeLife * (1 + (model.surgeK - 1) * 0.5)))
+            .clamp(0.0, 1.0);
 
     void drawFlies(List<_Firefly> flies, {required bool ephemeral}) {
       for (final f in flies) {
@@ -285,7 +294,9 @@ class _BeachFxPainter extends CustomPainter {
         if (ephemeral) {
           final age = time - f.born;
           final inFade = (age / 0.3).clamp(0.0, 1.0);
-          final outFade = (1 - age / _surgeFlyLife).clamp(0.0, 1.0);
+          final outFade =
+              (1 - age / (_surgeFlyLife * (1 + (model.surgeK - 1) * 0.5)))
+                  .clamp(0.0, 1.0);
           a *= inFade * outFade;
         }
         if (a <= 0.02) continue;

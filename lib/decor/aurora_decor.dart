@@ -82,8 +82,11 @@ class _AuroraDecorState extends State<AuroraDecor>
   /// lights up. The always-on ambient snow keeps drifting; no extra particle
   /// shower is spawned (per design — only the sky brightens on reception).
   void _onReception() {
+    // Intensity (how many pensées were caught up at once) makes the swell last
+    // longer so the sky stays lit up for a bigger celebration.
     _model.flash = _model.time; // ride the existing curtain surge too…
     _model.burst = _model.time; // …plus the bigger, longer reception swell.
+    _model.burstK = widget.reception?.intensity ?? 1.0;
     HapticFeedback.mediumImpact();
   }
 
@@ -207,6 +210,7 @@ class _AuroraModel extends ChangeNotifier {
   double time = 0;
   double flash = -10; // last lighter tap surge
   double burst = -10; // last amplified reception swell
+  double burstK = 1.0; // intensity of that swell (1 = one pensée)
   void notify() => notifyListeners();
 }
 
@@ -296,7 +300,9 @@ class _AuroraFxPainter extends CustomPainter {
             .clamp(0.0, 1.0);
     // The reception swell: bigger amplitude, longer decay than a tap surge, so
     // the whole sky visibly intensifies for the celebratory burst.
-    final burst = (1 - (time - model.burst) / 2.8).clamp(0.0, 1.0);
+    final burst =
+        (1 - (time - model.burst) / (2.8 * (1 + (model.burstK - 1) * 0.5)))
+            .clamp(0.0, 1.0);
     final cols = _auroraColors(variant);
 
     // Stars (behind the aurora) — brighten with the burst for a sparkling sky.

@@ -13,7 +13,20 @@ import 'package:flutter/foundation.dart';
 /// Invariant: the host owns the lifecycle (create once, [dispose] it). Decors
 /// must `removeListener` on their own dispose — never dispose the signal.
 class ReceptionSignal extends ChangeNotifier {
-  /// Trigger the active decor's reception burst. One call = one burst,
-  /// regardless of how many thoughts arrived (the burst is "many" by design).
-  void pulse() => notifyListeners();
+  double _intensity = 1.0;
+
+  /// Strength of the most recent [pulse]: 1.0 for a single pensée, scaling up
+  /// when several are caught up at once (e.g. on app open after an absence). A
+  /// decor reads this synchronously inside its listener to size its burst — more
+  /// particles, a longer-lived swell. Only meaningful during the notification
+  /// triggered by [pulse].
+  double get intensity => _intensity;
+
+  /// Trigger the active decor's reception burst. [intensity] (>= 1.0) makes the
+  /// burst bigger + longer when several pensées arrived at once; the default
+  /// 1.0 is a single pensée.
+  void pulse([double intensity = 1.0]) {
+    _intensity = intensity < 1.0 ? 1.0 : intensity;
+    notifyListeners();
+  }
 }

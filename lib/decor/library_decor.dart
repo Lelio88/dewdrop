@@ -117,13 +117,17 @@ class _LibraryDecorState extends State<LibraryDecor>
   /// the fx painter: warm golden dust in the Cosy nook (0), cool pale dust in
   /// the Ancienne hall (1).
   void _onReception() {
-    _spawnDust(54);
+    // Intensity = how many pensées were caught up at once: more motes
+    // (stronger) that linger a little longer (lifeScale).
+    final k = widget.reception?.intensity ?? 1.0;
+    _spawnDust((54 * k).round(), lifeScale: 1 + (k - 1) * 0.5);
     HapticFeedback.mediumImpact();
   }
 
   /// Spawn [count] ephemeral drifting motes that settle DOWNWARD, sway and fade.
-  /// Shared by a tap (small puff) and a reception (large swell).
-  void _spawnDust(int count) {
+  /// Shared by a tap (small puff) and a reception (large swell). [lifeScale]
+  /// stretches how long the motes linger — a bigger catch-up lasts longer.
+  void _spawnDust(int count, {double lifeScale = 1.0}) {
     final cosy = widget.variant == 0;
     for (var i = 0; i < count; i++) {
       _sparks.add(
@@ -137,7 +141,7 @@ class _LibraryDecorState extends State<LibraryDecor>
           fall: 0.10 + _rng.nextDouble() * 0.12,
           drift: 0.02 + _rng.nextDouble() * 0.05,
           phase: _rng.nextDouble() * math.pi * 2,
-          ttl: 1.4 + _rng.nextDouble() * 1.6,
+          ttl: (1.4 + _rng.nextDouble() * 1.6) * lifeScale,
         ),
       );
     }

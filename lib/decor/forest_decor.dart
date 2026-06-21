@@ -64,7 +64,10 @@ class _ForestDecorState extends State<ForestDecor>
   /// are variant-flavoured for free (the fx painter colours every particle by
   /// variant: gold leaves / pink petals / pale spores).
   void _onReception() {
-    for (var i = 0; i < 44; i++) {
+    // Intensity = how many pensées were caught up at once: a denser curtain
+    // (more leaves) so the cascade reads as a bigger, longer celebration.
+    final k = widget.reception?.intensity ?? 1.0;
+    for (var i = 0; i < (44 * k).round(); i++) {
       _leaves.add(
         _Leaf(
           x: _rng.nextDouble(),

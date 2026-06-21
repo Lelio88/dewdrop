@@ -49,7 +49,10 @@ class _DesertDecorState extends State<DesertDecor>
       _lastTick = now;
       _model.time = now;
       // Drift the ambient sand grains left → right; faster during a sandstorm.
-      final boost = (now - _model.storm) < _stormLife ? 3.0 : 1.0;
+      final boost =
+          (now - _model.storm) < _stormLife * (1 + (_model.stormK - 1) * 0.5)
+          ? 3.0
+          : 1.0;
       for (final g in _grains) {
         g.x += g.speed * boost * dt;
         if (g.x > 1.06) {
@@ -97,6 +100,7 @@ class _DesertDecorState extends State<DesertDecor>
   /// the effect is visible on a tap.
   void _tap() {
     _model.storm = _model.time;
+    _model.stormK = 1.0; // a tap is always a single-strength storm
     HapticFeedback.lightImpact();
   }
 
@@ -104,7 +108,10 @@ class _DesertDecorState extends State<DesertDecor>
   /// right across the whole scene for ~1.8s then settles. Same flavour on both
   /// variants (the ambient grains also speed up during the window — see ticker).
   void _onReception() {
+    // Intensity (how many pensées were caught up at once) makes the sandstorm
+    // bigger + last longer (see the ticker boost window and the fx painter).
     _model.storm = _model.time;
+    _model.stormK = widget.reception?.intensity ?? 1.0;
     HapticFeedback.mediumImpact();
   }
 
@@ -205,6 +212,7 @@ double _grainY(math.Random r) => 0.34 + r.nextDouble() * 0.62;
 class _DesertModel extends ChangeNotifier {
   double time = 0;
   double storm = -10; // sandstorm trigger time (tap or reception)
+  double stormK = 1.0; // intensity of that storm (1 = one pensée / a tap)
 
   void notify() => notifyListeners();
 }
@@ -280,7 +288,8 @@ class _DesertFxPainter extends CustomPainter {
 
     // Ambient wind-blown sand drifting left → right (both variants): real
     // GRAINS (tiny round specks), not streaks. Brighter while a storm sweeps.
-    final storming = (time - model.storm) < _stormLife;
+    final storming =
+        (time - model.storm) < _stormLife * (1 + (model.stormK - 1) * 0.5);
     final grainPaint = Paint()..style = PaintingStyle.fill;
     for (final g in grains) {
       final x = g.x * w;
@@ -298,7 +307,18 @@ class _DesertFxPainter extends CustomPainter {
 
     // SANDSTORM (big, dense, full-screen wall of grains): a fast cloud of sand
     // specks sweeps left → right. Fired by both a tap and a received pensée.
-    _sweep(canvas, w, h, time - model.storm, _stormLife, 850, 1.5);
+    // Intensity scales the storm: a longer window and a denser wall of sand
+    // (count capped so a big catch-up never janks low-end devices).
+    final stormScale = 1 + (model.stormK - 1) * 0.5;
+    _sweep(
+      canvas,
+      w,
+      h,
+      time - model.storm,
+      _stormLife * stormScale,
+      math.min((850 * model.stormK).round(), 1700),
+      1.5,
+    );
   }
 
   // A burst of fast wind-blown sand GRAINS sweeping left → right over [life]

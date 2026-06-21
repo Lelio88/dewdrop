@@ -113,7 +113,11 @@ class _SpaceDecorState extends State<SpaceDecor>
   /// per [SpaceVariant] (reusing the decor's own palette) so the shower feels
   /// native to the current scene rather than a generic white rain.
   void _onReception() {
-    const count = 38;
+    // Intensity = how many pensées were caught up at once: more streaks
+    // (stronger), spread over a longer stagger window so the wave lasts longer.
+    final k = widget.reception?.intensity ?? 1.0;
+    final count = (38 * k).round();
+    final stagger = 1.4 * (1 + (k - 1) * 0.5);
     final tints = _showerTints(widget.variant);
     for (var i = 0; i < count; i++) {
       final from = Offset(
@@ -127,7 +131,7 @@ class _SpaceDecorState extends State<SpaceDecor>
       final length = 0.55 + _rng.nextDouble() * 0.5;
       _model.shooting.add(
         _ShootingStar(
-          startTime: _model.time + _rng.nextDouble() * 1.4,
+          startTime: _model.time + _rng.nextDouble() * stagger,
           from: from,
           to: from + dir * length,
           duration: 1.0 + _rng.nextDouble() * 0.8,
