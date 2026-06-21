@@ -70,6 +70,7 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 - **Animation signature** (`features/home/presentation/dewdrop_loader.dart`) : une **goutte de rosée** tombe sur une feuille, y **glisse** (easing sinus), se détache et tombe dans **l'eau** (onde), pendant que le nom **« DewDrop »** apparaît. Rendu **Canvas `CustomPainter`** (cohérent avec le moteur de décors), porté fidèlement du mockup validé `tools/mockups/dewdrop_loader.html`. VFX : rebond élastique de la feuille, reflet mobile sur la goutte, rayon de lumière, éclat d'étoiles 8-bit sur le nom.
 - **Son** : un **ploc** d'eau pile au contact (`oneshot/water_drop.wav`) + un **jingle 8-bit harmonisé** sur l'apparition du nom (`oneshot/dewdrop_jingle.mp3`, synthétisé — voir `CREDITS.md` + `tools/sounds/`).
 - **Affichage** : `HomeGate` montre le loader pendant le chargement du profil, avec une **durée minimale** (joué en entier au moins une fois, même si le profil arrive vite) et un **tap pour sauter**.
+- **Splash natif** (avant le boot Flutter) : peint en **`#050F16`** (la base sombre du fond du loader) côté Android (`launch_background.xml` + `windowSplashScreenBackground` pour l'API SplashScreen d'Android 12+) **et** iOS (`LaunchScreen.storyboard`, logo Flutter par défaut retiré). Supprime le flash blanc au lancement à froid et raccorde sans couture à l'animation. L'**animation elle-même est 100 % Flutter** → identique sur Android et iOS.
 
 ## Le son (soundscape)
 
