@@ -16,9 +16,11 @@ import 'package:flutter/material.dart';
 ///    de lumière qui éclaire la plante, éclat d'étoiles 8-bit sur le nom,
 ///  - son : « ploc » d'eau pile au contact + jingle 8-bit harmonisé sur le nom.
 ///
-/// Rendu Canvas pur (cohérent avec le moteur de décors). L'animation tourne en
-/// boucle ; l'hôte ([HomeGate]) la masque dès que le profil est prêt (et après
-/// une durée minimale pour qu'on la voie en entier). Un tap saute l'attente.
+/// Rendu Canvas pur (cohérent avec le moteur de décors). L'animation joue UNE
+/// fois puis se fige sur son image finale (mot « DewDrop » affiché, eau calmée) —
+/// la goutte ne reboucle donc jamais. L'hôte ([HomeGate]) la masque dès que le
+/// profil est prêt (et après une durée minimale pour qu'on la voie en entier).
+/// Un tap saute l'attente.
 class DewDropLoader extends StatefulWidget {
   const DewDropLoader({
     super.key,
@@ -64,8 +66,8 @@ class _DewDropLoaderState extends State<DewDropLoader>
       vsync: this,
       duration: const Duration(
         milliseconds: 2200,
-      ), // cycle = ARC 1.2s + hold 1.0s
-    )..repeat();
+      ), // passe unique = ARC 1.2s + hold 1.0s
+    )..forward(); // une seule passe puis on fige la dernière frame
     if (widget.playSound) _scheduleSound();
   }
 
@@ -313,14 +315,15 @@ class _LoaderPainter extends CustomPainter {
     }
 
     // mot DewDrop + éclat de sparkles sur la note finale du jingle
-    const fi0 = _arc * 0.50, fi1 = _arc * 0.92, fo0 = _cycle - 0.22;
+    // Passe unique : le mot apparaît puis RESTE affiché (plus de fondu de sortie,
+    // qui n'existait que pour reboucler proprement). La dernière frame figée
+    // montre « DewDrop » sur l'eau calmée.
+    const fi0 = _arc * 0.50, fi1 = _arc * 0.92;
     final wordA = local < fi0
         ? 0.0
         : local < fi1
         ? _clamp01((local - fi0) / (fi1 - fi0))
-        : local < fo0
-        ? 1.0
-        : _clamp01(1 - (local - fo0) / 0.22);
+        : 1.0;
     _wordmark(canvas, wordA);
     if (wordA > 0.2) _wordSparkle(canvas, local - (_arc * 0.5 + 0.85));
   }
