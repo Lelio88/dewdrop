@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:dewdrop/decor/environment.dart';
@@ -161,25 +162,25 @@ class _HomeViewState extends ConsumerState<HomeView>
         isUtc: true,
       );
       final unseen = list.where((t) => t.createdAt.isAfter(lastSeen)).length;
-      if (unseen > 0) _replayBursts(unseen);
+      if (unseen > 0) _celebrateCatchUp(unseen);
     } on Exception catch (_) {
       // Offline / transient — no burst, marker left untouched.
     }
   }
 
-  // Cap the catch-up so returning after many pensées doesn't burst forever.
-  static const _kMaxReplayBursts = 5;
+  // Cap the catch-up intensity so coming back after a long absence stays a
+  // tasteful celebration rather than an overwhelming one.
+  static const double _kMaxCatchUpIntensity = 2.5;
 
-  /// Replay one burst per unseen pensée (capped + staggered) so coming back to
-  /// the app "catches up" what arrived while it was closed. Guards on [mounted]
-  /// since the timers may outlive the screen.
-  void _replayBursts(int count) {
-    final n = count.clamp(1, _kMaxReplayBursts);
-    for (var i = 0; i < n; i++) {
-      Timer(Duration(milliseconds: i * 600), () {
-        if (mounted) _reception.pulse();
-      });
-    }
+  /// One amplified celebration whose strength + duration scale with how many
+  /// pensées arrived while the app was closed (a gentle sqrt curve, capped at
+  /// [_kMaxCatchUpIntensity]). The active decor reads that intensity off the
+  /// [ReceptionSignal] and sizes its burst accordingly. Guards on [mounted]
+  /// since this runs after an async gap.
+  void _celebrateCatchUp(int count) {
+    if (count <= 0 || !mounted) return;
+    final intensity = math.sqrt(count).clamp(1.0, _kMaxCatchUpIntensity);
+    _reception.pulse(intensity.toDouble());
   }
 
   void _markSeenNow() {

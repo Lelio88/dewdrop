@@ -70,6 +70,7 @@ class _MountainDecorState extends State<MountainDecor>
   void _tap() {
     // Both variants: roll the soft fog in from the edges (manual preview).
     _model.fogBurst = _model.time;
+    _model.fogK = 1.0; // a tap is always a single-strength billow
     HapticFeedback.lightImpact();
   }
 
@@ -77,7 +78,10 @@ class _MountainDecorState extends State<MountainDecor>
   /// right edges, drifts toward the centre, then dissipates — like real fog. The
   /// occasional ambient shooting stars (Nuit) are unaffected.
   void _onReception() {
+    // Intensity (how many pensées were caught up at once) makes the fog roll in
+    // for longer — a bigger, more sustained billow.
     _model.fogBurst = _model.time;
+    _model.fogK = widget.reception?.intensity ?? 1.0;
     HapticFeedback.mediumImpact();
   }
 
@@ -175,6 +179,7 @@ const double _fogLife = 4.5;
 class _MountainModel extends ChangeNotifier {
   double time = 0;
   double fogBurst = -10; // fog-billow trigger (tap or reception), both variants
+  double fogK = 1.0; // intensity of that billow (1 = one pensée / a tap)
 
   void notify() => notifyListeners();
 }
@@ -246,7 +251,7 @@ class _MountainFxPainter extends CustomPainter {
 
     // Soft fog rolling in from BOTH screen edges on tap / reception — both
     // variants. Real-fog feel: gentle rise and fall, banks drifting to centre.
-    _paintEdgeFog(canvas, w, h, time - model.fogBurst);
+    _paintEdgeFog(canvas, w, h, time - model.fogBurst, model.fogK);
   }
 
   /// Soft white fog that rolls in from BOTH edges, fills the WHOLE width as a
@@ -256,9 +261,18 @@ class _MountainFxPainter extends CustomPainter {
   ///  (a) rise — banks slide in from the edges to centred / full coverage;
   ///  (b) plateau — wide, overlapping, blurred banks = seamless full-width veil;
   ///  (c) fall — opacity drops uniformly across the whole screen.
-  void _paintEdgeFog(Canvas canvas, double w, double h, double elapsed) {
-    if (elapsed < 0 || elapsed > _fogLife) return;
-    final p = elapsed / _fogLife;
+  void _paintEdgeFog(
+    Canvas canvas,
+    double w,
+    double h,
+    double elapsed,
+    double fogK,
+  ) {
+    // A bigger catch-up (fogK > 1) stretches how long the billow lasts, so a
+    // "many pensées" reception reads as a more sustained roll of fog.
+    final life = _fogLife * (1 + (fogK - 1) * 0.5);
+    if (elapsed < 0 || elapsed > life) return;
+    final p = elapsed / life;
     // Global opacity envelope: a SLOW rise (long arrival), a plateau, then a
     // slightly quicker uniform fade-out.
     final double env;

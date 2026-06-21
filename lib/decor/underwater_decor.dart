@@ -140,11 +140,14 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
   ///    width and rising quickly toward the surface — many smaller bubbles and
   ///    glows spread higher where the light is.
   void _onReception() {
+    // Intensity = how many pensées were caught up at once: more bubbles + glows
+    // (stronger), and the swell keeps rising for longer.
+    final k = widget.reception?.intensity ?? 1.0;
     final isSeabed = widget.variant == 0;
 
     if (isSeabed) {
       // Deep welling lifting off the seabed floor: ~48 big slow bubbles.
-      for (var i = 0; i < 48; i++) {
+      for (var i = 0; i < (48 * k).round(); i++) {
         final x = _rng.nextDouble();
         _bubbles.add(
           _Bubble(
@@ -160,7 +163,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
         );
       }
       // Low cluster of glows hugging the bed (centre-weighted, deep).
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < (4 * k).round(); i++) {
         _model.glows.add(
           _Glow(
             Offset(
@@ -173,7 +176,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
       }
     } else {
       // Bright wide surge across the whole width, rising fast.
-      for (var i = 0; i < 60; i++) {
+      for (var i = 0; i < (60 * k).round(); i++) {
         _bubbles.add(
           _Bubble(
             x: _rng.nextDouble(),
@@ -186,7 +189,7 @@ class _UnderwaterDecorState extends State<UnderwaterDecor>
         );
       }
       // Glows spread wider and higher, toward the sunlit zone.
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < (4 * k).round(); i++) {
         _model.glows.add(
           _Glow(
             Offset(
