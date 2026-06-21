@@ -39,7 +39,16 @@ void showMyQrSheet(BuildContext context, String handle) {
     backgroundColor: const Color(0xFF12162A),
     builder: (sheetContext) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        // Dans un showModalBottomSheet, MediaQuery.padding.bottom est remis à 0
+        // par la route modale (le SafeArea ne protège donc plus le bas). On lit
+        // viewPadding.bottom, qui survit, pour garder « Copier mon lien » au-dessus
+        // de la barre de navigation à 3 boutons d'Android.
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          28 + MediaQuery.of(sheetContext).viewPadding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
