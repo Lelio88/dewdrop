@@ -2,4 +2,7 @@
 <resources>
     <!-- Accent tint Android applies to the notification small icon. -->
     <color name="notification_color">#8FB7FF</color>
+    <!-- Splash natif : base sombre du fond du loader (dewdrop_loader.dart _bg, bas
+         du dégradé #050F16) pour un raccord invisible vers l'animation. -->
+    <color name="splash_background">#FF050F16</color>
 </resources>
