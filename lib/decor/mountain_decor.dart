@@ -9,9 +9,9 @@ import 'package:flutter/services.dart';
 
 /// Immersive "montagne" decor — jagged alpine peaks. Two variants (Aube / Nuit)
 /// supplied by the parallax photo/illustrated backdrop. On Aube the valley fog
-/// drifts and the meadow flowers sway; on Nuit the stars twinkle and OCCASIONAL
-/// shooting stars pass behind the peak. A tap or a received pensée rolls soft
-/// white fog in from both edges toward the centre. FX in pure Canvas.
+/// drifts over the peaks; on Nuit the stars twinkle and OCCASIONAL shooting
+/// stars pass behind the peak. A tap or a received pensée rolls soft white fog
+/// in from both edges toward the centre. FX in pure Canvas.
 class MountainDecor extends StatefulWidget {
   const MountainDecor({
     super.key,
@@ -37,7 +37,6 @@ class _MountainDecorState extends State<MountainDecor>
   final math.Random _rng = math.Random(23);
   late final Ticker _ticker;
   late final List<_MStar> _stars = _genStars();
-  late final List<_Flower> _flowers = _genFlowers();
 
   @override
   void initState() {
@@ -65,17 +64,6 @@ class _MountainDecorState extends State<MountainDecor>
       r: 0.4 + _rng.nextDouble() * 1.5,
       phase: _rng.nextDouble() * math.pi * 2,
       twinkle: 0.3 + _rng.nextDouble() * 0.7,
-    );
-  });
-
-  List<_Flower> _genFlowers() => List.generate(90, (_) {
-    final t = _rng.nextDouble();
-    return _Flower(
-      x: _rng.nextDouble(),
-      y: 0.76 + t * 0.22,
-      r: 1.5 + (1 - t) * 1.0 + _rng.nextDouble() * 1.5,
-      color: _flowerColor(_rng),
-      phase: _rng.nextDouble() * math.pi * 2,
     );
   });
 
@@ -131,7 +119,6 @@ class _MountainDecorState extends State<MountainDecor>
                 model: _model,
                 cfg: cfg,
                 stars: _stars,
-                flowers: _flowers,
               ),
             ),
           ),
@@ -143,14 +130,6 @@ class _MountainDecorState extends State<MountainDecor>
       ],
     );
   }
-}
-
-Color _flowerColor(math.Random rng) {
-  final r = rng.nextDouble();
-  if (r < 0.30) return const Color(0xFFB57BD6); // purple
-  if (r < 0.55) return const Color(0xFFF4F0F4); // white
-  if (r < 0.78) return const Color(0xFFF2D24E); // yellow
-  return const Color(0xFFE87AA8); // pink
 }
 
 class _MountainConfig {
@@ -215,33 +194,16 @@ class _MStar {
   final double twinkle;
 }
 
-class _Flower {
-  const _Flower({
-    required this.x,
-    required this.y,
-    required this.r,
-    required this.color,
-    required this.phase,
-  });
-  final double x;
-  final double y;
-  final double r;
-  final Color color;
-  final double phase;
-}
-
 class _MountainFxPainter extends CustomPainter {
   _MountainFxPainter({
     required this.model,
     required this.cfg,
     required this.stars,
-    required this.flowers,
   }) : super(repaint: model);
 
   final _MountainModel model;
   final _MountainConfig cfg;
   final List<_MStar> stars;
-  final List<_Flower> flowers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -278,16 +240,6 @@ class _MountainFxPainter extends CustomPainter {
               alpha: (0.10 + 0.04 * math.sin(time * 0.5 + i)).clamp(0.0, 1.0),
             )
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22),
-        );
-      }
-
-      // Gentle flower sway.
-      for (final f in flowers) {
-        final sway = math.sin(time * 1.5 + f.phase) * 1.2;
-        canvas.drawCircle(
-          Offset(f.x * w + sway, f.y * h),
-          f.r,
-          Paint()..color = f.color.withValues(alpha: 0.5),
         );
       }
     }
