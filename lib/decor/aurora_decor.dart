@@ -10,8 +10,9 @@ import 'package:flutter/services.dart';
 /// Immersive "aurores boréales" decor — the Arctic night. Two variants
 /// (Émeraude / Magenta) supplied by the parallax photo/illustrated backdrop.
 /// The stars twinkle, the aurora curtains wave and white snowflakes drift on
-/// top. A tap makes the aurora surge brighter; a received pensée sweeps it to
-/// full brightness and rains shimmering ice crystals. FX in pure Canvas.
+/// top. A tap makes the aurora surge brighter; a received pensée sweeps the
+/// whole sky to full brightness (the ambient snow keeps drifting — no extra
+/// particle shower). FX in pure Canvas.
 class AuroraDecor extends StatefulWidget {
   const AuroraDecor({
     super.key,
@@ -47,11 +48,6 @@ class _AuroraDecorState extends State<AuroraDecor>
   // reception sparkles below, which self-cull).
   late final List<_Ambient> _ambient = _genAmbient();
 
-  // Ephemeral celebratory particles spawned by a reception burst (shimmering
-  // ice crystals / star sparkles raining down across the snow). Empty at rest;
-  // they self-cull once they fall past the bottom.
-  final List<_Sparkle> _sparkles = [];
-
   double _lastTick = 0;
 
   @override
@@ -78,43 +74,16 @@ class _AuroraDecorState extends State<AuroraDecor>
 
     _advanceAmbient(dt);
 
-    if (_sparkles.isNotEmpty) {
-      final remove = <_Sparkle>[];
-      for (final s in _sparkles) {
-        s.y += s.fall * dt;
-        s.x += s.drift * dt;
-        s.rot += s.rotSpeed * dt;
-        if (s.y > 1.06) remove.add(s);
-      }
-      if (remove.isNotEmpty) _sparkles.removeWhere(remove.contains);
-    }
-
     _model.notify();
   }
 
   /// A pensée arrived: the whole aurora sweeps to full brightness (a longer,
-  /// amplified swell distinct from the lighter tap flash) and a shower of
-  /// shimmering ice crystals / star sparkles rains down across the sky. The
-  /// sparkles are tinted by the active variant's palette so Émeraude rains
-  /// green and Magenta rains pink.
+  /// amplified swell distinct from the lighter tap flash) so the sky visibly
+  /// lights up. The always-on ambient snow keeps drifting; no extra particle
+  /// shower is spawned (per design — only the sky brightens on reception).
   void _onReception() {
     _model.flash = _model.time; // ride the existing curtain surge too…
     _model.burst = _model.time; // …plus the bigger, longer reception swell.
-    for (var i = 0; i < 60; i++) {
-      _sparkles.add(
-        _Sparkle(
-          x: _rng.nextDouble(),
-          y: -0.05 - _rng.nextDouble() * 0.7,
-          size: 1.6 + _rng.nextDouble() * 3.2,
-          fall: 0.18 + _rng.nextDouble() * 0.30,
-          drift: (_rng.nextDouble() - 0.5) * 0.10,
-          rot: _rng.nextDouble() * math.pi * 2,
-          rotSpeed: (_rng.nextDouble() - 0.5) * 4,
-          phase: _rng.nextDouble() * math.pi * 2,
-          tint: _rng.nextDouble(),
-        ),
-      );
-    }
     HapticFeedback.mediumImpact();
   }
 
@@ -211,7 +180,6 @@ class _AuroraDecorState extends State<AuroraDecor>
                 stars: _stars,
                 curtains: _curtains,
                 ambient: _ambient,
-                sparkles: _sparkles,
               ),
             ),
           ),
@@ -299,32 +267,6 @@ class _Ambient {
   final double swayPhase;
 }
 
-/// A falling shimmer crystal spawned by a reception burst. [tint] (0..1) blends
-/// between the active variant's two aurora colours so the shower stays on
-/// palette. Mutable: the ticker advances [y]/[x]/[rot].
-class _Sparkle {
-  _Sparkle({
-    required this.x,
-    required this.y,
-    required this.size,
-    required this.fall,
-    required this.drift,
-    required this.rot,
-    required this.rotSpeed,
-    required this.phase,
-    required this.tint,
-  });
-  double x;
-  double y;
-  double rot;
-  final double size;
-  final double fall;
-  final double drift;
-  final double rotSpeed;
-  final double phase;
-  final double tint;
-}
-
 class _AuroraFxPainter extends CustomPainter {
   _AuroraFxPainter({
     required this.model,
@@ -332,7 +274,6 @@ class _AuroraFxPainter extends CustomPainter {
     required this.stars,
     required this.curtains,
     required this.ambient,
-    required this.sparkles,
   }) : super(repaint: model);
 
   final _AuroraModel model;
@@ -340,7 +281,6 @@ class _AuroraFxPainter extends CustomPainter {
   final List<_Star> stars;
   final List<_Curtain> curtains;
   final List<_Ambient> ambient;
-  final List<_Sparkle> sparkles;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -382,9 +322,6 @@ class _AuroraFxPainter extends CustomPainter {
 
     // Always-on ambient texture: white snowflakes.
     _paintAmbient(canvas, w, h, time, cols);
-
-    // Reception shower: shimmering ice crystals / star sparkles, variant-tinted.
-    if (sparkles.isNotEmpty) _paintSparkles(canvas, w, h, time, cols);
 
     // Depth vignette.
     canvas.drawRect(
@@ -504,62 +441,6 @@ class _AuroraFxPainter extends CustomPainter {
         canvas.rotate(math.pi / 3);
       }
       canvas.restore();
-    }
-  }
-
-  // The reception shower: each particle is a soft glow halo plus a four-point
-  // shimmer cross (an icy star crystal). Tinted between the variant's two
-  // aurora colours toward a white-hot core, drawn additively to sit in the same
-  // luminous register as the curtains.
-  void _paintSparkles(
-    Canvas canvas,
-    double w,
-    double h,
-    double time,
-    List<Color> cols,
-  ) {
-    for (final s in sparkles) {
-      final px = s.x * w;
-      final py = s.y * h;
-      // Twinkle: the crystal pulses as it falls.
-      final tw = 0.45 + 0.55 * (0.5 + 0.5 * math.sin(time * 6 + s.phase));
-      // On-palette colour: blend the two variant hues, then push toward white
-      // for the icy core.
-      final hue = Color.lerp(cols[0], cols[1], s.tint)!;
-      final core = Color.lerp(hue, Colors.white, 0.6)!;
-      final r = s.size;
-
-      // Soft halo.
-      canvas.drawCircle(
-        Offset(px, py),
-        r * 2.2,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..color = hue.withValues(alpha: 0.22 * tw),
-      );
-
-      // Four-point shimmer cross (rotating).
-      canvas.save();
-      canvas.translate(px, py);
-      canvas.rotate(s.rot);
-      final spike = Paint()
-        ..blendMode = BlendMode.plus
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = r * 0.5
-        ..color = core.withValues(alpha: 0.85 * tw);
-      final arm = r * 2.6;
-      canvas.drawLine(Offset(-arm, 0), Offset(arm, 0), spike);
-      canvas.drawLine(Offset(0, -arm), Offset(0, arm), spike);
-      canvas.restore();
-
-      // Bright core dot.
-      canvas.drawCircle(
-        Offset(px, py),
-        r * 0.55,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..color = core.withValues(alpha: 0.95 * tw),
-      );
     }
   }
 
