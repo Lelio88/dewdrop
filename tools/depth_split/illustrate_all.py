@@ -52,8 +52,9 @@ NEG = (
 # Per-scene denoise strength. Textured scenes take a strong stylization; smooth /
 # cosmic scenes a gentle one (a strong style destroys a starfield / open sky).
 STRENGTH = {
-    "forest": 0.60, "library": 0.60, "mountain": 0.58, "beach": 0.55,
-    "desert": 0.52, "aurora": 0.45, "underwater": 0.45, "space": 0.35,
+    "forest": 0.60, "library": 0.60, "fields": 0.60, "mountain": 0.58,
+    "beach": 0.55, "desert": 0.52, "aurora": 0.45, "underwater": 0.45,
+    "space": 0.35,
 }
 # Per-(env/variant) overrides for variants that differ from their scene default.
 # Per-(env/variant) overrides. Gentler where a strong style drifts off the source
@@ -67,6 +68,7 @@ DESC = {
     "mountain": "mountain landscape", "beach": "tropical beach, sea and sky",
     "desert": "desert dunes", "aurora": "aurora borealis night sky",
     "underwater": "underwater ocean scene", "space": "deep space, stars, milky way",
+    "fields": "summer countryside field, meadow and wheat, warm light",
 }
 
 
@@ -92,11 +94,24 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--steps", type=int, default=34)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument(
+        "--only",
+        default="",
+        help="comma-separated env names to limit to (e.g. 'fields'); "
+        "default = all scenes",
+    )
     args = ap.parse_args()
 
+    only = {s for s in args.only.split(",") if s}
     bases = find_bases(SRC)
+    if only:
+        bases = [
+            b
+            for b in bases
+            if os.path.relpath(b, SRC).replace("\\", "/").split("/")[0] in only
+        ]
     if not bases:
-        print(f"No base.png under {SRC}")
+        print(f"No base.png under {SRC}" + (f" for --only {only}" if only else ""))
         return
     print(f"{len(bases)} source(s). Loading SDXL base (img2img)...", flush=True)
     pipe = AutoPipelineForImage2Image.from_pretrained(
