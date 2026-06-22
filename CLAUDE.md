@@ -88,5 +88,5 @@ supabase config push                   # pousser la config auth (SMTP, templates
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : **durcissement sécurité** (helpers RLS → schéma `private`, `profiles` owner-only + vue `public_profiles`, anti-flood 25/min, rotation clé service account + clé API Firebase restreinte) ; **notifications v2** (messages *data* → notifs **groupées** « DewDrop », alerte une fois, silencieuses en heures calmes) ; **groupes** (cercles partagés + `send_to_group`). Diffusion testeurs **v0.5.0**.
-- **Focus immédiat** : **test end-to-end à deux** (notifs groupées + groupes). Puis **iOS** (prep faite, **bloqué compte Apple Developer 99 $/an**) et **Play Store** (compte 25 $, captures, test fermé 14 j — voir `docs/play-store-listing.md`).
+- **Dernier focus** : **univers « Champs »** (9ᵉ décor — Prairie & Blé, photo + aquarelle ; à la réception, **envol de graines de pissenlit** porté par une brise ; ambiance « blé au vent » + abeille, sons **CC0**). Juste avant : **refonte du parcours d'envoi** (envoi direct sans confirmation, accueil gestuel) + **dons** (bouton « Soutenir DewDrop » → Ko-fi). Release **0.9.1+14** (AAB construit & signé, `CHANGELOG.md`).
+- **Focus immédiat** : **uploader l'AAB 0.9.1+14** au test fermé Play Store (note de version = `CHANGELOG.md`). Puis **iOS** (prep faite, **bloqué compte Apple Developer 99 $/an**).

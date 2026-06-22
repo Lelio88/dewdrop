@@ -39,8 +39,12 @@ void main() {
 
     testWidgets('tapping the licenses entry does not throw', (tester) async {
       await pump(tester);
-      // The licenses tile is the only ListTile on the screen.
-      await tester.tap(find.byType(ListTile));
+      // Target the licenses tile by its label (the screen has a second
+      // ListTile, « Confidentialité & CGU ») and scroll it into view first.
+      final tile = find.widgetWithText(ListTile, 'Licences open source');
+      await tester.ensureVisible(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(tile);
       await tester.pump();
       expect(tester.takeException(), isNull);
     });

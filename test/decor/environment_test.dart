@@ -2,6 +2,7 @@ import 'package:dewdrop/decor/aurora_decor.dart';
 import 'package:dewdrop/decor/beach_decor.dart';
 import 'package:dewdrop/decor/desert_decor.dart';
 import 'package:dewdrop/decor/environment.dart';
+import 'package:dewdrop/decor/fields_decor.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
@@ -10,8 +11,8 @@ import 'package:dewdrop/decor/underwater_decor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('there are 8 environments, each with named non-empty variants', () {
-    expect(Environment.values.length, 8);
+  test('there are 9 environments, each with named non-empty variants', () {
+    expect(Environment.values.length, 9);
     for (final e in Environment.values) {
       expect(e.label, isNotEmpty);
       expect(e.variants, isNotEmpty);
@@ -33,6 +34,7 @@ void main() {
       Environment.mountain: isA<MountainDecor>(),
       Environment.desert: isA<DesertDecor>(),
       Environment.aurora: isA<AuroraDecor>(),
+      Environment.fields: isA<FieldsDecor>(),
     };
     for (final mode in RenderMode.values) {
       expected.forEach((env, matcher) {

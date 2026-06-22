@@ -75,11 +75,12 @@ domain, no attribution required (listed for transparency).
 1. **Desert tumbleweed** (`assets/audio/oneshot/desert_tumble_*.ogg`) is
    **CC BY 4.0** — built from Freesound [#204028](https://freesound.org/s/204028/)
    + [#204031](https://freesound.org/s/204031/) ("Tumbleweed_Impact" by
-   **duckduckpony**). Resolve before a public release by **either** surfacing this
-   attribution in-app (an "À propos / Crédits" screen — CC BY requires visible
-   credit), **or** rebuilding the one-shots from the CC0 takes already downloaded
-   (`tools/sounds/tumble/T1.mp3` = Freesound #666249, `T4.mp3` = #667738, both
-   CC0) so no attribution is owed.
+   **duckduckpony**). **✅ Resolved** — the attribution is surfaced **in-app** in
+   the « À propos & crédits » screen (`about_screen.dart`, guarded by
+   `about_screen_test.dart`), which satisfies CC BY's visible-credit requirement.
+   (Alternative, if we ever want to drop the visible credit: rebuild the one-shots
+   from the CC0 takes already downloaded — `tools/sounds/tumble/T1.mp3` =
+   Freesound #666249, `T4.mp3` = #667738, both CC0 — so no attribution is owed.)
 2. **Champs music** (`assets/audio/fields_mus.ogg` = `forest_mus/MF4_warmgtr.mp3`,
    from the CC0 forest batch, never used by another decor) — its exact Freesound
    id was not recorded; backfill it here for transparency (CC0 → no attribution
