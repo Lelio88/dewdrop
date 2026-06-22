@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dewdrop/src/common/app_exceptions.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/groups/domain/group_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
@@ -90,11 +91,19 @@ class SupabaseGroupRepository implements GroupRepository {
 
   @override
   Future<int> sendToGroup(String groupId, {bool anonymous = false}) async {
-    final res = await _client.rpc(
-      'send_to_group',
-      params: {'p_group': groupId, 'p_anonymous': anonymous},
-    );
-    return (res as int?) ?? 0;
+    try {
+      final res = await _client.rpc(
+        'send_to_group',
+        params: {'p_group': groupId, 'p_anonymous': anonymous},
+      );
+      return (res as int?) ?? 0;
+    } on PostgrestException catch (e) {
+      // The group-send cap (150/min) raises the same `rate_limited`.
+      if (e.message.contains('rate_limited')) {
+        throw const RateLimitedException();
+      }
+      rethrow;
+    }
   }
 
   @override

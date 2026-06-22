@@ -1,19 +1,91 @@
+import 'dart:async';
+
+import 'package:dewdrop/src/common/app_exceptions.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/groups/application/group_providers.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
+import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
-import 'package:dewdrop/src/features/thoughts/presentation/send_thought_sheet.dart';
+import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// "Envoyer une pensée" — pick a friend or a group to send to. Sending lives
-/// here now (the "Amis" page is for managing friends + groups, not sending).
-class SendThoughtsScreen extends ConsumerWidget {
+/// "Envoyer une pensée" — pick a friend or a group; a single tap sends directly
+/// (no confirmation sheet). Anonymity follows the profile's global default (the
+/// "Pensées" settings). After a send, the tile shows "Envoyé ✨" and is disabled
+/// for a short cooldown so an accidental double-tap can't fire twice. The
+/// server's flood cap surfaces as a [RateLimitedException] → a friendly message.
+class SendThoughtsScreen extends ConsumerStatefulWidget {
   const SendThoughtsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SendThoughtsScreen> createState() => _SendThoughtsScreenState();
+}
+
+class _SendThoughtsScreenState extends ConsumerState<SendThoughtsScreen> {
+  // Recipients in their post-send cooldown, keyed "u:<id>" (friend) / "g:<id>"
+  // (group); each cleared by a timer. The tile shows "Envoyé ✨" + is disabled
+  // meanwhile — the accidental-double-send guard.
+  final Set<String> _sent = {};
+  final Map<String, Timer> _timers = {};
+
+  // How long a tile stays "Envoyé ✨" + disabled after a send.
+  static const _kCooldown = Duration(seconds: 4);
+
+  @override
+  void dispose() {
+    for (final t in _timers.values) {
+      t.cancel();
+    }
+    super.dispose();
+  }
+
+  /// Direct send (no confirmation). Anonymity comes from the global default.
+  Future<void> _send({Profile? to, Group? group}) async {
+    final key = to != null ? 'u:${to.id}' : 'g:${group!.id}';
+    if (_sent.contains(key)) return; // already sent / in cooldown
+    setState(() => _sent.add(key));
+    final anonymous =
+        ref.read(myProfileProvider).value?.defaultAnonymous ?? false;
+    try {
+      if (group != null) {
+        await ref
+            .read(groupRepositoryProvider)
+            .sendToGroup(group.id, anonymous: anonymous);
+      } else {
+        await ref
+            .read(thoughtRepositoryProvider)
+            .sendThought(to!.id, anonymous: anonymous);
+      }
+      if (!mounted) return;
+      // Success: keep "Envoyé ✨" for the cooldown window, then clear it.
+      _timers[key]?.cancel();
+      _timers[key] = Timer(_kCooldown, () {
+        _timers.remove(key);
+        if (mounted) setState(() => _sent.remove(key));
+      });
+    } on RateLimitedException {
+      _revert(key);
+      _snack('Tu envoies un peu vite 🌬️ — réessaie dans une minute.');
+    } on Exception {
+      _revert(key);
+      _snack("Échec de l'envoi.");
+    }
+  }
+
+  void _revert(String key) {
+    _timers.remove(key)?.cancel();
+    if (mounted) setState(() => _sent.remove(key));
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final w = Colors.white;
     final friends = ref.watch(friendsProvider);
     final groups = ref.watch(myGroupsProvider);
@@ -49,9 +121,7 @@ class SendThoughtsScreen extends ConsumerWidget {
                   data: (list) => list.isEmpty
                       ? _empty(w, 'Aucun groupe. Crée-en un depuis « Amis ».')
                       : Column(
-                          children: [
-                            for (final g in list) _groupTile(context, ref, w, g),
-                          ],
+                          children: [for (final g in list) _groupTile(w, g)],
                         ),
                 ),
                 const SizedBox(height: 24),
@@ -62,9 +132,7 @@ class SendThoughtsScreen extends ConsumerWidget {
                   data: (list) => list.isEmpty
                       ? _empty(w, 'Pas encore d\'amis.')
                       : Column(
-                          children: [
-                            for (final f in list) _friendTile(context, ref, w, f),
-                          ],
+                          children: [for (final f in list) _friendTile(w, f)],
                         ),
                 ),
               ],
@@ -75,9 +143,12 @@ class SendThoughtsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _friendTile(BuildContext context, WidgetRef ref, Color w, Friend f) {
+  Widget _friendTile(Color w, Friend f) {
     final p = f.profile;
-    final name = p.displayName?.isNotEmpty == true ? p.displayName! : '@${p.handle}';
+    final name = p.displayName?.isNotEmpty == true
+        ? p.displayName!
+        : '@${p.handle}';
+    final sent = _sent.contains('u:${p.id}');
     return _tile(
       w,
       leading: CircleAvatar(
@@ -86,41 +157,28 @@ class SendThoughtsScreen extends ConsumerWidget {
       ),
       title: name,
       subtitle: '@${p.handle}',
-      onTap: () => _send(context, ref, to: p),
+      sent: sent,
+      onTap: sent ? null : () => _send(to: p),
     );
   }
 
-  Widget _groupTile(BuildContext context, WidgetRef ref, Color w, Group g) {
+  Widget _groupTile(Color w, Group g) {
+    final sent = _sent.contains('g:${g.id}');
     return _tile(
       w,
       leading: CircleAvatar(
         backgroundColor: const Color(0xFF8FB7FF).withValues(alpha: 0.18),
-        child: Icon(Icons.group_rounded, color: w.withValues(alpha: 0.9), size: 20),
+        child: Icon(
+          Icons.group_rounded,
+          color: w.withValues(alpha: 0.9),
+          size: 20,
+        ),
       ),
       title: g.name,
       subtitle: 'Groupe',
-      onTap: () => _send(context, ref, group: g),
+      sent: sent,
+      onTap: sent ? null : () => _send(group: g),
     );
-  }
-
-  Future<void> _send(
-    BuildContext context,
-    WidgetRef ref, {
-    Profile? to,
-    Group? group,
-  }) async {
-    final sent = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.2),
-      isScrollControlled: true,
-      builder: (_) => SendThoughtSheet(to: to, group: group),
-    );
-    if (sent == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pensée envoyée 💭')),
-      );
-    }
   }
 
   Widget _tile(
@@ -128,18 +186,31 @@ class SendThoughtsScreen extends ConsumerWidget {
     required Widget leading,
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-      leading: leading,
-      title: Text(title),
-      subtitle: Text(subtitle, style: TextStyle(color: w.withValues(alpha: 0.5))),
-      trailing: Icon(Icons.send_rounded, color: w.withValues(alpha: 0.5)),
-    ),
-  );
+    required bool sent,
+    required VoidCallback? onTap,
+  }) {
+    const ok = Color(0xFF9BE8B0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Opacity(
+        opacity: sent ? 0.6 : 1,
+        child: ListTile(
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+          leading: leading,
+          title: Text(title),
+          subtitle: Text(
+            sent ? 'Envoyé ✨' : subtitle,
+            style: TextStyle(color: sent ? ok : w.withValues(alpha: 0.5)),
+          ),
+          trailing: Icon(
+            sent ? Icons.check_circle_rounded : Icons.send_rounded,
+            color: sent ? ok : w.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
 
   String _initial(String s) => s.isEmpty ? '?' : s[0].toUpperCase();
 
