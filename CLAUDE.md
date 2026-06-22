@@ -65,7 +65,8 @@ flutter build apk --release \          # build cloud (testeurs) — signé via a
   --dart-define=SUPABASE_ANON_KEY=<clé publishable>
 supabase migration new <slug>          # nouvelle migration (prod : supabase db push)
 supabase config push                   # pousser la config auth (SMTP, templates, redirects) ; BREVO_SMTP_KEY en env
-# décors photo : tools/depth_split/{split_all.py → couches LaMa, export_webp.py → assets/photo}
+# décors photo : Base.png → tools/depth_split/_src/<décor>/<variante>/ puis warp_batch.py
+#   → assets/photo/<décor>/<variante>/{full.webp,depth.webp} (parallaxe = depth-warp, pas de SCENE_SETTINGS)
 ```
 
 ## VII. Maintenance documentaire
@@ -75,9 +76,9 @@ supabase config push                   # pousser la config auth (SMTP, templates
 | Modification | Fichier à mettre à jour |
 |---|---|
 | Nouvelle table / colonne / RLS / Realtime | nouvelle migration `supabase/migrations/` (+ GRANT) |
-| Nouveau décor / variante | `lib/decor/environment.dart` + assets + `docs/architecture.md` |
+| Nouveau décor / variante | `lib/decor/environment.dart` (enum + `buildDecor`) + `lib/decor/<décor>_decor.dart` + source `tools/depth_split/_src/<décor>/<v>/Base.png` → `warp_batch.py` + déclarer **chaque** variante dans `pubspec.yaml` (pas de wildcard) + `docs/architecture.md` |
 | Nouveau deep link | `lib/src/common/deep_links.dart` + `additional_redirect_urls` (`config.toml`) + manifeste Android / `Info.plist` |
-| Réglage parallaxe d'une scène | `SCENE_SETTINGS` (`split_all.py`) → re-run `split_all.py` + `export_webp.py` |
+| Réglage parallaxe d'une scène | force par décor : `_strengthByEnv` dans `lib/decor/decor_backdrop.dart` (Dart) ; régénérer les assets = `tools/depth_split/warp_batch.py` |
 | Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
 | Style/texte des notifs envoyées | listes émojis/phrases dans `thought_style.dart` ; assemblage par `send-thought-push` (les deux côtés) |
 | Logique de groupe (RLS, fan-out) | nouvelle migration (helpers `private`) + `features/groups/` + RPC `send_to_group` |

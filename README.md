@@ -93,8 +93,10 @@ python -m venv .venv
 #       .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cu128
 .venv/Scripts/pip install -r requirements.txt
 .venv/Scripts/pip install simple-lama-inpainting --no-deps
-.venv/Scripts/python split_all.py _src   # profondeur + inpainting LaMa → couches PNG
-.venv/Scripts/python export_webp.py      # PNG → assets/photo/*.webp
+# depuis la RACINE du repo (le batch attend des chemins _src/ et assets/ relatifs) :
+cd ../..
+tools/depth_split/.venv/Scripts/python tools/depth_split/warp_batch.py
+#   → assets/{photo,illustrated}/<env>/<variante>/{full.webp,depth.webp} (depth-warp, pas de couches)
 ```
 
 ## État
