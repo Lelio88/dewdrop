@@ -13,6 +13,8 @@ import 'package:dewdrop/src/features/profile/application/profile_providers.dart'
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
 import 'package:dewdrop/src/features/home/presentation/dewdrop_loader.dart';
+import 'package:dewdrop/src/features/home/presentation/received_peek.dart';
+import 'package:dewdrop/src/features/home/presentation/send_dock.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
@@ -78,6 +80,9 @@ class _HomeGateState extends ConsumerState<HomeGate> {
   }
 }
 
+/// Which gesture sheet is currently revealed on the home.
+enum _HomeSheet { none, send, recus }
+
 /// The live home: the user's chosen decor as a full-screen background, with a
 /// minimal floating UI over it. The decor is kept in local state so changes
 /// from the picker apply instantly (and persist to the profile in background).
@@ -100,6 +105,11 @@ class _HomeViewState extends ConsumerState<HomeView>
   // bursts when a pensée is received. Disposed with the view.
   final ReceptionSignal _reception = ReceptionSignal();
 
+  // Which gesture sheet is open (swipe ↑ = envoyer, swipe ↓ = pensées reçues).
+  // Both paths also live in the ☰ menu, since a gesture isn't discoverable.
+  _HomeSheet _sheet = _HomeSheet.none;
+  bool _showHint = false; // one-time "swipe" hint on the first home view
+
   @override
   void initState() {
     super.initState();
@@ -110,6 +120,7 @@ class _HomeViewState extends ConsumerState<HomeView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncAmbient();
       unawaited(_checkUnseenOnOpen());
+      _maybeShowHint();
     });
   }
 
@@ -194,6 +205,61 @@ class _HomeViewState extends ConsumerState<HomeView>
     );
   }
 
+  // ── Gesture sheets (swipe ↑ envoyer / ↓ pensées reçues) ────────────────────
+  void _openSend() {
+    if (_sheet != _HomeSheet.send) {
+      setState(() => _sheet = _HomeSheet.send);
+    }
+  }
+
+  void _openRecus() {
+    if (_sheet != _HomeSheet.recus) {
+      setState(() => _sheet = _HomeSheet.recus);
+    }
+  }
+
+  void _closeSheets() {
+    if (_sheet != _HomeSheet.none) {
+      setState(() => _sheet = _HomeSheet.none);
+    }
+  }
+
+  // A vertical fling opens the matching sheet (or closes an open one). A plain
+  // tap on the decor still triggers its preview burst (different gesture).
+  void _onDragEnd(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (_sheet != _HomeSheet.none) {
+      _closeSheets();
+      return;
+    }
+    if (v < -250) {
+      _openSend();
+    } else if (v > 250) {
+      _openRecus();
+    }
+  }
+
+  // The ☰ fallback paths (and the sheets' "voir tout" buttons): drop immersive,
+  // push the full screen, restore immersive on return.
+  void _pushImmersive(String route) {
+    _closeSheets();
+    SystemUi.edgeToEdge();
+    context.push(route).then((_) {
+      if (mounted) SystemUi.immersive();
+    });
+  }
+
+  // One-time hint on the first home view so the invisible gestures are findable.
+  void _maybeShowHint() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (prefs.getBool('home_gesture_hint_seen') ?? false) return;
+    setState(() => _showHint = true);
+    unawaited(prefs.setBool('home_gesture_hint_seen', true));
+    Timer(const Duration(milliseconds: 3500), () {
+      if (mounted) setState(() => _showHint = false);
+    });
+  }
+
   void _openMenu() {
     showModalBottomSheet<String>(
       context: context,
@@ -271,30 +337,131 @@ class _HomeViewState extends ConsumerState<HomeView>
       }
     });
 
+    final w = Colors.white;
+    final open = _sheet != _HomeSheet.none;
+
     return Scaffold(
-      body: buildDecor(
-        env,
-        variant,
-        _mode,
-        reception: _reception,
-        parallax: parallax,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                right: 20,
-                bottom: 20,
-                child: Opacity(
-                  opacity: 0.5,
-                  child: _GlassCircleButton(
-                    icon: Icons.menu_rounded,
-                    onTap: _openMenu,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Decor + vertical-swipe to open a sheet. A plain tap still reaches
+          // the decor (its preview burst); only vertical drags open the sheets.
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onVerticalDragEnd: _onDragEnd,
+            child: buildDecor(
+              env,
+              variant,
+              _mode,
+              reception: _reception,
+              parallax: parallax,
+            ),
+          ),
+
+          // Floating chrome (inside the safe area so the handles clear Android's
+          // system-gesture edges): the ☰ + the two discreet pull handles.
+          // Handles are hidden while a sheet is open.
+          SafeArea(
+            child: Stack(
+              children: [
+                if (!open) ...[
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: _Handle(onTap: _openRecus),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: _Handle(onTap: _openSend),
+                  ),
+                ],
+                Positioned(
+                  right: 20,
+                  bottom: 20,
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: _GlassCircleButton(
+                      icon: Icons.menu_rounded,
+                      onTap: _openMenu,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scrim (tap or swipe-back to close).
+          IgnorePointer(
+            ignoring: !open,
+            child: GestureDetector(
+              onTap: _closeSheets,
+              onVerticalDragEnd: _onDragEnd,
+              child: AnimatedOpacity(
+                opacity: open ? 1 : 0,
+                duration: const Duration(milliseconds: 250),
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+
+          // Send dock (swipe ↑).
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: AnimatedSlide(
+              offset: _sheet == _HomeSheet.send
+                  ? Offset.zero
+                  : const Offset(0, 1.1),
+              duration: const Duration(milliseconds: 340),
+              curve: Curves.easeOutCubic,
+              child: _SheetPanel(
+                child: SendDock(onSeeAll: () => _pushImmersive('/send')),
+              ),
+            ),
+          ),
+
+          // Received peek (swipe ↓).
+          Align(
+            alignment: Alignment.topCenter,
+            child: AnimatedSlide(
+              offset: _sheet == _HomeSheet.recus
+                  ? Offset.zero
+                  : const Offset(0, -1.1),
+              duration: const Duration(milliseconds: 340),
+              curve: Curves.easeOutCubic,
+              child: _SheetPanel(
+                top: true,
+                child: ReceivedPeek(
+                  onSeeAll: () => _pushImmersive('/thoughts'),
+                ),
+              ),
+            ),
+          ),
+
+          // One-time "swipe" hint.
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _showHint && !open ? 1 : 0,
+              duration: const Duration(milliseconds: 500),
+              child: SafeArea(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 64),
+                    child: Text(
+                      'glisse ↑ pour envoyer · ↓ pour tes pensées',
+                      style: TextStyle(
+                        color: w.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -529,6 +696,73 @@ class _GlassCircleButton extends StatelessWidget {
             ),
             child: Icon(icon, color: white.withValues(alpha: 0.9), size: 24),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A very discreet pull handle (a thin, faint bar) hinting the swipe gestures.
+/// The 12 px padding gives a comfortable tap target without making it look big.
+class _Handle extends StatelessWidget {
+  const _Handle({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Container(
+          width: 34,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glass panel hosting a gesture sheet's content. [top] flips the rounded
+/// corners + the safe-area inset so the same panel works sliding from the top
+/// (pensées reçues) or the bottom (envoyer).
+class _SheetPanel extends StatelessWidget {
+  const _SheetPanel({required this.child, this.top = false});
+
+  final Widget child;
+  final bool top;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = Colors.white;
+    final media = MediaQuery.of(context);
+    final inset = top ? media.viewPadding.top : media.viewPadding.bottom;
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(
+        top: top ? Radius.zero : const Radius.circular(26),
+        bottom: top ? const Radius.circular(26) : Radius.zero,
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.fromLTRB(
+            20,
+            top ? 14 + inset : 16,
+            20,
+            top ? 18 : 18 + inset,
+          ),
+          decoration: BoxDecoration(
+            color: w.withValues(alpha: 0.10),
+            border: Border.all(color: w.withValues(alpha: 0.16)),
+          ),
+          child: child,
         ),
       ),
     );
