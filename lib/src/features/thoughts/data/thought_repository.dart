@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dewdrop/src/common/app_exceptions.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
@@ -37,14 +38,24 @@ class SupabaseThoughtRepository implements ThoughtRepository {
   String get _uid => _client.auth.currentUser!.id;
 
   /// Sends a "pensée" to [recipientId] (must be an accepted friend — enforced
-  /// by RLS). When [anonymous], the recipient won't see who it's from.
+  /// by RLS). When [anonymous], the recipient won't see who it's from. The
+  /// server's 25/min flood cap surfaces as a [RateLimitedException], translated
+  /// here so the UI never sees a raw PostgrestException.
   @override
-  Future<void> sendThought(String recipientId, {bool anonymous = false}) =>
-      _client.from('thoughts').insert({
+  Future<void> sendThought(String recipientId, {bool anonymous = false}) async {
+    try {
+      await _client.from('thoughts').insert({
         'recipient_id': recipientId,
         'sender_id': _uid,
         'is_anonymous': anonymous,
       });
+    } on PostgrestException catch (e) {
+      if (e.message.contains('rate_limited')) {
+        throw const RateLimitedException();
+      }
+      rethrow;
+    }
+  }
 
   @override
   Future<List<ReceivedThought>> receivedThoughts() async {
