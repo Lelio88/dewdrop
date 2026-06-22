@@ -8,8 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
-/// In-app settings: default anonymity + quiet hours. Persisted to the profile
-/// (quiet hours will gate push notifications once FCM is wired).
+/// In-app settings: notifications (master switch + quiet hours), display and
+/// account. All persisted to the Supabase profile. Quiet hours are evaluated
+/// server-side in the user's IANA timezone and make incoming pensées arrive
+/// SILENTLY (no sound/vibration) — they don't suppress them.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -121,64 +123,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _section(w, 'Heures calmes'),
+              _section(w, 'Notifications'),
               _card(
                 w,
                 child: Column(
                   children: [
+                    // Interrupteur maître : coupe TOUT (le serveur n'envoie plus).
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      value: _quiet,
+                      value: _notifs,
                       onChanged: (v) {
-                        setState(() => _quiet = v);
-                        unawaited(_persist());
+                        setState(() => _notifs = v);
+                        unawaited(_persistNotifs(v));
                       },
-                      title: const Text('Ne pas déranger'),
+                      title: const Text('Recevoir des notifications'),
                       subtitle: Text(
-                        'Aucune notification pendant ce créneau.',
+                        'Une notif quand on pense à toi. Désactive pour tout couper.',
                         style: TextStyle(color: w.withValues(alpha: 0.5)),
                       ),
                     ),
-                    if (_quiet)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 12),
-                        child: Row(
+                    Divider(color: w.withValues(alpha: 0.08), height: 1),
+                    // Heures calmes — dans la même carte ; grisées et inactives
+                    // quand les notifications sont coupées (sans objet sinon).
+                    Opacity(
+                      opacity: _notifs ? 1 : 0.4,
+                      child: IgnorePointer(
+                        ignoring: !_notifs,
+                        child: Column(
                           children: [
-                            Text(
-                              'De',
-                              style: TextStyle(color: w.withValues(alpha: 0.7)),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: _quiet,
+                              onChanged: (v) {
+                                setState(() => _quiet = v);
+                                unawaited(_persist());
+                              },
+                              title: const Text('Heures calmes'),
+                              subtitle: Text(
+                                'Les pensées arrivent en silence sur ce créneau.',
+                                style: TextStyle(
+                                  color: w.withValues(alpha: 0.5),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 10),
-                            _hourChip(w, _start, () => _pickHour(true)),
-                            const SizedBox(width: 14),
-                            Text(
-                              'à',
-                              style: TextStyle(color: w.withValues(alpha: 0.7)),
-                            ),
-                            const SizedBox(width: 10),
-                            _hourChip(w, _end, () => _pickHour(false)),
+                            if (_quiet)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 4,
+                                  bottom: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'De',
+                                      style: TextStyle(
+                                        color: w.withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _hourChip(w, _start, () => _pickHour(true)),
+                                    const SizedBox(width: 14),
+                                    Text(
+                                      'à',
+                                      style: TextStyle(
+                                        color: w.withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _hourChip(w, _end, () => _pickHour(false)),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
+                    ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              _section(w, 'Notifications'),
-              _card(
-                w,
-                child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _notifs,
-                  onChanged: (v) {
-                    setState(() => _notifs = v);
-                    unawaited(_persistNotifs(v));
-                  },
-                  title: const Text('Recevoir des notifications'),
-                  subtitle: Text(
-                    'Une notif quand on pense à toi. Désactive pour tout couper.',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
                 ),
               ),
               const SizedBox(height: 24),
