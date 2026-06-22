@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// In-app settings: notifications (master switch + quiet hours), display and
 /// account. All persisted to the Supabase profile. Quiet hours are evaluated
@@ -25,6 +26,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _end = 7;
   String? _tz; // device IANA timezone, captured when quiet hours are enabled
   bool _notifs = true; // master push switch
+
+  // The developer's Ko-fi page — opened in the browser from the "Soutenir" row.
+  static const _kSupportUrl = 'https://ko-fi.com/heianlelio';
 
   @override
   void initState() {
@@ -84,6 +88,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     });
     unawaited(_persist());
+  }
+
+  Future<void> _openSupport() async {
+    var ok = false;
+    try {
+      ok = await launchUrl(
+        Uri.parse(_kSupportUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } on Exception {
+      ok = false;
+    }
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible d'ouvrir le lien.")),
+      );
+    }
   }
 
   @override
@@ -217,6 +238,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: w.withValues(alpha: 0.4),
                   ),
                   onTap: () => context.push('/about'),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'Soutien'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.favorite_rounded,
+                    color: Color(0xFFF6A6C1),
+                  ),
+                  title: const Text('Soutenir DewDrop ☕'),
+                  subtitle: Text(
+                    "Un café pour m'aider à continuer (Ko-fi)",
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.open_in_new_rounded,
+                    color: w.withValues(alpha: 0.4),
+                    size: 18,
+                  ),
+                  onTap: _openSupport,
                 ),
               ),
               const SizedBox(height: 24),
