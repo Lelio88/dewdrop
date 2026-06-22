@@ -158,6 +158,19 @@ const Map<String, DecorAudio> kDecorAudio = {
       ),
     },
   ),
+  'fields': DecorAudio(
+    ambiance: 'fields_amb',
+    music: ['fields_mus'],
+    secondaries: {
+      'bees': SecondaryCat(
+        label: 'Abeille',
+        clips: ['fields_bee_1', 'fields_bee_2'],
+        volume: 0.2, // very low by default — a bee passing far off
+        minGap: Duration(seconds: 22),
+        maxGap: Duration(seconds: 55),
+      ),
+    },
+  ),
 };
 
 const _kMaster = 'snd_master';

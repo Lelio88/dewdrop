@@ -54,11 +54,17 @@ sourced from **Freesound under CC0** (listed for transparency, not obligation):
 | Montagne | harp | 503244 |
 | Désert | duduk | 352572 |
 | Aurore | glacial pad / dreamy pad (2 variants, random) | 695587 · 360352 |
+| Champs | warm acoustic guitar | CC0 (Freesound, forest batch — never used by any other decor) |
 | Espace · Sous-l'eau | (sourced earlier — CC0) | — |
 
 Aurora ambiance components (Freesound, CC0): polar wind `607839`; ice cracks
 `177225` · `549014` · `733814`; crystalline shimmer `460416`. Beach ambiance
-adds a CC0 tropical layer (`268962`) over the waves.
+adds a CC0 tropical layer (`268962`) over the waves. **Fields (Champs)** ambiance
+= *Wheat in the Wind* (**Freesound #240914** by **bdvictor** — a real Kentucky
+wheat field rustling in a gentle breeze, mic at the base of the stalks); the bee
+one-shots (`fields_bee_1/2`) = *Bumblebee #1 / #2* (**BigSoundBank #1000 / #1001**
+by **Joseph SARDIN**, a bumblebee looking for a flower). All **CC0 1.0** — public
+domain, no attribution required (listed for transparency).
 
 > The remaining ambiance beds and one-shots (fire, wind, water, cowbells,
 > pigeon, dune, page turns, cat purrs, thunder) are CC0 / Public Domain from
@@ -74,3 +80,7 @@ adds a CC0 tropical layer (`268962`) over the waves.
    credit), **or** rebuilding the one-shots from the CC0 takes already downloaded
    (`tools/sounds/tumble/T1.mp3` = Freesound #666249, `T4.mp3` = #667738, both
    CC0) so no attribution is owed.
+2. **Champs music** (`assets/audio/fields_mus.ogg` = `forest_mus/MF4_warmgtr.mp3`,
+   from the CC0 forest batch, never used by another decor) — its exact Freesound
+   id was not recorded; backfill it here for transparency (CC0 → no attribution
+   owed regardless).

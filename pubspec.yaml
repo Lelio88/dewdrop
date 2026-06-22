@@ -59,6 +59,8 @@ flutter:
     - assets/photo/desert/1/
     - assets/photo/aurora/0/
     - assets/photo/aurora/1/
+    - assets/photo/fields/0/
+    - assets/photo/fields/1/
     - assets/illustrated/space/0/
     - assets/illustrated/space/1/
     - assets/illustrated/space/2/
@@ -77,3 +79,5 @@ flutter:
     - assets/illustrated/desert/1/
     - assets/illustrated/aurora/0/
     - assets/illustrated/aurora/1/
+    - assets/illustrated/fields/0/
+    - assets/illustrated/fields/1/

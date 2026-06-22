@@ -5,7 +5,7 @@ Résolvez les problèmes sans introduire de régression ni de dette technique ar
 ## I. Finalité
 
 **Application** : DewDrop — app mobile cosy pour **envoyer une pensée** à un ami (signal pur « X a pensé à toi », sans contenu). Anti-spam = culture, pas de feed.
-**Objectif métier** : de douces *good vibes*, sur des **décors immersifs** choisis (espace, sous l'eau, forêt, plage, bibliothèque, montagne, désert, aurores boréales), en style **dessiné** ou **photo**, chacun avec son **ambiance sonore + musique** réglables.
+**Objectif métier** : de douces *good vibes*, sur des **décors immersifs** choisis (espace, sous l'eau, forêt, plage, bibliothèque, montagne, désert, aurores boréales, champs), en style **dessiné** ou **photo**, chacun avec son **ambiance sonore + musique** réglables.
 
 ## II. Architecture
 

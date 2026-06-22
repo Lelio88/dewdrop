@@ -1,6 +1,7 @@
 import 'package:dewdrop/decor/aurora_decor.dart';
 import 'package:dewdrop/decor/beach_decor.dart';
 import 'package:dewdrop/decor/desert_decor.dart';
+import 'package:dewdrop/decor/fields_decor.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
@@ -21,7 +22,8 @@ enum Environment {
   library('Bibliothèque', Icons.menu_book, ['Cosy', 'Ancienne']),
   mountain('Montagne', Icons.landscape, ['Aube', 'Nuit']),
   desert('Désert', Icons.nights_stay, ['Dunes', 'Étoilé']),
-  aurora('Aurores boréales', Icons.ac_unit, ['Émeraude', 'Magenta']);
+  aurora('Aurores boréales', Icons.ac_unit, ['Émeraude', 'Magenta']),
+  fields('Champs', Icons.grass, ['Prairie', 'Blé']);
 
   const Environment(this.label, this.icon, this.variants);
 
@@ -95,6 +97,12 @@ Widget buildDecor(
       child: child,
     ),
     Environment.aurora => AuroraDecor(
+      variant: v,
+      assetRoot: assetRoot,
+      reception: reception,
+      child: child,
+    ),
+    Environment.fields => FieldsDecor(
       variant: v,
       assetRoot: assetRoot,
       reception: reception,
