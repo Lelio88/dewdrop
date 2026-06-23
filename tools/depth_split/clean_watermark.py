@@ -4,7 +4,7 @@ source `_src/<env>/<variant>/{base,Base}.png`.
 
 All sources are 1536x2752 portrait with the ✦ at a fixed bottom-right position,
 so we LaMa-inpaint a small fixed box over it and overwrite base.png — keeping the
-original as `*_wm.png` for reversibility. Run this BEFORE split_all / illustrate_all
+original as `*_wm.png` for reversibility. Run this BEFORE illustrate_all / warp_batch
 so both the photo and the illustrated decors come out watermark-free.
 
 Usage:
