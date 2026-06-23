@@ -15,7 +15,7 @@ import split_layers as SL  # noqa: E402
 import warp_assets as WA  # noqa: E402
 
 ENVS = ["space", "underwater", "forest", "beach", "library", "mountain",
-        "desert", "aurora"]
+        "desert", "aurora", "fields"]
 
 
 def src_for(env: str, v: int, kind: str) -> str | None:

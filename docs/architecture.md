@@ -154,5 +154,5 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 | Supabase (cloud + local Docker) | Auth + Postgres + RLS + Realtime + Edge Functions | dev : `supabase start` (Studio `:54323`, Mailpit `:54324`) ; cloud : `db push` / `config push`. |
 | Firebase | FCM (push) · Crashlytics (crash) · App Distribution (testeurs) | projet `dewdrop-60229` + `google-services.json` (clé client, non secrète). |
 | Brevo (SMTP) | Emails de confirmation / reset | sender vérifié ; clé via `env(BREVO_SMTP_KEY)` au `config push`. |
-| Depth Anything V2 + **LaMa** (PyTorch) | `tools/depth_split` : profondeur → couches photo + inpainting | venv **non committé** ; GPU si torch CUDA (`cu128`). `simple-lama-inpainting --no-deps`. |
+| Depth-Anything V2 Large (PyTorch) | `tools/depth_split` : profondeur → **warp** (`full.webp` + `depth.webp`, pas de couches ni d'inpaint) | venv **non committé** ; GPU si torch CUDA (`cu128`). |
 | ffmpeg + sources CC0/PD | `tools/sounds/build_audio.sh` : assets audio | dossier de travail **non committé** ; voir `CREDITS.md`. |
