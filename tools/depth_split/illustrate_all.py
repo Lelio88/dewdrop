@@ -7,8 +7,8 @@ to it (SDXL base img2img, one shared "aquarelle storybook" style). The denoise
 `strength` is **per-scene**: textured land/interior scenes take a strong style,
 while smooth/cosmic scenes (space, aurora, deep water) take a gentle one — a
 strong style turns a starfield or an open sky into cheap generic clipart (see the
-nuancier study). Run `split_layers`/`split_all` on the emitted `illus.png` next
-to feed the parallax engine, then export to `assets/illustrated/`.
+nuancier study). Then run `warp_batch.py` on the emitted `illus.png` to produce
+the depth-warp pair `assets/illustrated/<env>/<v>/{full,depth}.webp`.
 
 Usage:
     python illustrate_all.py            # all scenes
