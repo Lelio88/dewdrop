@@ -2,7 +2,7 @@
 
 Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douces *good vibes* :
 « Lelio a pensé à toi ✨ ». Une app mobile cosy, avec des **décors immersifs** qu'on choisit
-(espace, forêt, sous l'eau, plage, montagne, désert, bibliothèque, aurores boréales), en style
+(espace, forêt, sous l'eau, plage, montagne, désert, bibliothèque, aurores boréales, champs), en style
 **dessiné** ou **photo**, chacun avec son **ambiance sonore + musique** réglables par décor.
 
 > Confidentialité & CGU : <https://lelio88.github.io/dewdrop/>
@@ -12,8 +12,8 @@ Envoyer une **pensée** à quelqu'un. Pas de spam, pas de feed — juste de douc
 - **App** : Flutter (Riverpod **sans codegen**, GoRouter, freezed). **Android** (live, testeurs via
   Firebase App Distribution) ; **iOS** via **Codemagic** (CI macOS — pas besoin d'un Mac).
 - **Décors** : moteur Canvas maison (parallax gyroscope à **neutre adaptatif**, particules par
-  variante, éclat à la réception) + un mode **photo** en parallax multi-couches (profondeur
-  **Depth Anything V2** + inpainting **LaMa**).
+  variante, éclat à la réception) + un mode **photo** en parallax par **warp de profondeur**
+  (profondeur **Depth Anything V2**, image entière déformée — pas de découpe en couches).
 - **Son** : 2 couches par décor (ambiance + musique en boucle) + sons ponctuels aléatoires
   (baleines, tonnerre, virevoltants…) via `audioplayers` ; volumes/fréquences réglables par décor,
   synchronisés au profil.
@@ -47,9 +47,9 @@ supabase/
 ├── migrations/       # schéma (profiles, friendships, thoughts, blocks…) + RLS + Realtime
 ├── functions/        # Edge Functions (send-thought-push, delete-account)
 └── config.toml       # auth : SMTP Brevo, templates FR, redirections deep-link
-tools/depth_split/    # Python : photo → plans de profondeur (Depth Anything V2 + inpainting LaMa)
+tools/depth_split/    # Python : photo → carte de profondeur → warp parallax (Depth Anything V2)
 docs/index.html       # page Confidentialité & CGU (servie par GitHub Pages)
-assets/photo/         # décors photo (0..N.webp = couches parallax) — sources hors-bundle dans tools/depth_split/_src/
+assets/photo/         # décors photo (full.webp + depth.webp = warp parallax) — sources hors-bundle dans tools/depth_split/_src/
 assets/audio/         # sons par décor (*_amb / *_mus en boucle ; oneshot/ = sons ponctuels)
 ```
 
@@ -92,6 +92,7 @@ python -m venv .venv
 # GPU NVIDIA (bien plus rapide) :
 #       .venv/Scripts/pip install torch --index-url https://download.pytorch.org/whl/cu128
 .venv/Scripts/pip install -r requirements.txt
+# LaMa : seulement pour retirer le filigrane des sources (clean_watermark.py), pas pour le warp :
 .venv/Scripts/pip install simple-lama-inpainting --no-deps
 # depuis la RACINE du repo (le batch attend des chemins _src/ et assets/ relatifs) :
 cd ../..
