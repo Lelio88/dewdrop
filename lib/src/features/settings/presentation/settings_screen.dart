@@ -26,6 +26,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _end = 7;
   String? _tz; // device IANA timezone, captured when quiet hours are enabled
   bool _notifs = true; // master push switch
+  bool _anonymous =
+      false; // default "anonymous" for the thoughts this user sends
 
   // The developer's Ko-fi page — opened in the browser from the "Soutenir" row.
   static const _kSupportUrl = 'https://ko-fi.com/heianlelio';
@@ -40,7 +42,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _end = p.quietEnd ?? 7;
       _tz = p.quietTz;
       _notifs = p.notificationsEnabled;
+      _anonymous = p.defaultAnonymous;
     }
+  }
+
+  Future<void> _persistAnonymous(bool value) async {
+    setState(() => _anonymous = value);
+    await ref.read(profileRepositoryProvider).updateDefaultAnonymous(value);
+    if (!mounted) return;
+    ref.invalidate(myProfileProvider);
   }
 
   /// The device's IANA timezone, so quiet hours are evaluated server-side in the
@@ -128,19 +138,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             children: [
-              _section(w, 'Affichage'),
+              _section(w, 'Personnalisation'),
               _card(
                 w,
-                child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: ref.watch(parallaxEnabledProvider),
-                  onChanged: (v) =>
-                      ref.read(parallaxEnabledProvider.notifier).set(v),
-                  title: const Text('Parallaxe (gyroscope)'),
-                  subtitle: Text(
-                    'Le décor suit les mouvements du téléphone.',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
+                child: Column(
+                  children: [
+                    // Door to the style/preset editor for the thoughts the user
+                    // sends (preview + slot-machine reels + saved presets).
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.edit_note_rounded,
+                        color: w.withValues(alpha: 0.85),
+                      ),
+                      title: const Text('Personnaliser mes pensées'),
+                      subtitle: Text(
+                        'Style de tes notifications & presets enregistrés',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        color: w.withValues(alpha: 0.5),
+                      ),
+                      onTap: () => context.push('/thought-settings'),
+                    ),
+                    Divider(color: w.withValues(alpha: 0.08), height: 1),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _anonymous,
+                      onChanged: (v) => unawaited(_persistAnonymous(v)),
+                      title: const Text('Envoyer anonymement par défaut'),
+                      subtitle: Text(
+                        "Ton nom sera remplacé par « Quelqu'un ».",
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                    Divider(color: w.withValues(alpha: 0.08), height: 1),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: ref.watch(parallaxEnabledProvider),
+                      onChanged: (v) =>
+                          ref.read(parallaxEnabledProvider.notifier).set(v),
+                      title: const Text('Parallaxe (gyroscope)'),
+                      subtitle: Text(
+                        'Le décor suit les mouvements du téléphone.',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
@@ -223,24 +268,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _section(w, 'À propos'),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('À propos & crédits'),
-                  subtitle: Text(
-                    'Mentions légales, attributions, licences',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.4),
-                  ),
-                  onTap: () => context.push('/about'),
-                ),
-              ),
-              const SizedBox(height: 24),
               _section(w, 'Soutien'),
               _card(
                 w,
@@ -261,6 +288,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     size: 18,
                   ),
                   onTap: _openSupport,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _section(w, 'À propos'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('À propos & crédits'),
+                  subtitle: Text(
+                    'Mentions légales, attributions, licences',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: w.withValues(alpha: 0.4),
+                  ),
+                  onTap: () => context.push('/about'),
                 ),
               ),
               const SizedBox(height: 24),

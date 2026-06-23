@@ -90,12 +90,18 @@ class FakeProfileRepository implements ProfileRepository {
   }
 
   Map<String, dynamic>? savedThoughtStyle;
+  List<Map<String, dynamic>>? savedThoughtPresets;
   bool? savedDefaultAnonymous;
   bool? savedNotificationsEnabled;
 
   @override
   Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle) async {
     savedThoughtStyle = thoughtStyle;
+  }
+
+  @override
+  Future<void> updateThoughtPresets(List<Map<String, dynamic>> presets) async {
+    savedThoughtPresets = presets;
   }
 
   @override

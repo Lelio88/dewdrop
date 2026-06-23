@@ -276,7 +276,6 @@ class _HomeViewState extends ConsumerState<HomeView>
       final route = switch (result) {
         'friends' => '/friends',
         'thoughts' => '/thoughts',
-        'thought-settings' => '/thought-settings',
         'send' => '/send',
         'settings' => '/settings',
         _ => null,
@@ -558,39 +557,6 @@ class _HomeMenu extends ConsumerWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
-                    Icons.auto_awesome_outlined,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Pensées reçues'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('thoughts'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.edit_note_rounded,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Pensées'),
-                  subtitle: Text(
-                    'Anonymat + style de tes notifications',
-                    style: TextStyle(
-                      color: white.withValues(alpha: 0.5),
-                      fontSize: 12,
-                    ),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('thought-settings'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
                     Icons.send_rounded,
                     color: white.withValues(alpha: 0.85),
                   ),
@@ -600,6 +566,19 @@ class _HomeMenu extends ConsumerWidget {
                     color: white.withValues(alpha: 0.5),
                   ),
                   onTap: () => Navigator.of(context).pop('send'),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.auto_awesome_outlined,
+                    color: white.withValues(alpha: 0.85),
+                  ),
+                  title: const Text('Pensées reçues'),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: white.withValues(alpha: 0.5),
+                  ),
+                  onTap: () => Navigator.of(context).pop('thoughts'),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
