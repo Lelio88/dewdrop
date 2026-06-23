@@ -88,5 +88,5 @@ supabase config push                   # pousser la config auth (SMTP, templates
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : **univers « Champs »** (9ᵉ décor — Prairie & Blé, photo + aquarelle ; à la réception, **envol de graines de pissenlit** porté par une brise ; ambiance « blé au vent » + abeille, sons **CC0**). Juste avant : **refonte du parcours d'envoi** (envoi direct sans confirmation, accueil gestuel) + **dons** (bouton « Soutenir DewDrop » → Ko-fi). Release **0.9.1+14** (AAB construit & signé, `CHANGELOG.md`).
-- **Focus immédiat** : **uploader l'AAB 0.9.1+14** au test fermé Play Store (note de version = `CHANGELOG.md`). Puis **iOS** (prep faite, **bloqué compte Apple Developer 99 $/an**).
+- **Dernier focus** : **refonte du menu + des Réglages** (menu : « Envoyer une pensée » en premier ; les prefs de pensées remontent dans Réglages sous une section **Personnalisation** = bouton perso + anonymat + parallaxe) et **presets de style** (jusqu'à 5 trios nommés stockés dans `profiles.thought_presets` jsonb — migration `20260623120000`, poussée en cloud ; appliquer en un tap, supprimer, alerte à 5). Piège corrigé : `TextEditingController` d'un dialogue disposé trop tôt après `await showDialog` → confié à un `StatefulWidget` (`_NamePresetDialog`). Avant : univers « Champs » (9ᵉ décor). Release **0.9.2+15**.
+- **Focus immédiat** : **uploader l'AAB 0.9.2+15** au test fermé Play Store (note de version = `CHANGELOG.md`). Puis **iOS** (prep faite, **bloqué compte Apple Developer 99 $/an**).

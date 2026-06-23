@@ -83,6 +83,15 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   @override
+  Future<void> updateThoughtPresets(List<Map<String, dynamic>> presets) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'thought_presets': presets})
+        .eq('id', uid);
+  }
+
+  @override
   Future<void> updateDefaultAnonymous(bool value) async {
     final uid = _client.auth.currentUser!.id;
     await _client

@@ -17,6 +17,9 @@ abstract interface class ProfileRepository {
   /// Persists the style applied to the notifications this user sends.
   Future<void> updateThoughtStyle(Map<String, dynamic> thoughtStyle);
 
+  /// Persists the saved style presets (named trios). Capped at 5 by the caller.
+  Future<void> updateThoughtPresets(List<Map<String, dynamic>> presets);
+
   /// Default for the per-send "anonymous" toggle.
   Future<void> updateDefaultAnonymous(bool value);
 

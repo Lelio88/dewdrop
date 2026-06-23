@@ -1,4 +1,5 @@
 import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
+import 'package:dewdrop/src/features/thoughts/domain/thought_preset.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought_style.dart';
 
 /// A user's public profile + app settings (mirrors `public.profiles`).
@@ -16,6 +17,7 @@ class Profile {
     this.notificationsEnabled = true,
     this.soundPrefsRaw = const {},
     this.thoughtStyleRaw = const {},
+    this.thoughtPresetsRaw = const [],
   });
 
   final String id;
@@ -31,6 +33,7 @@ class Profile {
   final Map<String, dynamic>
   soundPrefsRaw; // per-decor soundscape customization
   final Map<String, dynamic> thoughtStyleRaw; // sent-notification style
+  final List<dynamic> thoughtPresetsRaw; // saved style presets (≤5)
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
 
@@ -39,6 +42,12 @@ class Profile {
 
   /// Parsed style applied to the notifications this user sends.
   ThoughtStyle get thoughtStyle => ThoughtStyle.fromJson(thoughtStyleRaw);
+
+  /// Parsed saved style presets (named trios the user can re-apply in one tap).
+  List<ThoughtPreset> get thoughtPresets => thoughtPresetsRaw
+      .whereType<Map>()
+      .map((m) => ThoughtPreset.fromJson(m.cast<String, dynamic>()))
+      .toList();
 
   factory Profile.fromMap(Map<String, dynamic> m) => Profile(
     id: m['id'] as String,
@@ -55,5 +64,6 @@ class Profile {
         (m['sound_prefs'] as Map?)?.cast<String, dynamic>() ?? const {},
     thoughtStyleRaw:
         (m['thought_style'] as Map?)?.cast<String, dynamic>() ?? const {},
+    thoughtPresetsRaw: (m['thought_presets'] as List?)?.toList() ?? const [],
   );
 }
