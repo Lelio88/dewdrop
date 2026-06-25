@@ -18,6 +18,9 @@ class Profile {
     this.soundPrefsRaw = const {},
     this.thoughtStyleRaw = const {},
     this.thoughtPresetsRaw = const [],
+    this.widgetSource = 'auto',
+    this.widgetFriends = const [],
+    this.decorFavorites = const [],
   });
 
   final String id;
@@ -34,6 +37,11 @@ class Profile {
   soundPrefsRaw; // per-decor soundscape customization
   final Map<String, dynamic> thoughtStyleRaw; // sent-notification style
   final List<dynamic> thoughtPresetsRaw; // saved style presets (≤5)
+  final String widgetSource; // home-screen widget source: 'auto' | 'custom'
+  final List<String> widgetFriends; // pinned friend ids when source == 'custom'
+  // Starred decor snapshots "<environment>:<variant>:<render_mode>" the home
+  // screen cycles through on a horizontal swipe (see decor_choice.encodeFavorite).
+  final List<String> decorFavorites;
 
   bool get hasHandle => handle != null && handle!.trim().isNotEmpty;
 
@@ -65,5 +73,8 @@ class Profile {
     thoughtStyleRaw:
         (m['thought_style'] as Map?)?.cast<String, dynamic>() ?? const {},
     thoughtPresetsRaw: (m['thought_presets'] as List?)?.toList() ?? const [],
+    widgetSource: (m['widget_source'] as String?) ?? 'auto',
+    widgetFriends: (m['widget_friends'] as List?)?.cast<String>() ?? const [],
+    decorFavorites: (m['decor_favorites'] as List?)?.cast<String>() ?? const [],
   );
 }

@@ -76,6 +76,27 @@ class SupabaseThoughtRepository implements ThoughtRepository {
   }
 
   @override
+  Future<List<String>> recentlyContactedRecipientIds({int limit = 24}) async {
+    // Own sent rows only (RLS: auth.uid() = sender_id). The composite index
+    // idx_thoughts_sender (sender_id, created_at desc) covers this. PostgREST
+    // has no clean DISTINCT ON, so dedupe in Dart preserving recency order.
+    final rows = await _client
+        .from('thoughts')
+        .select('recipient_id, created_at')
+        .eq('sender_id', _uid)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    final seen = <String>{};
+    final ids = <String>[];
+    for (final r in rows) {
+      final id = r['recipient_id'] as String?;
+      if (id != null && seen.add(id)) ids.add(id);
+    }
+    return ids;
+  }
+
+  @override
   Stream<int> watchIncoming() {
     // RLS still applies to Realtime, but we also filter server-side so the
     // socket only carries this user's incoming pensées. Emit a monotonic tick

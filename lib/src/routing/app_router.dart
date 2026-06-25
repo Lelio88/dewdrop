@@ -8,6 +8,7 @@ import 'package:dewdrop/src/features/friends/presentation/friends_screen.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/groups/presentation/group_screen.dart';
 import 'package:dewdrop/src/features/home/presentation/home_screen.dart';
+import 'package:dewdrop/src/features/home_widget/presentation/widget_settings_screen.dart';
 import 'package:dewdrop/src/features/profile/presentation/edit_profile_screen.dart';
 import 'package:dewdrop/src/features/settings/presentation/about_screen.dart';
 import 'package:dewdrop/src/features/settings/presentation/legal_screen.dart';
@@ -61,6 +62,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ThoughtSettingsScreen(),
       ),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      GoRoute(
+        path: '/widget-settings',
+        builder: (_, _) => const WidgetSettingsScreen(),
+      ),
       GoRoute(
         path: '/edit-profile',
         builder: (_, _) => const EditProfileScreen(),

@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
+import 'package:dewdrop/src/features/settings/application/decor_favorites_provider.dart';
 import 'package:dewdrop/src/features/settings/presentation/sound_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Full-screen "stories" world picker: each environment fills the screen as a
 /// LIVE decor; swipe horizontally to travel between worlds, tap a named variant,
@@ -13,10 +15,15 @@ import 'package:flutter/services.dart';
 ///
 /// Selection applies LIVE through [onChanged] (same contract as the former
 /// bottom-sheet picker): the preview you see/hear *is* what gets kept, so closing
-/// — via the CTA or the back arrow — simply confirms the world you're on. There
-/// is no separate commit/cancel step, which keeps the flow immersive and the
-/// state model trivial.
-class DecorStories extends StatefulWidget {
+/// — via the « Choisir ce monde » CTA or the back gesture — simply confirms the
+/// world you're on. There is no separate commit/cancel step, which keeps the
+/// flow immersive and the state model trivial.
+///
+/// The top-left glass control is a ⭐ **favourite toggle** (not a close button):
+/// it stars the *currently previewed* snapshot (world + variant + dessin/photo)
+/// into [decorFavoritesProvider], which the home screen cycles through on a
+/// horizontal swipe. Closing is handled by the CTA + the system back gesture.
+class DecorStories extends ConsumerStatefulWidget {
   const DecorStories({
     super.key,
     required this.decor,
@@ -29,10 +36,10 @@ class DecorStories extends StatefulWidget {
   final void Function(String decor, RenderMode mode) onChanged;
 
   @override
-  State<DecorStories> createState() => _DecorStoriesState();
+  ConsumerState<DecorStories> createState() => _DecorStoriesState();
 }
 
-class _DecorStoriesState extends State<DecorStories> {
+class _DecorStoriesState extends ConsumerState<DecorStories> {
   static final List<Environment> _envs = Environment.values;
 
   late final PageController _pages;
@@ -86,6 +93,11 @@ class _DecorStoriesState extends State<DecorStories> {
   @override
   Widget build(BuildContext context) {
     final w = Colors.white;
+    // The snapshot the ⭐ stars/unstars = exactly what's previewed right now.
+    final favorites = ref.watch(decorFavoritesProvider);
+    final isFav = favorites.contains(
+      encodeFavorite(_env, _variantOf(_env), _mode),
+    );
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -117,7 +129,7 @@ class _DecorStoriesState extends State<DecorStories> {
               child: Column(
                 children: [
                   const SizedBox(height: 4),
-                  _topBar(w),
+                  _topBar(w, isFav),
                   const SizedBox(height: 12),
                   _dots(w),
                   const Spacer(),
@@ -155,10 +167,10 @@ class _DecorStoriesState extends State<DecorStories> {
     ),
   );
 
-  Widget _topBar(Color w) => Row(
+  Widget _topBar(Color w, bool isFav) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      _glassIcon(Icons.close_rounded, () => Navigator.of(context).pop()),
+      _starButton(isFav),
       Row(
         children: [
           _glassIcon(
@@ -170,6 +182,41 @@ class _DecorStoriesState extends State<DecorStories> {
         ],
       ),
     ],
+  );
+
+  // Stars/unstars the previewed snapshot (world + variant + dessin/photo). The
+  // gold fill mirrors [decorFavoritesProvider]; the home screen swipes between
+  // whatever is starred here.
+  static const Color _starGold = Color(0xFFFFD75A);
+
+  void _toggleFavorite() {
+    HapticFeedback.selectionClick();
+    ref
+        .read(decorFavoritesProvider.notifier)
+        .toggle(encodeFavorite(_env, _variantOf(_env), _mode));
+  }
+
+  Widget _starButton(bool isFav) => GestureDetector(
+    onTap: _toggleFavorite,
+    child: ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.25),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          ),
+          child: Icon(
+            isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+            color: isFav ? _starGold : Colors.white,
+            size: 22,
+          ),
+        ),
+      ),
+    ),
   );
 
   Widget _dots(Color w) => Row(

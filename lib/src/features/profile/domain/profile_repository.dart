@@ -20,6 +20,18 @@ abstract interface class ProfileRepository {
   /// Persists the saved style presets (named trios). Capped at 5 by the caller.
   Future<void> updateThoughtPresets(List<Map<String, dynamic>> presets);
 
+  /// Home-screen widget friend source: 'auto' (most recently contacted) or
+  /// 'custom' (the pinned [updateWidgetFriends] list).
+  Future<void> updateWidgetSource(String source);
+
+  /// Persists the pinned friend ids shown by the home-screen widget when the
+  /// source is 'custom'. Order is preserved; capped at 4 by the caller.
+  Future<void> updateWidgetFriends(List<String> friendIds);
+
+  /// Persists the starred decor snapshots (`"<env>:<variant>:<mode>"`) the home
+  /// screen cycles through on a horizontal swipe. Order is preserved.
+  Future<void> updateDecorFavorites(List<String> favorites);
+
   /// Default for the per-send "anonymous" toggle.
   Future<void> updateDefaultAnonymous(bool value);
 

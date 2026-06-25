@@ -67,4 +67,41 @@ void main() {
       );
     });
   });
+
+  group('DeepLinks.sendTo / sendTarget', () {
+    test('sendTo builds the custom-scheme send link', () {
+      expect(DeepLinks.sendTo('alice'), 'dewdrop://send?to=alice');
+    });
+
+    test('sendTarget extracts the handle and round-trips with sendTo', () {
+      expect(
+        DeepLinks.sendTarget(Uri.parse(DeepLinks.sendTo('carol'))),
+        'carol',
+      );
+    });
+
+    test('sendTarget strips a leading @', () {
+      expect(DeepLinks.sendTarget(Uri.parse('dewdrop://send?to=@bob')), 'bob');
+    });
+
+    test('sendTarget returns null for an invite or auth link', () {
+      expect(
+        DeepLinks.sendTarget(Uri.parse('dewdrop://invite?handle=al')),
+        isNull,
+      );
+      expect(DeepLinks.sendTarget(Uri.parse(DeepLinks.loginCallback)), isNull);
+    });
+
+    test('sendTarget returns null when the target is missing or empty', () {
+      expect(DeepLinks.sendTarget(Uri.parse('dewdrop://send')), isNull);
+      expect(DeepLinks.sendTarget(Uri.parse('dewdrop://send?to=')), isNull);
+    });
+
+    test('inviteHandle ignores a send link (handlers stay disjoint)', () {
+      expect(
+        DeepLinks.inviteHandle(Uri.parse('dewdrop://send?to=alice')),
+        isNull,
+      );
+    });
+  });
 }

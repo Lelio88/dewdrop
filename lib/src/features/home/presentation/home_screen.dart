@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:dewdrop/decor/decor_image_cache.dart';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
@@ -16,9 +17,11 @@ import 'package:dewdrop/src/features/home/presentation/dewdrop_loader.dart';
 import 'package:dewdrop/src/features/home/presentation/received_peek.dart';
 import 'package:dewdrop/src/features/home/presentation/send_dock.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
+import 'package:dewdrop/src/features/settings/application/decor_favorites_provider.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -110,6 +113,12 @@ class _HomeViewState extends ConsumerState<HomeView>
   _HomeSheet _sheet = _HomeSheet.none;
   bool _showHint = false; // one-time "swipe" hint on the first home view
 
+  // Direction the next favourite slides in from: +1 = from the right (swiped
+  // left → next world), -1 = from the left (swiped right → previous world).
+  // Read by the home décor's AnimatedSwitcher so the world glides in the same
+  // direction as the finger instead of popping in place.
+  double _slideDir = 1;
+
   @override
   void initState() {
     super.initState();
@@ -121,6 +130,7 @@ class _HomeViewState extends ConsumerState<HomeView>
       _syncAmbient();
       unawaited(_checkUnseenOnOpen());
       _maybeShowHint();
+      _prewarmNeighbours(); // warm the first swipe's neighbours
     });
   }
 
@@ -239,6 +249,74 @@ class _HomeViewState extends ConsumerState<HomeView>
     }
   }
 
+  // The favourite snapshot ("<env>:<variant>:<mode>") currently on screen.
+  String _currentFavoriteKey() {
+    final (env, variant) = parseDecor(_decor);
+    return encodeFavorite(env, variant, _mode);
+  }
+
+  // Decode the favourites on either side of the current one into the shared
+  // image cache, so the next swipe paints the new world on its first frame
+  // instead of briefly flashing its flat base colour while the photo decodes.
+  // No-op when fewer than two favourites, or when not currently on a favourite.
+  void _prewarmNeighbours() {
+    final favorites = ref.read(decorFavoritesProvider);
+    if (favorites.length < 2) return;
+    final idx = favorites.indexOf(_currentFavoriteKey());
+    if (idx < 0) return;
+    final n = favorites.length;
+    final prev = favorites[(idx - 1 + n) % n];
+    final next = favorites[(idx + 1) % n];
+    for (final fav in {prev, next}) {
+      final (env, variant, mode) = parseFavorite(fav);
+      final assetRoot = mode == RenderMode.photo ? 'photo' : 'illustrated';
+      DecorImageCache.instance.prewarm(assetRoot, env.name, variant);
+    }
+  }
+
+  // A horizontal fling cycles through the user's starred decors — right =
+  // previous, left = next — wrapping around. Ignored while a sheet is open
+  // (those own the gesture) and below the same 250 px/s threshold as the
+  // vertical sheets, so a lazy drag doesn't switch worlds by accident. The
+  // chosen favourite becomes the live + persisted selection.
+  void _onHorizontalDragEnd(DragEndDetails d) {
+    if (_sheet != _HomeSheet.none) return;
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < 250) return;
+    final favorites = ref.read(decorFavoritesProvider);
+    if (favorites.isEmpty) return;
+    // Swipe right (v > 0) reveals the previous world from the left; swipe left
+    // (v < 0) brings the next world in from the right.
+    _slideDir = v > 0 ? -1 : 1;
+    final idx = favorites.indexOf(_currentFavoriteKey());
+    if (idx < 0) {
+      // Not currently on a favourite → jump into the list from the matching end.
+      _applyFavorite(v > 0 ? favorites.last : favorites.first);
+      return;
+    }
+    if (favorites.length < 2) return; // a single favourite, already on it
+    final next = v > 0
+        ? (idx - 1 + favorites.length) % favorites.length
+        : (idx + 1) % favorites.length;
+    _applyFavorite(favorites[next]);
+  }
+
+  // Switches the live decor to a starred snapshot (world + variant + mode),
+  // re-syncs ambient sound, and persists it as the current decor.
+  void _applyFavorite(String favorite) {
+    final (env, variant, mode) = parseFavorite(favorite);
+    final decor = encodeDecor(env, variant);
+    if (decor == _decor && mode == _mode) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _decor = decor;
+      _mode = mode;
+    });
+    _syncAmbient();
+    unawaited(_persist(decor, mode));
+    _prewarmNeighbours(); // look ahead to the new neighbours
+  }
+
   // The ☰ fallback paths (and the sheets' "voir tout" buttons): drop immersive,
   // push the full screen, restore immersive on return.
   void _pushImmersive(String route) {
@@ -343,17 +421,46 @@ class _HomeViewState extends ConsumerState<HomeView>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Decor + vertical-swipe to open a sheet. A plain tap still reaches
-          // the decor (its preview burst); only vertical drags open the sheets.
+          // Decor + swipes: vertical opens a sheet (↑ envoyer / ↓ reçus),
+          // horizontal cycles through favourite decors. A plain tap still
+          // reaches the decor (its preview burst); the gesture arena picks the
+          // dominant axis, so the two drag directions never fight.
           GestureDetector(
             behavior: HitTestBehavior.translucent,
             onVerticalDragEnd: _onDragEnd,
-            child: buildDecor(
-              env,
-              variant,
-              _mode,
-              reception: _reception,
-              parallax: parallax,
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            // Switching favourites glides the new world in from the swipe side
+            // (and the old one out the other way) instead of popping. The key is
+            // the decor snapshot, so only an actual world/variant/mode change
+            // triggers a transition — a sheet toggle or a reception burst keeps
+            // the same live decor (and its state) in place.
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 340),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final incoming = child.key == ValueKey('$_decor:${_mode.name}');
+                final begin = Offset(incoming ? _slideDir : -_slideDir, 0);
+                return ClipRect(
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: begin,
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey('$_decor:${_mode.name}'),
+                child: buildDecor(
+                  env,
+                  variant,
+                  _mode,
+                  reception: _reception,
+                  parallax: parallax,
+                ),
+              ),
             ),
           ),
 

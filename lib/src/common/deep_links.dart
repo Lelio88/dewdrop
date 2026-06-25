@@ -46,6 +46,25 @@ class DeepLinks {
   static String inviteScheme(String handle) =>
       '$scheme://$inviteHost?handle=$handle';
 
+  /// Host of the custom-scheme "send a pensée" link
+  /// (`dewdrop://send?to=<handle>`). It is the on-device hook a user wires to a
+  /// voice routine ("Ok Google, envoie une pensée à Lélio") today, and the seam
+  /// the future Gemini AppFunction reuses — opening a one-tap confirm to send a
+  /// pensée to that friend. Custom-scheme only (the app must be installed); no
+  /// HTTPS variant, unlike invites, since there is nothing to land on.
+  static const String sendHost = 'send';
+
+  /// The custom-scheme link asking the app to send a pensée to [handle].
+  static String sendTo(String handle) => '$scheme://$sendHost?to=$handle';
+
+  /// Extracts the recipient handle from a `dewdrop://send?to=<handle>` link, or
+  /// null if [uri] is not one (an invite or an auth callback).
+  static String? sendTarget(Uri uri) {
+    if (uri.scheme != scheme || uri.host != sendHost) return null;
+    final h = uri.queryParameters['to']?.trim().replaceAll('@', '');
+    return (h == null || h.isEmpty) ? null : h;
+  }
+
   /// Extracts the handle from an invite deep link — accepting BOTH the HTTPS web
   /// link and the `dewdrop://invite` custom scheme — or null if [uri] is neither
   /// (e.g. an auth callback, which is supabase_flutter's job, not ours).

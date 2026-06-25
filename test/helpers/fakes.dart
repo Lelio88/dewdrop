@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
+import 'package:dewdrop/src/features/friends/domain/friend.dart';
+import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/groups/domain/group_repository.dart';
 import 'package:dewdrop/src/features/notifications/domain/push_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
+import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
+import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Hand-written fakes (preferred over mocks) — made possible by the repos now
@@ -104,6 +108,25 @@ class FakeProfileRepository implements ProfileRepository {
     savedThoughtPresets = presets;
   }
 
+  String? savedWidgetSource;
+  List<String>? savedWidgetFriends;
+  List<String>? savedDecorFavorites;
+
+  @override
+  Future<void> updateWidgetSource(String source) async {
+    savedWidgetSource = source;
+  }
+
+  @override
+  Future<void> updateWidgetFriends(List<String> friendIds) async {
+    savedWidgetFriends = friendIds;
+  }
+
+  @override
+  Future<void> updateDecorFavorites(List<String> favorites) async {
+    savedDecorFavorites = favorites;
+  }
+
   @override
   Future<void> updateDefaultAnonymous(bool value) async {
     savedDefaultAnonymous = value;
@@ -118,10 +141,7 @@ class FakeProfileRepository implements ProfileRepository {
 
   @override
   Future<void> updateProfile({String? displayName, String? handle}) async {
-    savedProfileUpdate = {
-      'display_name': ?displayName,
-      'handle': ?handle,
-    };
+    savedProfileUpdate = {'display_name': ?displayName, 'handle': ?handle};
   }
 
   @override
@@ -130,6 +150,56 @@ class FakeProfileRepository implements ProfileRepository {
     int? quietEnd,
     String? quietTz,
   }) async {}
+}
+
+class FakeFriendRepository implements FriendRepository {
+  List<Friend> friendsList = const [];
+  Object? friendsError;
+
+  @override
+  Future<List<Friend>> friends() async {
+    if (friendsError != null) throw friendsError!;
+    return friendsList;
+  }
+
+  @override
+  Future<List<IncomingRequest>> incomingRequests() async => const [];
+  @override
+  Future<void> sendRequest(String handle) async {}
+  @override
+  Future<void> acceptRequest(String friendshipId) async {}
+  @override
+  Future<void> removeFriendship(String friendshipId) async {}
+  @override
+  Future<void> block(String userId) async {}
+  @override
+  Future<void> unblock(String userId) async {}
+  @override
+  Future<void> report(String userId, {String? reason}) async {}
+  @override
+  Stream<int> watchChanges() => const Stream<int>.empty();
+}
+
+class FakeThoughtRepository implements ThoughtRepository {
+  /// Every send, in order — assert recipient + anonymity against this.
+  final List<({String recipientId, bool anonymous})> sent = [];
+  Object? sendError;
+
+  @override
+  Future<void> sendThought(String recipientId, {bool anonymous = false}) async {
+    if (sendError != null) throw sendError!;
+    sent.add((recipientId: recipientId, anonymous: anonymous));
+  }
+
+  @override
+  Future<List<ReceivedThought>> receivedThoughts() async => const [];
+
+  @override
+  Future<List<String>> recentlyContactedRecipientIds({int limit = 24}) async =>
+      const [];
+
+  @override
+  Stream<int> watchIncoming() => const Stream<int>.empty();
 }
 
 class FakePushRepository implements PushRepository {

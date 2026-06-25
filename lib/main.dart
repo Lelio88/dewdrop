@@ -5,6 +5,7 @@ import 'package:dewdrop/src/app.dart';
 import 'package:dewdrop/src/common/provider_error_logger.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
+import 'package:dewdrop/src/features/home_widget/widget_background.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
 import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
 import 'package:dewdrop/src/supabase/supabase_config.dart';
@@ -14,6 +15,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -72,6 +74,19 @@ Future<void> main() async {
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.anonKey,
   );
+  // Home-screen widget: route a friend-circle tap to the background isolate
+  // (`dewDropWidgetBackgroundCallback`) so a pensée can be sent without opening
+  // the app. Mobile-only — the plugin has no desktop surface.
+  if (Platform.isAndroid || Platform.isIOS) {
+    try {
+      await HomeWidget.registerInteractivityCallback(
+        dewDropWidgetBackgroundCallback,
+      );
+    } on Object {
+      // Widget wiring must never block app startup (e.g. iOS before the
+      // WidgetKit extension is configured).
+    }
+  }
   final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(

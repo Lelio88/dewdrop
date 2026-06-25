@@ -92,6 +92,33 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   @override
+  Future<void> updateWidgetSource(String source) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'widget_source': source})
+        .eq('id', uid);
+  }
+
+  @override
+  Future<void> updateWidgetFriends(List<String> friendIds) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'widget_friends': friendIds})
+        .eq('id', uid);
+  }
+
+  @override
+  Future<void> updateDecorFavorites(List<String> favorites) async {
+    final uid = _client.auth.currentUser!.id;
+    await _client
+        .from('profiles')
+        .update({'decor_favorites': favorites})
+        .eq('id', uid);
+  }
+
+  @override
   Future<void> updateDefaultAnonymous(bool value) async {
     final uid = _client.auth.currentUser!.id;
     await _client
