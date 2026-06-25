@@ -40,6 +40,19 @@
                 <data android:scheme="dewdrop"/>
             </intent-filter>
         </activity>
+        <!-- Reconfigure trampoline: long-press the widget → "Reconfigure"
+             (Android 12+ launchers) lands here; it bounces into the app on the
+             widget settings screen. configuration_optional in the widget meta
+             keeps it off the first-placement path. No UI of its own. -->
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <!-- Default FCM channel for system-built notifications (app killed):
              routes them to the water-drop "Pensées" channel created at startup. -->
         <meta-data
@@ -59,6 +72,28 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Home-screen widget: a row of friend circles. Tapping a circle is
+             handled in the background (no app launch) by the home_widget plugin
+             receiver below, which runs the Dart dewDropWidgetBackgroundCallback. -->
+        <receiver
+            android:name=".DewDropWidgetProvider"
+            android:label="@string/widget_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dewdrop_widget_info" />
+        </receiver>
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

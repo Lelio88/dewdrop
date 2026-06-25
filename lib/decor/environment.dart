@@ -51,7 +51,14 @@ Widget buildDecor(
   // Every decor runs through the unified pipeline: a parallax [DecorBackdrop]
   // from the 'photo' or 'illustrated' asset tree (the same scene either way),
   // with the decor's bespoke animated FX layered on top.
-  return switch (env) {
+  //
+  // Clip to the decor's own bounds: the backdrop deliberately OVER-draws ~6%
+  // past its edges (warp `_overscale` / legacy layer scale 1.12) so a tilt never
+  // reveals a gap. Un-clipped, that overspill bleeds into whatever sits beside
+  // it — a neighbouring page in the world picker's PageView, or the outgoing
+  // world during the home slide — leaving a thin strip of the wrong world. The
+  // clip confines each decor to its slot without touching the gap-free coverage.
+  final decor = switch (env) {
     Environment.space => SpaceDecor(
       variant: SpaceVariant.values[v],
       assetRoot: assetRoot,
@@ -109,4 +116,5 @@ Widget buildDecor(
       child: child,
     ),
   };
+  return ClipRect(child: decor);
 }

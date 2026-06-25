@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget (DewDropWidgetProvider). -->
+    <string name="widget_label">DewDrop</string>
+    <string name="widget_title">Envoyer une pensée</string>
+    <string name="widget_hint">Ouvre DewDrop pour ajouter des amis</string>
+    <string name="widget_description">Envoie une pensée à un ami en un tap.</string>
+    <string name="widget_sent">Envoyé</string>
+</resources>

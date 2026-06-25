@@ -29,3 +29,16 @@ final receivedThoughtsProvider = FutureProvider<List<ReceivedThought>>((ref) {
   ref.watch(incomingThoughtPulseProvider); // refetch live on each new pensée
   return ref.watch(thoughtRepositoryProvider).receivedThoughts();
 });
+
+/// Recipient ids the signed-in user has most recently sent a pensée to (newest
+/// first, deduped). Drives the home-screen widget's "auto (derniers contacts)"
+/// ordering. Empty when signed out. Refetched on sign in/out and on app resume
+/// (see `app.dart`) — there is no live "sent" stream, and slight staleness of
+/// the widget order is harmless.
+final recentContactsProvider = FutureProvider<List<String>>((ref) {
+  ref.watch(authStateChangesProvider); // refetch on sign in/out
+  if (ref.watch(authRepositoryProvider).currentSession == null) {
+    return <String>[];
+  }
+  return ref.watch(thoughtRepositoryProvider).recentlyContactedRecipientIds();
+});

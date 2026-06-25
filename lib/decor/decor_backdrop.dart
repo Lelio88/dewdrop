@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:dewdrop/decor/decor_image_cache.dart';
 import 'package:dewdrop/decor/tilt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -101,7 +102,22 @@ class _DecorBackdropState extends State<DecorBackdrop>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
-    _load();
+    // If the scene is already decoded (a pre-warmed neighbour, or a sibling
+    // page in the picker), adopt it synchronously so the very FIRST frame
+    // paints the photo — no base-colour flash. Otherwise [_load] fetches it.
+    final cached = DecorImageCache.instance.peek(
+      widget.assetRoot,
+      widget.env,
+      widget.variant,
+    );
+    if (cached != null) {
+      _full = cached.full.clone();
+      _depth = cached.depth;
+      _dCols = cached.cols;
+      _dRows = cached.rows;
+    } else {
+      _load();
+    }
   }
 
   @override
@@ -110,32 +126,48 @@ class _DecorBackdropState extends State<DecorBackdrop>
     if (old.env != widget.env ||
         old.variant != widget.variant ||
         old.assetRoot != widget.assetRoot) {
-      _full = null;
-      _depth = null;
-      _layers = const [];
+      // Keep the current scene painting until the new one is ready (the cache
+      // usually makes that instant); [_load] then swaps it in one setState.
       _load();
     }
   }
 
+  // True while this widget still wants what `_load` is fetching — guards against
+  // a stale async return overwriting a newer env/variant (didUpdateWidget can
+  // fire a second `_load` before the first resolves).
+  bool _isCurrent(String root, String env, int variant) =>
+      mounted &&
+      root == widget.assetRoot &&
+      env == widget.env &&
+      variant == widget.variant;
+
   Future<void> _load() async {
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final dir = 'assets/${widget.assetRoot}/${widget.env}/${widget.variant}/';
-    final assets = manifest.listAssets().toSet();
-    if (assets.contains('${dir}full.webp') &&
-        assets.contains('${dir}depth.webp')) {
-      final full = await _loadImage('${dir}full.webp');
-      final depth = await _loadDepth('${dir}depth.webp');
-      if (!mounted) return;
+    final root = widget.assetRoot, env = widget.env, variant = widget.variant;
+
+    // Depth-warp scenes come from the shared cache: a clone() onto its decoded
+    // image, so an eviction can never dispose what we're painting, and a
+    // pre-warmed neighbour paints on the first frame (no base-colour flash).
+    final scene = await DecorImageCache.instance.scene(root, env, variant);
+    if (!_isCurrent(root, env, variant)) return;
+    if (scene != null) {
       setState(() {
-        _full = full;
-        _depth = depth.$1;
-        _dCols = depth.$2;
-        _dRows = depth.$3;
+        _full?.dispose();
+        _full = scene.full.clone();
+        _depth = scene.depth;
+        _dCols = scene.cols;
+        _dRows = scene.rows;
+        _layers = const [];
       });
       return;
     }
+
+    // Legacy fallback: scenes that still ship numbered cut layers.
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    if (!_isCurrent(root, env, variant)) return;
+    final dir = 'assets/$root/$env/$variant/';
     final layers =
-        assets
+        manifest
+            .listAssets()
             .where(
               (a) =>
                   a.startsWith(dir) &&
@@ -143,30 +175,12 @@ class _DecorBackdropState extends State<DecorBackdrop>
             )
             .toList()
           ..sort();
-    if (!mounted) return;
-    setState(() => _layers = layers);
-  }
-
-  Future<ui.Image> _loadImage(String key) async {
-    final data = await rootBundle.load(key);
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-    return (await codec.getNextFrame()).image;
-  }
-
-  // Decode the small grayscale depth map straight into a per-vertex grid
-  // (near = 1.0). The depth map's resolution IS the warp mesh resolution.
-  Future<(Float32List, int, int)> _loadDepth(String key) async {
-    final data = await rootBundle.load(key);
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-    final img = (await codec.getNextFrame()).image;
-    final cols = img.width, rows = img.height;
-    final bytes = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
-    img.dispose();
-    final grid = Float32List(cols * rows);
-    for (var i = 0; i < grid.length; i++) {
-      grid[i] = bytes!.getUint8(i * 4) / 255.0; // R channel
-    }
-    return (grid, cols, rows);
+    setState(() {
+      _full?.dispose();
+      _full = null;
+      _depth = null;
+      _layers = layers;
+    });
   }
 
   void _onTick(Duration elapsed) {

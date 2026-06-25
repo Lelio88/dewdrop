@@ -8,6 +8,7 @@ import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
 import 'package:dewdrop/decor/space_decor.dart';
 import 'package:dewdrop/decor/underwater_decor.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -25,6 +26,10 @@ void main() {
     // pipeline: buildDecor always returns the env's bespoke decor, differing
     // only by the asset tree it pulls (photo vs illustrated). Both modes thus
     // produce the same widget type per environment.
+    //
+    // buildDecor wraps each decor in a ClipRect (so the backdrop's ~6% edge
+    // overspill can't bleed into a neighbouring world during a carousel/PageView
+    // swipe); the bespoke renderer is the clip's child.
     final expected = <Environment, Matcher>{
       Environment.space: isA<SpaceDecor>(),
       Environment.underwater: isA<UnderwaterDecor>(),
@@ -38,7 +43,9 @@ void main() {
     };
     for (final mode in RenderMode.values) {
       expected.forEach((env, matcher) {
-        expect(buildDecor(env, 0, mode), matcher, reason: '${env.name}/$mode');
+        final built = buildDecor(env, 0, mode);
+        expect(built, isA<ClipRect>(), reason: '${env.name}/$mode');
+        expect((built as ClipRect).child, matcher, reason: '${env.name}/$mode');
       });
     }
   });

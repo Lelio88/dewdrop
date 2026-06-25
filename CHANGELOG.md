@@ -3,6 +3,95 @@
 Évolutions notables de DewDrop. Format inspiré de
 [Keep a Changelog](https://keepachangelog.com/fr/).
 
+## [0.9.7+20] — 2026-06-25
+
+### Ajouté
+
+- 💬 **Envoyer une pensée par lien** : nouveau deep link
+  `dewdrop://send?to=<pseudo>` qui ouvre une **confirmation en un tap** pour
+  envoyer une pensée à cet ami. C'est le point d'accroche pour brancher une
+  routine vocale (« Ok Google, envoie une pensée à … ») dès aujourd'hui, et la
+  base que réutilisera la future intégration **Gemini AppFunctions**. La
+  résolution du nom tolère accents, casse, pseudo **ou** nom affiché.
+
+### Corrigé
+
+- 🎞️ **Slide des décors favoris** : sur l'écran principal, changer de favori
+  d'un geste **glisse** maintenant le nouveau monde depuis le côté du doigt (au
+  lieu d'apparaître d'un coup).
+- 🩹 **Colonne fantôme** dans le panneau Univers : en changeant d'ambiance, une
+  fine bande verticale du monde précédent restait parfois affichée. Chaque décor
+  est désormais clippé à ses bords (le fond déborde volontairement de ~6 % pour
+  la parallaxe ; ce débord bavait sur le monde voisin).
+- ⚡ **Plus de flash au changement de décor favori** : les mondes voisins sont
+  pré-décodés dans un cache d'images partagé, donc le nouveau décor s'affiche
+  dès la première frame du slide au lieu de montrer brièvement sa couleur de
+  fond (cache plafonné, ~33 Mo en usage courant, libéré à l'éviction).
+
+### Note interne
+
+- Socle « envoi sans interface » posé pour la suite : un résolveur d'ami pur
+  (`matchFriend`, testé) et une capability headless (`QuickSendService`) qui
+  lit le repo amis en direct et envoie sans aucun widget — exactement ce
+  qu'appellera la fonction vocale native quand l'API AppFunctions sortira de
+  preview. Le service natif Kotlin reste **déféré** (API en preview, 2 modèles
+  de téléphone). Aucune donnée supplémentaire collectée ; un envoi par lien
+  reste soumis au RLS (impossible d'écrire à un non-ami).
+
+## [0.9.6+19] — 2026-06-25
+
+### Ajouté
+
+- ⭐ **Décors favoris** : dans le panneau Univers, l'icône en haut à gauche est
+  maintenant une **étoile** — touche-la pour mettre la vue en cours (monde +
+  variante + dessin/photo) en favori, retouche-la pour l'enlever. Tes favoris
+  sont **synchronisés** sur ton compte.
+- 👆 **Changer de décor d'un geste** : sur l'écran principal, **glisse
+  horizontalement** pour passer d'un favori à l'autre (droite = précédent,
+  gauche = suivant, en boucle), sans rouvrir le panneau.
+
+### Modifié
+
+- La **croix de fermeture** du panneau Univers laisse sa place à l'étoile : on
+  ferme désormais avec le bouton « Choisir ce monde » ou le geste retour.
+
+## [0.9.5+18] — 2026-06-24
+
+### Modifié
+
+- 🛠️ **Le réglage du widget se fait depuis le widget lui-même** : fais un **appui
+  long sur le widget → « Reconfigurer »** pour choisir tes amis et leur ordre.
+  L'entrée correspondante dans les Réglages de l'app a été retirée.
+  *(Le « Reconfigurer » dépend de ton launcher Android ; s'il ne l'affiche pas, le
+  mode « derniers contacts » automatique reste actif par défaut.)*
+
+## [0.9.4+17] — 2026-06-24
+
+### Ajouté
+
+- 🎚️ **Réglage du widget** : choisis **qui** apparaît sur ton widget d'écran
+  d'accueil — soit **automatiquement** tes derniers contacts (les amis à qui tu
+  as envoyé une pensée le plus récemment), soit **ta propre sélection** de
+  jusqu'à 4 amis, **réordonnables**. Depuis Réglages → « Widget d'écran
+  d'accueil ».
+- ✅ **Confirmation d'envoi sur le widget** : après un tap, le rond de l'ami
+  affiche un **✓ « Envoyé »** pendant quelques secondes, puis revient à la
+  normale — sans ouvrir l'app.
+
+### Modifié
+
+- 📐 Le widget ne peut plus être **étiré en hauteur** (il gardait des vides) :
+  il se redimensionne désormais en largeur uniquement.
+
+## [0.9.3+16] — 2026-06-24
+
+### Ajouté
+
+- 🏠 **Widget d'écran d'accueil (Android)** : pose une rangée de tes amis sur ton
+  écran d'accueil et **envoie une pensée d'un seul tap, sans ouvrir l'app**. Un
+  court délai anti-double-envoi évite les envois en rafale. L'anonymat suit ton
+  réglage par défaut.
+
 ## [0.9.2+15] — 2026-06-23
 
 ### Ajouté

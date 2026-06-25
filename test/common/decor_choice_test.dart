@@ -59,4 +59,51 @@ void main() {
       () => expect(parseRenderMode('whatever'), RenderMode.photo),
     );
   });
+
+  group('encodeFavorite / parseFavorite', () {
+    test('encodes env + variant + mode', () {
+      expect(
+        encodeFavorite(Environment.forest, 1, RenderMode.photo),
+        'forest:1:photo',
+      );
+      expect(
+        encodeFavorite(Environment.space, 0, RenderMode.drawn),
+        'space:0:drawn',
+      );
+    });
+
+    test('parses "<env>:<variant>:<mode>"', () {
+      final (env, v, mode) = parseFavorite('beach:2:drawn');
+      expect(env, Environment.beach);
+      expect(v, 2);
+      expect(mode, RenderMode.drawn);
+    });
+
+    test('a plain "<env>:<variant>" (no mode) defaults to photo', () {
+      final (env, v, mode) = parseFavorite('mountain:1');
+      expect(env, Environment.mountain);
+      expect(v, 1);
+      expect(mode, RenderMode.photo);
+    });
+
+    test('falls back like parseDecor on garbage', () {
+      final (env, v, mode) = parseFavorite('atlantis:abc:whatever');
+      expect(env, Environment.space); // unknown env
+      expect(v, 0); // non-numeric variant
+      expect(mode, RenderMode.photo); // unknown mode
+    });
+
+    test('round-trips for every valid decor in both modes', () {
+      for (final env in Environment.values) {
+        for (var v = 0; v < env.variantCount; v++) {
+          for (final m in RenderMode.values) {
+            final (e2, v2, m2) = parseFavorite(encodeFavorite(env, v, m));
+            expect(e2, env, reason: 'env ${env.name}:$v:${m.name}');
+            expect(v2, v, reason: 'variant ${env.name}:$v:${m.name}');
+            expect(m2, m, reason: 'mode ${env.name}:$v:${m.name}');
+          }
+        }
+      }
+    });
+  });
 }

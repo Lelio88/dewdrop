@@ -8,6 +8,10 @@ abstract interface class ThoughtRepository {
 
   Future<List<ReceivedThought>> receivedThoughts();
 
+  /// The recipient ids this user has most recently sent a pensée to (newest
+  /// first, deduped). Orders the home-screen widget's "auto" friend slots.
+  Future<List<String>> recentlyContactedRecipientIds({int limit = 24});
+
   /// Emits an incrementing tick for every pensée received **live** (a new row
   /// addressed to the current user). Drives the decor's reception burst and a
   /// refresh of the received-thoughts list while the app is open. The value is
