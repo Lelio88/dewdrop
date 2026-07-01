@@ -6,6 +6,7 @@ import 'package:dewdrop/decor/decor_image_cache.dart';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
+import 'package:dewdrop/src/common/seasonal.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
@@ -13,12 +14,14 @@ import 'package:dewdrop/src/features/notifications/application/push_providers.da
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
+import 'package:dewdrop/src/features/home/domain/home_sheet.dart';
 import 'package:dewdrop/src/features/home/presentation/dewdrop_loader.dart';
 import 'package:dewdrop/src/features/home/presentation/received_peek.dart';
 import 'package:dewdrop/src/features/home/presentation/send_dock.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
 import 'package:dewdrop/src/features/settings/application/decor_favorites_provider.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
+import 'package:dewdrop/src/features/settings/application/seasonal_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -83,9 +86,6 @@ class _HomeGateState extends ConsumerState<HomeGate> {
   }
 }
 
-/// Which gesture sheet is currently revealed on the home.
-enum _HomeSheet { none, send, recus }
-
 /// The live home: the user's chosen decor as a full-screen background, with a
 /// minimal floating UI over it. The decor is kept in local state so changes
 /// from the picker apply instantly (and persist to the profile in background).
@@ -108,9 +108,11 @@ class _HomeViewState extends ConsumerState<HomeView>
   // bursts when a pensée is received. Disposed with the view.
   final ReceptionSignal _reception = ReceptionSignal();
 
-  // Which gesture sheet is open (swipe ↑ = envoyer, swipe ↓ = pensées reçues).
-  // Both paths also live in the ☰ menu, since a gesture isn't discoverable.
-  _HomeSheet _sheet = _HomeSheet.none;
+  // Which gesture sheet is open + how far (peek vs full). Swipe ↑ = envoyer,
+  // swipe ↓ = pensées reçues; a second swipe the same way escalates the sheet to
+  // full screen (see [nextSheetState]). Both paths also live in the ☰ menu,
+  // since a gesture isn't discoverable.
+  SheetState _sheetState = SheetState.closed;
   bool _showHint = false; // one-time "swipe" hint on the first home view
 
   // Direction the next favourite slides in from: +1 = from the right (swiped
@@ -148,6 +150,10 @@ class _HomeViewState extends ConsumerState<HomeView>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_sound.resumeAll());
+      // A day boundary may have crossed while backgrounded — re-sample the
+      // marronnier window (into/out of Halloween, Noël…). The build's
+      // ref.listen re-syncs the ambience if the lock flipped.
+      ref.invalidate(seasonalOverrideProvider);
       // Realtime may have missed events while backgrounded — catch up.
       unawaited(_checkUnseenOnOpen());
       // Re-assert immersive, but only if the decor is on top: a pushed screen
@@ -160,9 +166,12 @@ class _HomeViewState extends ConsumerState<HomeView>
     }
   }
 
-  /// Drive the soundscape (ambiance + music + one-shots) for the current decor.
+  /// Drive the soundscape (ambiance + music + one-shots) for the current decor —
+  /// the marronnier's forced world if one is active, else the user's own — so
+  /// the ambience always matches what's actually on screen.
   void _syncAmbient() {
-    final (env, _) = parseDecor(_decor);
+    final s = ref.read(seasonalOverrideProvider);
+    final (env, _) = parseDecor(s?.decor ?? _decor);
     unawaited(_sound.setEnvironment(env.name));
   }
 
@@ -216,37 +225,28 @@ class _HomeViewState extends ConsumerState<HomeView>
   }
 
   // ── Gesture sheets (swipe ↑ envoyer / ↓ pensées reçues) ────────────────────
-  void _openSend() {
-    if (_sheet != _HomeSheet.send) {
-      setState(() => _sheet = _HomeSheet.send);
-    }
-  }
+  // The ☰ menu + top/bottom handles open a sheet at its peek stage.
+  void _openSend() => setState(
+    () => _sheetState = const SheetState(HomeSheet.send, SheetStage.peek),
+  );
 
-  void _openRecus() {
-    if (_sheet != _HomeSheet.recus) {
-      setState(() => _sheet = _HomeSheet.recus);
-    }
-  }
+  void _openRecus() => setState(
+    () => _sheetState = const SheetState(HomeSheet.recus, SheetStage.peek),
+  );
 
   void _closeSheets() {
-    if (_sheet != _HomeSheet.none) {
-      setState(() => _sheet = _HomeSheet.none);
-    }
+    if (_sheetState.isOpen) setState(() => _sheetState = SheetState.closed);
   }
 
-  // A vertical fling opens the matching sheet (or closes an open one). A plain
-  // tap on the decor still triggers its preview burst (different gesture).
+  // A vertical fling drives the sheet state machine: from closed it opens the
+  // matching sheet (↑ envoyer / ↓ reçus) at peek; a second fling the same way
+  // escalates to full, the opposite way retreats one level (peek → closed, full
+  // → peek). See [nextSheetState]. A plain tap on the decor still triggers its
+  // preview burst — a different gesture the arena resolves.
   void _onDragEnd(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
-    if (_sheet != _HomeSheet.none) {
-      _closeSheets();
-      return;
-    }
-    if (v < -250) {
-      _openSend();
-    } else if (v > 250) {
-      _openRecus();
-    }
+    if (v.abs() < 250) return;
+    setState(() => _sheetState = nextSheetState(_sheetState, up: v < 0));
   }
 
   // The favourite snapshot ("<env>:<variant>:<mode>") currently on screen.
@@ -260,6 +260,8 @@ class _HomeViewState extends ConsumerState<HomeView>
   // instead of briefly flashing its flat base colour while the photo decodes.
   // No-op when fewer than two favourites, or when not currently on a favourite.
   void _prewarmNeighbours() {
+    // No neighbours to warm while a marronnier locks the world.
+    if (ref.read(seasonalOverrideProvider) != null) return;
     final favorites = ref.read(decorFavoritesProvider);
     if (favorites.length < 2) return;
     final idx = favorites.indexOf(_currentFavoriteKey());
@@ -280,7 +282,9 @@ class _HomeViewState extends ConsumerState<HomeView>
   // vertical sheets, so a lazy drag doesn't switch worlds by accident. The
   // chosen favourite becomes the live + persisted selection.
   void _onHorizontalDragEnd(DragEndDetails d) {
-    if (_sheet != _HomeSheet.none) return;
+    if (_sheetState.isOpen) return;
+    // Locked to a single world during a marronnier — no favourite cycling.
+    if (ref.read(seasonalOverrideProvider) != null) return;
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 250) return;
     final favorites = ref.read(decorFavoritesProvider);
@@ -403,8 +407,18 @@ class _HomeViewState extends ConsumerState<HomeView>
 
   @override
   Widget build(BuildContext context) {
-    final (env, variant) = parseDecor(_decor);
+    final seasonal = ref.watch(seasonalOverrideProvider);
+    // The world actually shown: the marronnier's forced decor when one is active
+    // (display-only — never persisted, so the user's own decor returns when the
+    // window closes), otherwise the user's live choice.
+    final decorStr = seasonal?.decor ?? _decor;
+    final mode = seasonal?.mode ?? _mode;
+    final (env, variant) = parseDecor(decorStr);
     final parallax = ref.watch(parallaxEnabledProvider);
+
+    // When the marronnier window flips (e.g. resume across midnight), follow the
+    // new world's ambience.
+    ref.listen(seasonalOverrideProvider, (_, _) => _syncAmbient());
 
     // Live: a pensée arrives while the app is open -> burst now.
     ref.listen(incomingThoughtPulseProvider, (_, next) {
@@ -415,7 +429,15 @@ class _HomeViewState extends ConsumerState<HomeView>
     });
 
     final w = Colors.white;
-    final open = _sheet != _HomeSheet.none;
+    final open = _sheetState.isOpen;
+    final media = MediaQuery.of(context);
+    final fullH = media.size.height * 0.9;
+    final sendFull =
+        _sheetState.sheet == HomeSheet.send &&
+        _sheetState.stage == SheetStage.full;
+    final recusFull =
+        _sheetState.sheet == HomeSheet.recus &&
+        _sheetState.stage == SheetStage.full;
 
     return Scaffold(
       body: Stack(
@@ -439,7 +461,8 @@ class _HomeViewState extends ConsumerState<HomeView>
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, animation) {
-                final incoming = child.key == ValueKey('$_decor:${_mode.name}');
+                final incoming =
+                    child.key == ValueKey('$decorStr:${mode.name}');
                 final begin = Offset(incoming ? _slideDir : -_slideDir, 0);
                 return ClipRect(
                   child: SlideTransition(
@@ -452,11 +475,11 @@ class _HomeViewState extends ConsumerState<HomeView>
                 );
               },
               child: KeyedSubtree(
-                key: ValueKey('$_decor:${_mode.name}'),
+                key: ValueKey('$decorStr:${mode.name}'),
                 child: buildDecor(
                   env,
                   variant,
-                  _mode,
+                  mode,
                   reception: _reception,
                   parallax: parallax,
                 ),
@@ -512,38 +535,58 @@ class _HomeViewState extends ConsumerState<HomeView>
             ),
           ),
 
-          // Send dock (swipe ↑).
+          // Send dock (swipe ↑; a second ↑ expands it to full screen).
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedSlide(
-              offset: _sheet == _HomeSheet.send
+              offset: _sheetState.sheet == HomeSheet.send
                   ? Offset.zero
                   : const Offset(0, 1.1),
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
               child: _SheetPanel(
-                child: SendDock(onSeeAll: () => _pushImmersive('/send')),
+                height: sendFull ? fullH : null,
+                onGrabDrag: _onDragEnd,
+                child: SendDock(
+                  expanded: sendFull,
+                  onSeeAll: () => _pushImmersive('/send'),
+                ),
               ),
             ),
           ),
 
-          // Received peek (swipe ↓).
+          // Received peek (swipe ↓; a second ↓ expands it to full screen).
           Align(
             alignment: Alignment.topCenter,
             child: AnimatedSlide(
-              offset: _sheet == _HomeSheet.recus
+              offset: _sheetState.sheet == HomeSheet.recus
                   ? Offset.zero
                   : const Offset(0, -1.1),
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
               child: _SheetPanel(
                 top: true,
+                height: recusFull ? fullH : null,
+                onGrabDrag: _onDragEnd,
                 child: ReceivedPeek(
+                  expanded: recusFull,
                   onSeeAll: () => _pushImmersive('/thoughts'),
                 ),
               ),
             ),
           ),
+
+          // Marronnier lock badge — explains why the world can't be changed.
+          if (seasonal != null && !open)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: _SeasonalBadge(event: seasonal),
+                ),
+              ),
+            ),
 
           // One-time "swipe" hint.
           IgnorePointer(
@@ -556,7 +599,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 64),
                     child: Text(
-                      'glisse ↑ pour envoyer · ↓ pour tes pensées',
+                      'glisse ↑ envoyer · ↓ tes pensées · re-glisse = plein écran',
                       style: TextStyle(
                         color: w.withValues(alpha: 0.6),
                         fontSize: 13,
@@ -581,6 +624,7 @@ class _HomeMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final white = Colors.white;
+    final seasonal = ref.watch(seasonalOverrideProvider);
     final media = MediaQuery.of(context);
     // viewPadding (not padding): the inset survives even when the nav bar is
     // hidden by immersive mode, so the bottom items stay above where it sits.
@@ -700,18 +744,36 @@ class _HomeMenu extends ConsumerWidget {
                   ),
                   onTap: () => Navigator.of(context).pop('friends'),
                 ),
+                // Univers — locked shut while a marronnier owns the screen; the
+                // user's own world returns on its own once the window closes.
                 ListTile(
                   contentPadding: EdgeInsets.zero,
+                  enabled: seasonal == null,
                   leading: Icon(
                     Icons.palette_outlined,
-                    color: white.withValues(alpha: 0.85),
+                    color: white.withValues(
+                      alpha: seasonal == null ? 0.85 : 0.4,
+                    ),
                   ),
                   title: const Text('Univers'),
+                  subtitle: seasonal == null
+                      ? null
+                      : Text(
+                          '${seasonal.emoji} ${seasonal.label} — verrouillé pour aujourd’hui',
+                          style: TextStyle(
+                            color: white.withValues(alpha: 0.5),
+                            fontSize: 12,
+                          ),
+                        ),
                   trailing: Icon(
-                    Icons.chevron_right,
+                    seasonal == null
+                        ? Icons.chevron_right
+                        : Icons.lock_outline_rounded,
                     color: white.withValues(alpha: 0.5),
                   ),
-                  onTap: () => Navigator.of(context).pop('decor'),
+                  onTap: seasonal == null
+                      ? () => Navigator.of(context).pop('decor')
+                      : null,
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -816,19 +878,61 @@ class _Handle extends StatelessWidget {
 }
 
 /// Glass panel hosting a gesture sheet's content. [top] flips the rounded
-/// corners + the safe-area inset so the same panel works sliding from the top
+/// corners + safe-area inset so the same panel works sliding from the top
 /// (pensées reçues) or the bottom (envoyer).
+///
+/// Two stages: at peek [height] is null and the panel hugs its content; at full
+/// [height] is set and the panel grows to it, giving its child an [Expanded]
+/// slot (so the child MUST provide its own scrollable fill). The peek↔full
+/// height change is animated by [AnimatedSize] (which clips mid-transition, so
+/// no overflow). A grabber bar on the sheet's inner edge forwards a vertical
+/// drag to [onGrabDrag], so full can be dragged back down even when the panel
+/// covers most of the scrim.
 class _SheetPanel extends StatelessWidget {
-  const _SheetPanel({required this.child, this.top = false});
+  const _SheetPanel({
+    required this.child,
+    this.top = false,
+    this.height,
+    this.onGrabDrag,
+  });
 
   final Widget child;
   final bool top;
+  final double? height;
+  final GestureDragEndCallback? onGrabDrag;
 
   @override
   Widget build(BuildContext context) {
     final w = Colors.white;
     final media = MediaQuery.of(context);
     final inset = top ? media.viewPadding.top : media.viewPadding.bottom;
+    final expanded = height != null;
+
+    final grabber = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragEnd: onGrabDrag,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: w.withValues(alpha: 0.28),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+
+    final inner = Column(
+      mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (!top) grabber,
+        if (expanded) Expanded(child: child) else child,
+        if (top) grabber,
+      ],
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.vertical(
         top: top ? Radius.zero : const Radius.circular(26),
@@ -836,19 +940,60 @@ class _SheetPanel extends StatelessWidget {
       ),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              20,
+              top ? 8 + inset : 10,
+              20,
+              top ? 10 : 8 + inset,
+            ),
+            decoration: BoxDecoration(
+              color: w.withValues(alpha: 0.10),
+              border: Border.all(color: w.withValues(alpha: 0.16)),
+            ),
+            child: expanded ? SizedBox(height: height, child: inner) : inner,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small glass pill shown on the home while a marronnier locks the world,
+/// e.g. "🎃 Halloween". Explains why the universe can't be changed today.
+class _SeasonalBadge extends StatelessWidget {
+  const _SeasonalBadge({required this.event});
+
+  final SeasonalEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = Colors.white;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(99),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(
-            20,
-            top ? 14 + inset : 16,
-            20,
-            top ? 18 : 18 + inset,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: w.withValues(alpha: 0.10),
-            border: Border.all(color: w.withValues(alpha: 0.16)),
+            borderRadius: BorderRadius.circular(99),
+            color: Colors.black.withValues(alpha: 0.28),
+            border: Border.all(color: w.withValues(alpha: 0.22)),
           ),
-          child: child,
+          child: Text(
+            '${event.emoji}  ${event.label}',
+            style: TextStyle(
+              color: w.withValues(alpha: 0.92),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.3,
+            ),
+          ),
         ),
       ),
     );

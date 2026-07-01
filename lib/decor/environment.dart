@@ -1,8 +1,11 @@
+import 'package:dewdrop/decor/april_decor.dart';
 import 'package:dewdrop/decor/aurora_decor.dart';
 import 'package:dewdrop/decor/beach_decor.dart';
+import 'package:dewdrop/decor/christmas_decor.dart';
 import 'package:dewdrop/decor/desert_decor.dart';
 import 'package:dewdrop/decor/fields_decor.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
+import 'package:dewdrop/decor/halloween_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
@@ -23,13 +26,29 @@ enum Environment {
   mountain('Montagne', Icons.landscape, ['Aube', 'Nuit']),
   desert('Désert', Icons.nights_stay, ['Dunes', 'Étoilé']),
   aurora('Aurores boréales', Icons.ac_unit, ['Émeraude', 'Magenta']),
-  fields('Champs', Icons.grass, ['Prairie', 'Blé']);
+  fields('Champs', Icons.grass, ['Prairie', 'Blé']),
+  // Seasonal "marronnier" worlds — hidden from the normal univers picker (see
+  // [seasonal]); shown only when their date window forces them onto the home.
+  // Single scene each: the lock leaves nothing to switch between.
+  christmas('Noël', Icons.celebration, ['Scène'], seasonal: true),
+  halloween('Halloween', Icons.nightlight_round, ['Scène'], seasonal: true),
+  april('1er avril', Icons.construction, ['Scène'], seasonal: true);
 
-  const Environment(this.label, this.icon, this.variants);
+  const Environment(
+    this.label,
+    this.icon,
+    this.variants, {
+    this.seasonal = false,
+  });
 
   final String label;
   final IconData icon;
   final List<String> variants;
+
+  /// A date-gated marronnier world (Noël / Halloween / 1er avril). Excluded from
+  /// the normal univers picker; only ever shown through the seasonal lock on the
+  /// home screen.
+  final bool seasonal;
 
   int get variantCount => variants.length;
 }
@@ -110,6 +129,24 @@ Widget buildDecor(
       child: child,
     ),
     Environment.fields => FieldsDecor(
+      variant: v,
+      assetRoot: assetRoot,
+      reception: reception,
+      child: child,
+    ),
+    Environment.christmas => ChristmasDecor(
+      variant: v,
+      assetRoot: assetRoot,
+      reception: reception,
+      child: child,
+    ),
+    Environment.halloween => HalloweenDecor(
+      variant: v,
+      assetRoot: assetRoot,
+      reception: reception,
+      child: child,
+    ),
+    Environment.april => AprilDecor(
       variant: v,
       assetRoot: assetRoot,
       reception: reception,

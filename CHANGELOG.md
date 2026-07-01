@@ -3,6 +3,40 @@
 Évolutions notables de DewDrop. Format inspiré de
 [Keep a Changelog](https://keepachangelog.com/fr/).
 
+## [0.9.8+21] — 2026-07-01
+
+### Ajouté
+
+- 👆 **Gestes à deux crans sur l'accueil** : les aperçus tirés au doigt
+  (glisser ↓ = pensées reçues, glisser ↑ = envoi rapide) s'ouvrent d'abord en
+  petit ; **refaire le même geste** les agrandit en **plein écran** — tout
+  l'historique côté reçus, tous les amis & cercles côté envoi, le tout sur
+  place. Le geste inverse (ou la petite poignée) referme un cran à la fois.
+- 🎃 **Univers marronniers verrouillés** : à certaines dates, un univers de
+  saison dédié prend l'écran et ne peut pas être changé — **Noël** (24–25/12,
+  intérieur cosy : sapin, cadeaux, cookies + lait, cheminée, baie vitrée
+  enneigée), **Halloween** (31/10, forêt de citrouilles brumeuse) et **1er
+  avril** (01/04, chantier « monde en travaux »). Chacun a ses effets animés
+  (neige + lueur de cheminée / brume + orbes flottants / gyrophares ambrés qui
+  clignotent). Le swipe entre favoris et le sélecteur d'univers sont désactivés
+  le temps de la fenêtre ; ton univers habituel revient tout seul après. Un
+  petit badge explique pourquoi (« 🎃 Halloween »).
+
+### Note interne
+
+- Le verrou marronnier est **display-only** : le décor de saison n'est jamais
+  enregistré sur le profil, donc le choix perso est intact au retour. Les trois
+  mondes sont de vrais `Environment` (fond dessin **et** photo générés par le
+  pipeline `depth_split`), **masqués du sélecteur** normal (`Environment.seasonal`)
+  — ils n'apparaissent que via le verrou. Chaque monde a aussi son **audio
+  sur-mesure** (2 couches, `tools/sounds/build_seasonal.sh`) : sources CC0
+  (OpenGameArt/Freesound) sauf **deux** pistes **CC BY** créditées **in-app**
+  (« À propos & crédits ») — la boîte à musique de Noël (Brahms, Gregor Quendel)
+  et le marteau-piqueur du 1er avril (Tomlija). Cœurs
+  purs testés : `nextSheetState` (machine à états du geste) et
+  `activeSeasonalEvent` (fenêtres de dates). Aucune migration, aucune donnée
+  supplémentaire.
+
 ## [0.9.7+20] — 2026-06-25
 
 ### Ajouté

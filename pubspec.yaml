@@ -1,7 +1,7 @@
 name: dewdrop
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.9.7+20
+version: 0.9.8+21
 
 environment:
   sdk: ^3.11.5
@@ -62,6 +62,9 @@ flutter:
     - assets/photo/aurora/1/
     - assets/photo/fields/0/
     - assets/photo/fields/1/
+    - assets/photo/christmas/0/
+    - assets/photo/halloween/0/
+    - assets/photo/april/0/
     - assets/illustrated/space/0/
     - assets/illustrated/space/1/
     - assets/illustrated/space/2/
@@ -82,3 +85,6 @@ flutter:
     - assets/illustrated/aurora/1/
     - assets/illustrated/fields/0/
     - assets/illustrated/fields/1/
+    - assets/illustrated/christmas/0/
+    - assets/illustrated/halloween/0/
+    - assets/illustrated/april/0/

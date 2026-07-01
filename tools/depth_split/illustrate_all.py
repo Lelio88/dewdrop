@@ -55,6 +55,9 @@ STRENGTH = {
     "forest": 0.60, "library": 0.60, "fields": 0.60, "mountain": 0.58,
     "beach": 0.55, "desert": 0.52, "aurora": 0.45, "underwater": 0.45,
     "space": 0.35,
+    # Seasonal worlds: keep detail readable (interior props, pumpkins, machinery)
+    # so a strong watercolor doesn't dissolve the subject.
+    "christmas": 0.58, "halloween": 0.52, "april": 0.48,
 }
 # Per-(env/variant) overrides for variants that differ from their scene default.
 # Per-(env/variant) overrides. Gentler where a strong style drifts off the source
@@ -69,6 +72,11 @@ DESC = {
     "desert": "desert dunes", "aurora": "aurora borealis night sky",
     "underwater": "underwater ocean scene", "space": "deep space, stars, milky way",
     "fields": "summer countryside field, meadow and wheat, warm light",
+    "christmas": "cozy Christmas living room interior, decorated tree, gifts, "
+    "fireplace, snowy window at night",
+    "halloween": "misty autumn forest at night, glowing carved pumpkins, full moon",
+    "april": "urban roadworks construction site at dusk, traffic cones, "
+    "scaffolding, crane",
 }
 
 

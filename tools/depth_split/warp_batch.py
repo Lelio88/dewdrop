@@ -5,6 +5,7 @@ the legacy numbered cut layers afterwards so each scene ships only the warp pair
 Run:  python warp_batch.py
 """
 
+import argparse
 import glob
 import os
 import re
@@ -15,7 +16,9 @@ import split_layers as SL  # noqa: E402
 import warp_assets as WA  # noqa: E402
 
 ENVS = ["space", "underwater", "forest", "beach", "library", "mountain",
-        "desert", "aurora", "fields"]
+        "desert", "aurora", "fields",
+        # Seasonal "marronnier" worlds (single variant each).
+        "christmas", "halloween", "april"]
 
 
 def src_for(env: str, v: int, kind: str) -> str | None:
@@ -38,9 +41,20 @@ def clean_layers(d: str) -> None:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--only",
+        default="",
+        help="comma-separated env names to limit to (e.g. "
+        "'christmas,halloween,april'); default = all scenes",
+    )
+    args = ap.parse_args()
+    only = {s for s in args.only.split(",") if s}
+    envs = [e for e in ENVS if not only or e in only]
+
     pipe = SL.build_pipe()
     done = 0
-    for env in ENVS:
+    for env in envs:
         for v in (0, 1, 2):
             if not os.path.isdir(f"tools/depth_split/_src/{env}/{v}"):
                 continue

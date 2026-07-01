@@ -1,9 +1,12 @@
+import 'package:dewdrop/decor/april_decor.dart';
 import 'package:dewdrop/decor/aurora_decor.dart';
 import 'package:dewdrop/decor/beach_decor.dart';
+import 'package:dewdrop/decor/christmas_decor.dart';
 import 'package:dewdrop/decor/desert_decor.dart';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/fields_decor.dart';
 import 'package:dewdrop/decor/forest_decor.dart';
+import 'package:dewdrop/decor/halloween_decor.dart';
 import 'package:dewdrop/decor/library_decor.dart';
 import 'package:dewdrop/decor/mountain_decor.dart';
 import 'package:dewdrop/decor/space_decor.dart';
@@ -12,8 +15,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('there are 9 environments, each with named non-empty variants', () {
-    expect(Environment.values.length, 9);
+  test('there are 12 environments (9 standard + 3 seasonal), each with named '
+      'non-empty variants', () {
+    expect(Environment.values.length, 12);
+    expect(Environment.values.where((e) => e.seasonal).length, 3);
     for (final e in Environment.values) {
       expect(e.label, isNotEmpty);
       expect(e.variants, isNotEmpty);
@@ -40,6 +45,9 @@ void main() {
       Environment.desert: isA<DesertDecor>(),
       Environment.aurora: isA<AuroraDecor>(),
       Environment.fields: isA<FieldsDecor>(),
+      Environment.christmas: isA<ChristmasDecor>(),
+      Environment.halloween: isA<HalloweenDecor>(),
+      Environment.april: isA<AprilDecor>(),
     };
     for (final mode in RenderMode.values) {
       expected.forEach((env, matcher) {
