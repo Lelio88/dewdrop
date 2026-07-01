@@ -70,6 +70,27 @@ domain, no attribution required (listed for transparency).
 > pigeon, dune, page turns, cat purrs, thunder) are CC0 / Public Domain from
 > Freesound and OpenGameArt — no attribution required.
 
+## Seasonal decor soundscapes — `assets/audio/{christmas,halloween,april}_*.ogg`
+
+The date-locked marronnier worlds (Noël / Halloween / 1er avril), two layers each,
+built by `tools/sounds/build_seasonal.sh` (same loudness/loop recipe as the rest):
+
+| Monde | Couche | Source | Licence |
+|---|---|---|---|
+| 🎄 Noël | ambiance (feu de cheminée) | *Fireplace Sound Loop* by **PagDev** — [OpenGameArt](https://opengameart.org/content/fireplace-sound-loop) | **CC0 1.0** |
+| 🎄 Noël | musique (boîte à musique) | *Brahms – Wiegenlied Op.49 no.4, arr. music box* by **Gregor Quendel** — [OpenGameArt](https://opengameart.org/content/classical-music-box-collection) | **CC BY 4.0** ⚠️ |
+| 🎃 Halloween | ambiance (vent nocturne) | wind bed (on-hand raw clip, `ambient_src/wind.ogg`) | **CC0 / PD** |
+| 🎃 Halloween | musique (forêt éerie) | *Creepy Forest (F)* by **Augmentality (Brandon Morris)** — [OpenGameArt](https://opengameart.org/content/creepy-forest-f) (dual OGA-BY 3.0 / **CC0**) | **CC0** |
+| 🚧 1er avril | ambiance (trafic) | *City Traffic Ambience* by **DataJuggler** — [Freesound #750144](https://freesound.org/s/750144/) | **CC0** |
+| 🚧 1er avril | musique (marteau-piqueur) | *jackhammer.wav* by **Tomlija** — [Freesound #98859](https://freesound.org/s/98859/) | **CC BY 3.0** ⚠️ |
+
+⚠️ Two seasonal sources are **CC BY** (not CC0): the **Noël music box** (CC BY 4.0)
+and the **1er avril jackhammer** (CC BY 3.0). Both attributions are surfaced
+**in-app** in « À propos & crédits » (`about_screen.dart`, guarded by
+`about_screen_test.dart`), satisfying CC BY's visible-credit requirement (same
+pattern as the desert tumbleweed). All the other seasonal sources are CC0 / public
+domain — no attribution required (listed for transparency).
+
 ## ⚠️ To finalize before a public release
 
 1. **Desert tumbleweed** (`assets/audio/oneshot/desert_tumble_*.ogg`) is

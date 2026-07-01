@@ -40,7 +40,11 @@ class DecorStories extends ConsumerStatefulWidget {
 }
 
 class _DecorStoriesState extends ConsumerState<DecorStories> {
-  static final List<Environment> _envs = Environment.values;
+  // Seasonal marronnier worlds never appear here — they only take over via the
+  // date-gated lock on the home. The picker lists the freely-choosable worlds.
+  static final List<Environment> _envs = Environment.values
+      .where((e) => !e.seasonal)
+      .toList();
 
   late final PageController _pages;
   late RenderMode _mode = widget.mode;

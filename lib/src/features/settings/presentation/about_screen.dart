@@ -23,7 +23,7 @@ class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   /// Keep in sync with `version:` in `pubspec.yaml`.
-  static const String _appVersion = '0.9.7';
+  static const String _appVersion = '0.9.8';
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +81,37 @@ class AboutScreen extends StatelessWidget {
                     'freesound.org/s/204028',
                     'freesound.org/s/204031',
                     'creativecommons.org/licenses/by/4.0',
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _card(
+                w,
+                child: _credit(
+                  w,
+                  title: 'Boîte à musique (Noël)',
+                  body:
+                      '« Brahms – Wiegenlied Op.49 no.4, arr. boîte à musique » '
+                      'par Gregor Quendel — OpenGameArt.\n'
+                      'Licence CC BY 4.0 (bouclée).',
+                  links: const [
+                    'opengameart.org/content/classical-music-box-collection',
+                    'creativecommons.org/licenses/by/4.0',
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _card(
+                w,
+                child: _credit(
+                  w,
+                  title: 'Marteau-piqueur (1er avril)',
+                  body:
+                      '« jackhammer.wav » par Tomlija — Freesound.\n'
+                      'Licence CC BY 3.0 (bouclée).',
+                  links: const [
+                    'freesound.org/s/98859',
+                    'creativecommons.org/licenses/by/3.0',
                   ],
                 ),
               ),

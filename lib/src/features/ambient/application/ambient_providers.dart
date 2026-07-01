@@ -171,6 +171,10 @@ const Map<String, DecorAudio> kDecorAudio = {
       ),
     },
   ),
+  // Seasonal "marronnier" worlds — bespoke themed audio (see tools/sounds).
+  'christmas': DecorAudio(ambiance: 'christmas_amb', music: ['christmas_mus']),
+  'halloween': DecorAudio(ambiance: 'halloween_amb', music: ['halloween_mus']),
+  'april': DecorAudio(ambiance: 'april_amb', music: ['april_mus']),
 };
 
 const _kMaster = 'snd_master';
