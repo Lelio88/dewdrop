@@ -3,6 +3,16 @@
 Évolutions notables de DewDrop. Format inspiré de
 [Keep a Changelog](https://keepachangelog.com/fr/).
 
+## [0.9.9+22] — 2026-07-02
+
+### Amélioré
+
+- 👆 **Repli plus facile des aperçus plein écran** : quand un aperçu (reçus ou
+  envoi) est agrandi au maximum, il est désormais coupé en deux — une moitié
+  fait défiler la liste, l'autre moitié (côté du bord d'où vient l'aperçu) est
+  une zone *« glisse pour réduire »* qui ramène au petit aperçu d'un simple
+  geste. Plus besoin de viser la mini-poignée.
+
 ## [0.9.8+21] — 2026-07-01
 
 ### Ajouté
