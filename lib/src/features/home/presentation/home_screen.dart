@@ -881,13 +881,15 @@ class _Handle extends StatelessWidget {
 /// corners + safe-area inset so the same panel works sliding from the top
 /// (pensées reçues) or the bottom (envoyer).
 ///
-/// Two stages: at peek [height] is null and the panel hugs its content; at full
-/// [height] is set and the panel grows to it, giving its child an [Expanded]
-/// slot (so the child MUST provide its own scrollable fill). The peek↔full
-/// height change is animated by [AnimatedSize] (which clips mid-transition, so
-/// no overflow). A grabber bar on the sheet's inner edge forwards a vertical
-/// drag to [onGrabDrag], so full can be dragged back down even when the panel
-/// covers most of the scrim.
+/// Two stages: at peek [height] is null and the panel hugs its content (with a
+/// thin grabber at the free edge). At full [height] is set and the panel grows
+/// to it, then SPLITS in two: the half against the free edge (top for the bottom
+/// "envoyer" sheet, bottom for the top "reçus" sheet) is a big drag-to-shrink
+/// zone that a swipe collapses back to peek (via [onGrabDrag]); the other half
+/// holds the child, which MUST provide its own scrollable fill. So the user
+/// scrolls the list in one half and shrinks the drawer in the other — no tiny
+/// handle to hunt, no need to reach the list's edge. The peek↔full height change
+/// is animated by [AnimatedSize] (which clips mid-transition, so no overflow).
 class _SheetPanel extends StatelessWidget {
   const _SheetPanel({
     required this.child,
@@ -908,30 +910,75 @@ class _SheetPanel extends StatelessWidget {
     final inset = top ? media.viewPadding.top : media.viewPadding.bottom;
     final expanded = height != null;
 
-    final grabber = GestureDetector(
+    // The drag affordance (reused at peek and in the full-stage collapse zone).
+    final grabberBar = Container(
+      width: 44,
+      height: 5,
+      decoration: BoxDecoration(
+        color: w.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+
+    // Peek: a thin grabber at the free edge.
+    final peekGrabber = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onVerticalDragEnd: onGrabDrag,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: w.withValues(alpha: 0.28),
-            borderRadius: BorderRadius.circular(2),
+        child: grabberBar,
+      ),
+    );
+
+    // Full: split the panel in two. The half against the FREE edge (top for the
+    // bottom "envoyer" sheet, bottom for the top "reçus" sheet) is a big
+    // drag-to-shrink zone — a swipe there falls straight back to peek (via
+    // onGrabDrag) — while the other half holds the scrollable content. No need
+    // to hunt a tiny handle or reach the list's edge.
+    final collapseZone = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragEnd: onGrabDrag,
+      child: Align(
+        alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (top)
+                Icon(
+                  Icons.keyboard_arrow_up_rounded,
+                  color: w.withValues(alpha: 0.5),
+                ),
+              grabberBar,
+              const SizedBox(height: 8),
+              Text(
+                'glisse pour réduire',
+                style: TextStyle(color: w.withValues(alpha: 0.5), fontSize: 12),
+              ),
+              if (!top)
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: w.withValues(alpha: 0.5),
+                ),
+            ],
           ),
         ),
       ),
     );
 
-    final inner = Column(
-      mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
-      children: [
-        if (!top) grabber,
-        if (expanded) Expanded(child: child) else child,
-        if (top) grabber,
-      ],
-    );
+    final inner = expanded
+        ? Column(
+            children: [
+              if (!top) Expanded(child: collapseZone),
+              Expanded(child: child),
+              if (top) Expanded(child: collapseZone),
+            ],
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [if (!top) peekGrabber, child, if (top) peekGrabber],
+          );
 
     return ClipRRect(
       borderRadius: BorderRadius.vertical(
