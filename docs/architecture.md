@@ -25,7 +25,7 @@ L'app est un **client** : elle n'expose pas d'API HTTP ; elle parle à Supabase 
    Firebase : FCM (push) · Crashlytics (crash)        Brevo : SMTP (emails auth)
 ```
 
-Règle : `presentation → application → domain ← data`. La **composition root** (`lib/main.dart`, `lib/src/app.dart`, les `*_providers.dart`) est le seul endroit qui instancie les repositories (via `Supabase.instance.client`). `app.dart` (un `ConsumerStatefulWidget`) câble aussi les listeners transverses : enregistrement push, **deep link de récupération de mot de passe**, **lien d'invitation** (`InviteLinkListener`), et un **refresh des listes au retour d'app**. Le **moteur de décors** (`lib/decor/`) est transverse (pas une feature) : `buildDecor(env, variant, mode, {child, reception})` rend le décor plein écran avec l'UI qui flotte par-dessus.
+Règle : `presentation → application → domain ← data`. La **composition root** (`lib/main.dart`, `lib/src/app.dart`, les `*_providers.dart`) est le seul endroit qui instancie les repositories (via `Supabase.instance.client`). `app.dart` (un `ConsumerStatefulWidget`) câble aussi les listeners transverses : enregistrement push, **deep link de récupération de mot de passe**, **liens in-app** (invitation + **envoi de pensée**, via `DeepLinkListener`), confirmation d'envoi 1-tap (`_onSend`), et un **refresh des listes au retour d'app**. Le **moteur de décors** (`lib/decor/`) est transverse (pas une feature) : `buildDecor(env, variant, mode, {child, reception})` rend le décor plein écran avec l'UI qui flotte par-dessus.
 
 ## Features
 
@@ -47,8 +47,9 @@ Règle : `presentation → application → domain ← data`. La **composition ro
 |---|---|
 | `lib/src/common/glass.dart` | Matériau UI signature (glassmorphism) : `GlassCard`, `GlassTextField`, `GlassButton`. |
 | `lib/src/common/decor_choice.dart` | (dé)sérialise `"env:variant"` ↔ `(Environment, int)` + `RenderMode`. |
-| `lib/src/common/deep_links.dart` | Source unique des liens : auth `dewdrop://` (login-callback, reset-password) + **lien d'invitation HTTPS** (→ page `docs/invite.html`) + parseur (accepte HTTPS **et** `dewdrop://invite`). |
-| `lib/src/common/invite_links.dart` | Écoute (`app_links`) les liens `dewdrop://invite?handle=…` (cold start + à chaud) → demande d'ami. |
+| `lib/src/common/deep_links.dart` | Source unique des liens : auth `dewdrop://` (login-callback, reset-password) + **lien d'invitation HTTPS** (→ page `docs/invite.html`) + **envoi de pensée** `dewdrop://send?to=<handle>` (`DeepLinks.sendTo`) + parseurs (`inviteHandle`, `sendTarget`). |
+| `lib/src/common/deep_link_listener.dart` | Écoute (`app_links`) les liens in-app `dewdrop://invite?handle=…` **et** `dewdrop://send?to=…` (cold start + à chaud), dispatche chacun vers son handler (invite d'abord, puis send). Les liens auth restent au listener natif de supabase_flutter. |
+| `lib/src/common/seasonal.dart` | Modèle **pur** des univers marronniers : `SeasonalEvent` + `activeSeasonalEvent(now)` (« jour pile ») + `kSeasonalEvents`. Consommé par `seasonalOverrideProvider` (home). |
 | `lib/src/supabase/supabase_config.dart` | URL + clé Supabase (locale par défaut, **auto `10.0.2.2` sur Android émulateur** ; override `--dart-define`). |
 | `lib/src/routing/app_router.dart` | GoRouter + redirect auth ; routes publiques `/sign-in`, `/forgot-password` ; `/reset-password`. |
 | `lib/decor/environment.dart` | Registre des **9 ambiances** + **3 mondes saisonniers** (marronniers, flag `seasonal`, masqués du sélecteur) + fabrique `buildDecor()`. |
@@ -92,7 +93,7 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 ## Deep links & emails d'auth
 
 - **Scheme custom `dewdrop://`** (`lib/src/common/deep_links.dart`), déclaré côté Android (intent-filter) **et** iOS (`CFBundleURLTypes`). Usages auth : `login-callback` (confirmation d'inscription) + `reset-password`, consommés par **supabase_flutter** (PKCE) — ils **doivent** figurer dans `additional_redirect_urls` (`config.toml`) sinon Supabase refuse la redirection.
-- **Invitation** : le lien partagé est **HTTPS** (`lelio88.github.io/dewdrop/invite.html?handle=…`, page `docs/invite.html`) — cliquable dans toute messagerie, avec repli Play Store. La page propose « Ouvrir dans DewDrop » → `dewdrop://invite?handle=…`, capté par `InviteLinkListener` → demande d'ami. Le QR encode le même lien HTTPS. (App Links auto-vérifiés = amélioration future : nécessite `assetlinks.json` au root du domaine + SHA-256 Play App Signing.)
+- **Invitation** : le lien partagé est **HTTPS** (`lelio88.github.io/dewdrop/invite.html?handle=…`, page `docs/invite.html`) — cliquable dans toute messagerie, avec repli Play Store. La page propose « Ouvrir dans DewDrop » → `dewdrop://invite?handle=…`, capté par `DeepLinkListener` → demande d'ami. Le QR encode le même lien HTTPS. (App Links auto-vérifiés = amélioration future : nécessite `assetlinks.json` au root du domaine + SHA-256 Play App Signing.)
 - **Reset** : `sendPasswordReset(redirectTo: reset-password)` → email → l'app rouvre en mode recovery → `ResetPasswordScreen` → `updateUser(password)`. Formulation **anti-énumération** (ne révèle pas si l'email a un compte).
 - **Emails via Brevo (SMTP)** : `[auth.email.smtp]` dans `config.toml` (`pass = env(BREVO_SMTP_KEY)`, jamais commitée). Templates FR brandés `supabase/templates/{confirmation,recovery}.html` (sujet « …DewDrop » → filtrables). Poussés par `supabase config push`.
 
