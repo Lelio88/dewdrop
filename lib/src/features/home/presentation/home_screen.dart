@@ -883,13 +883,16 @@ class _Handle extends StatelessWidget {
 ///
 /// Two stages: at peek [height] is null and the panel hugs its content (with a
 /// thin grabber at the free edge). At full [height] is set and the panel grows
-/// to it, then SPLITS in two: the half against the free edge (top for the bottom
-/// "envoyer" sheet, bottom for the top "reçus" sheet) is a big drag-to-shrink
-/// zone that a swipe collapses back to peek (via [onGrabDrag]); the other half
-/// holds the child, which MUST provide its own scrollable fill. So the user
-/// scrolls the list in one half and shrinks the drawer in the other — no tiny
-/// handle to hunt, no need to reach the list's edge. The peek↔full height change
-/// is animated by [AnimatedSize] (which clips mid-transition, so no overflow).
+/// to it and the child fills the WHOLE panel (bounded height, so its own
+/// scrollable list stretches full-page). The half against the free edge (top for
+/// the bottom "envoyer" sheet, bottom for the top "reçus" sheet) is overlaid by a
+/// TRANSLUCENT, drag-only collapse zone: a swipe there falls back to peek (via
+/// [onGrabDrag]) while taps fall THROUGH it (so the send dock's avatars stay
+/// tappable across that half) and the opposite half scrolls the list. A slim
+/// chevron sits in a thin band at the very free edge to hint the gesture; the
+/// child is inset by that band so the hint never covers the content. The
+/// peek↔full height change is animated by [AnimatedSize] (which clips
+/// mid-transition, so no overflow).
 class _SheetPanel extends StatelessWidget {
   const _SheetPanel({
     required this.child,
@@ -930,49 +933,77 @@ class _SheetPanel extends StatelessWidget {
       ),
     );
 
-    // Full: split the panel in two. The half against the FREE edge (top for the
-    // bottom "envoyer" sheet, bottom for the top "reçus" sheet) is a big
-    // drag-to-shrink zone — a swipe there falls straight back to peek (via
-    // onGrabDrag) — while the other half holds the scrollable content. No need
-    // to hunt a tiny handle or reach the list's edge.
-    final collapseZone = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragEnd: onGrabDrag,
-      child: Align(
-        alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (top)
-                Icon(
-                  Icons.keyboard_arrow_up_rounded,
-                  color: w.withValues(alpha: 0.5),
-                ),
+    // Full: the child fills the WHOLE panel; the half against the FREE edge (top
+    // for the bottom "envoyer" sheet, bottom for the top "reçus" sheet) is a
+    // TRANSLUCENT, drag-only collapse zone — a swipe there falls back to peek
+    // (via onGrabDrag) while taps fall through (the send dock's avatars stay
+    // tappable there) and the opposite half scrolls the list. A slim chevron sits
+    // in a thin band at the very free edge; the child is inset by that band so the
+    // hint never covers the content.
+    const hintBand = 34.0;
+
+    // Points toward the free edge (up for the top "reçus" sheet, down for the
+    // bottom "envoyer" sheet) — the direction of the collapsing swipe.
+    final collapseHint = IgnorePointer(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (top) ...[
               grabberBar,
-              const SizedBox(height: 8),
-              Text(
-                'glisse pour réduire',
-                style: TextStyle(color: w.withValues(alpha: 0.5), fontSize: 12),
+              const SizedBox(height: 4),
+              Icon(
+                Icons.keyboard_arrow_up_rounded,
+                size: 20,
+                color: w.withValues(alpha: 0.5),
               ),
-              if (!top)
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: w.withValues(alpha: 0.5),
-                ),
+            ] else ...[
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: w.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 4),
+              grabberBar,
             ],
+          ],
+        ),
+      ),
+    );
+
+    // Invisible gesture layer over the free-edge half; taps pass through it.
+    final collapseZone = Align(
+      alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
+      child: FractionallySizedBox(
+        heightFactor: 0.5,
+        widthFactor: 1,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onVerticalDragEnd: onGrabDrag,
+          child: Align(
+            alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
+            child: collapseHint,
           ),
         ),
       ),
     );
 
     final inner = expanded
-        ? Column(
+        ? Stack(
             children: [
-              if (!top) Expanded(child: collapseZone),
-              Expanded(child: child),
-              if (top) Expanded(child: collapseZone),
+              // The list fills the whole panel, inset by the hint band at the
+              // free edge so the chevron never overlaps it or its trailing button.
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: top ? 0 : hintBand,
+                    bottom: top ? hintBand : 0,
+                  ),
+                  child: child,
+                ),
+              ),
+              collapseZone,
             ],
           )
         : Column(
