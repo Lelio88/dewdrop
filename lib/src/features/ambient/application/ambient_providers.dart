@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:dewdrop/src/features/ambient/application/audio_focus.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/sound_prefs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -188,8 +189,13 @@ double _freqFactor(double freq) => pow(2, (0.5 - freq) * 2.4).toDouble();
 /// (`state`) and the per-decor [SoundPrefs] (on/off, volume, frequency). Reacts
 /// live to pref edits. Mute uses pause/resume; switching decor issues a fresh
 /// `play` with a new source (reliable with audioplayers).
+///
+/// Also owns the app's [AudioFocus]: focus is taken whenever a layer is actually
+/// audible and given back as soon as none is (mute, background, teardown), so
+/// other media apps pause for DewDrop and resume after it — see [_applyInner].
 class SoundscapeNotifier extends Notifier<bool> {
   final Random _rng = Random();
+  final AudioFocus _focus = AudioFocus();
   AudioPlayer? _amb;
   AudioPlayer? _mus;
   final List<AudioPlayer> _shots = [];
@@ -218,6 +224,13 @@ class SoundscapeNotifier extends Notifier<bool> {
       unawaited(shot.setReleaseMode(ReleaseMode.stop));
       _shots.add(shot);
     }
+    // Another app (or a call) took the focus: silence the layers but keep the
+    // focus request alive, so the `onGained` that ends a transient loss can
+    // bring them back.
+    _focus.bind(
+      onLost: () => unawaited(_pausePlayers()),
+      onGained: () => unawaited(_apply()),
+    );
     // Live-react to per-decor customization edits.
     ref.listen(soundPrefsProvider, (_, _) => unawaited(_apply()));
     ref.onDispose(_teardown);
@@ -228,6 +241,8 @@ class SoundscapeNotifier extends Notifier<bool> {
   /// `_apply()` / one-shot reschedule bails out instead of touching dead players.
   void _teardown() {
     _disposed = true;
+    unawaited(_focus.abandon());
+    _focus.dispose();
     for (final t in _catTimers.values) {
       t.cancel();
     }
@@ -266,8 +281,17 @@ class SoundscapeNotifier extends Notifier<bool> {
     await _apply();
   }
 
-  /// Lifecycle: app backgrounded — pause everything (keep state).
+  /// Lifecycle: app backgrounded — pause everything (keep state) and hand the
+  /// audio focus back so whatever the user was listening to can resume.
   Future<void> pauseAll() async {
+    await _pausePlayers();
+    await _focus.abandon();
+  }
+
+  /// Silences the layers **without** touching the audio focus. Used on a focus
+  /// loss, where abandoning would unregister the listener and forfeit the
+  /// `onFocusGained` that ends a transient interruption (a phone call).
+  Future<void> _pausePlayers() async {
     for (final t in _catTimers.values) {
       t.cancel();
     }
@@ -315,8 +339,22 @@ class SoundscapeNotifier extends Notifier<bool> {
     final pref = _pref;
     final wantAmb = state && cfg != null && pref.amb.on;
     final wantMus = state && _musAsset != null && pref.mus.on;
+    final wantShots =
+        state &&
+        cfg != null &&
+        cfg.secondaries.keys.any((k) => pref.sec[k]?.on ?? true);
     final ambVol = pref.amb.vol.clamp(0.0, 1.0);
     final musVol = pref.mus.vol.clamp(0.0, 1.0);
+
+    // Claim the focus *before* the first play() so the other app is already
+    // paused when our sound starts; release it as soon as nothing is audible
+    // (master mute, every layer switched off) so their music comes back.
+    if (wantAmb || wantMus || wantShots) {
+      await _focus.request();
+    } else {
+      await _focus.abandon();
+    }
+    if (_disposed) return;
 
     if (wantAmb) {
       if (_ambLoaded != _env) {

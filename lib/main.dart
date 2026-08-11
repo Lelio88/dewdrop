@@ -53,6 +53,12 @@ Future<void> main() async {
     // new sound stole focus from the others — only the last one to start was
     // audible (music drowned the ambiance; one-shots never came through).
     // `none` focus = no exclusive grab → all six players mix.
+    //
+    // Interrupting OTHER apps (Spotify, YouTube) is a separate concern, handled
+    // once for the whole app by `AudioFocus` (Android: MainActivity's
+    // AudioManager request; iOS: the `playback` category below, without
+    // `mixWithOthers`). Don't "fix" the players back to a per-player focus —
+    // that's what broke the mix in the first place.
     await AudioPlayer.global.setAudioContext(
       AudioContext(
         android: const AudioContextAndroid(
@@ -62,10 +68,7 @@ Future<void> main() async {
           usageType: AndroidUsageType.media,
           audioFocus: AndroidAudioFocus.none,
         ),
-        iOS: AudioContextIOS(
-          category: AVAudioSessionCategory.playback,
-          options: const {AVAudioSessionOptions.mixWithOthers},
-        ),
+        iOS: AudioContextIOS(category: AVAudioSessionCategory.playback),
       ),
     );
   }

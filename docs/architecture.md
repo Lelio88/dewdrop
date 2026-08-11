@@ -87,7 +87,8 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 
 - **Égalisation par groupe** pré-rendue (musiques ~-18 LUFS, ambiances ~-28 LUFS). Pipeline : `tools/sounds/build_audio.sh` (dossier de travail **non committé**) ; les **3 mondes saisonniers** sont bâtis par `tools/sounds/build_seasonal.sh` (mêmes réglages, sources CC0 OpenGameArt/Freesound — sauf 2 pistes **CC BY** créditées in-app : boîte à musique de Noël + marteau-piqueur du 1er avril).
 - **Personnalisation** (`SoundPrefs`) : on/off + volume (couches) + on/off + volume + fréquence (catégories), éditée **en live** dans le picker, **synchronisée au profil** (`profiles.sound_prefs` jsonb, débounce).
-- **Mixage des lecteurs** : un **`AudioContext` global** (`AndroidAudioFocus.none` + iOS `mixWithOthers`, posé dans `main.dart`). Sans lui, chaque lecteur prend le **focus audio exclusif** et coupe les autres (la musique noyait l'ambiance, les one-shots ne passaient jamais).
+- **Mixage des lecteurs** : un **`AudioContext` global** (`AndroidAudioFocus.none`, posé dans `main.dart`). Sans lui, chaque lecteur prend le **focus audio exclusif** et coupe les autres (la musique noyait l'ambiance, les one-shots ne passaient jamais).
+- **Focus audio applicatif** (`AudioFocus`, `features/ambient/application/audio_focus.dart` ↔ `MainActivity.kt`) : puisque les lecteurs ne demandent **rien**, le focus est pris **une fois pour toute l'app** afin d'interrompre Spotify/YouTube comme n'importe quelle app à son. Pris dans `_applyInner` dès qu'une couche est audible, **rendu** dès qu'aucune ne l'est (mute maître, arrière-plan via `pauseAll`, teardown). Une **perte** de focus (appel entrant) ne coupe que les lecteurs (`_pausePlayers`) — abandonner la requête supprimerait le listener et le `onFocusGained` de fin d'interruption n'arriverait jamais. Sur iOS le canal n'existe pas : c'est la catégorie `playback` (sans `mixWithOthers`) qui interrompt les autres apps.
 - **Réconciliation sérialisée** : `_apply()` est **sérialisé + coalescé** (un seul passage à la fois). Sinon, un vieux `play()` peut finir après un `pause()` récent → son bloqué « à fond » (bug corrigé). Le volume est passé **directement à `play()`** (jamais de blast à 1.0). Mute = `pause()`/`resume()` ; changer de décor = `play()` d'une nouvelle source.
 
 ## Deep links & emails d'auth
@@ -139,7 +140,7 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 
 - ❌ Réintroduire `riverpod_generator` / `riverpod_lint` (conflit freezed 3 / Dart 3.11) ; `AsyncValue.valueOrNull` → `.value`.
 - ❌ Un flux Realtime qui émet `void` (les ticks identiques sont avalés) → émettre un **compteur**.
-- ❌ `_apply()` audio non sérialisé (course → son bloqué) ; `play()` sans passer le volume (blast à 1.0) ; **lecteurs audio sans `AudioContext` global** (focus exclusif → ils se coupent l'un l'autre).
+- ❌ `_apply()` audio non sérialisé (course → son bloqué) ; `play()` sans passer le volume (blast à 1.0) ; **lecteurs audio sans `AudioContext` global** (focus exclusif → ils se coupent l'un l'autre) ; rendre le focus applicatif sur une **perte** de focus (l'interruption devient définitive).
 - ❌ Commiter un secret (clé SMTP, keystore, service account) — repo public.
 - ❌ Créer une table sans **GRANT** ; éditer une migration déjà appliquée.
 - ❌ Un fragment shader runtime comme rendu principal sur desktop ; une variante = simple changement de couleur.
