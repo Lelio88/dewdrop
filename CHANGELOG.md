@@ -3,6 +3,25 @@
 Évolutions notables de DewDrop. Format inspiré de
 [Keep a Changelog](https://keepachangelog.com/fr/).
 
+## [0.9.10+24] — 2026-08-11
+
+### Corrigé
+
+- 🔊 **La musique des autres apps se met en pause** : DewDrop réclame désormais
+  le son de l'appareil comme n'importe quelle app à ambiance — une vidéo YouTube
+  ou une playlist Spotify en cours se met en pause à l'ouverture, au lieu de
+  jouer par-dessus l'ambiance. Le son est **rendu** dès que DewDrop se tait
+  (bouton muet, retour à l'accueil du téléphone) : la musique reprend toute
+  seule. Un appel entrant met l'ambiance en pause, puis elle repart après.
+
+### Amélioré
+
+- 👆 **Tiroir d'envoi trié par derniers échanges** : les personnes à qui tu as
+  envoyé une pensée le plus récemment apparaissent en premier ; les autres
+  suivent par ordre alphabétique. L'ordre ne bouge jamais pendant que le tiroir
+  est ouvert (pas d'avatar qui saute sous le doigt) — il se met à jour à la
+  fermeture. La mention « anonyme : réglages » a été retirée.
+
 ## [0.9.9+23] — 2026-07-05
 
 ### Amélioré

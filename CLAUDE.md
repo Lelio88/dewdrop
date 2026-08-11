@@ -43,7 +43,7 @@ Topologie rapide :
 4. **Décors en Canvas** : pas de fragment shader runtime (ne rend pas sur desktop) → `CustomPainter`. Fond statique vs couche animée (perf). Une **variante = une vraie scène** (même scène en Dessin **et** Photo), pas une teinte. `buildDecor` **clippe chaque décor à ses bords** (`ClipRect`) ; le backdrop sur-dessine ~6 % au-delà pour ne jamais révéler de gap au tilt. Images warp (`full.webp`+`depth.webp`) via cache LRU partagé `DecorImageCache` (jamais disposer le handle du cache — emprunter un `clone()`).
 5. **Aucun secret commité** (repo **public**) : clé SMTP via `env(BREVO_SMTP_KEY)` ; keystore + `android/key.properties` gitignorés ; service account FCM dans `supabase/functions/.env` gitignoré.
 6. **Couplage** : `presentation` n'importe jamais `data` ; le cross-feature passe par `application` ; seule la composition root connecte les implémentations.
-7. **Temps réel & son** : les flux Realtime émettent un **compteur** (jamais `void` — sinon `==` avale les ticks) ; un **`AudioContext` global** mixe les lecteurs (`AndroidAudioFocus.none`/`mixWithOthers`) et la réconciliation audio est **sérialisée**. Voir docs.
+7. **Temps réel & son** : les flux Realtime émettent un **compteur** (jamais `void` — sinon `==` avale les ticks) ; un **`AudioContext` global** mixe les lecteurs (`AndroidAudioFocus.none`) et la réconciliation audio est **sérialisée**. Interrompre les **autres** apps est un concern distinct : `AudioFocus` prend le focus **une fois pour l'app** (jamais par lecteur). Voir docs.
 
 ## V. Flux de Travail (Explore → Plan → Code → Verify)
 
@@ -66,6 +66,11 @@ flutter build apk --release \          # build testeurs — signé via android/k
   --dart-define=SUPABASE_ANON_KEY=<clé publishable>
 supabase migration new <slug>          # nouvelle migration (prod : supabase db push)
 supabase config push                   # pousser la config auth (SMTP, templates, redirects) ; BREVO_SMTP_KEY en env
+flutter build appbundle --release \     # AAB pour le Play Store (mêmes --dart-define que l'APK)
+  --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…
+python tools/release/publish_play.py --list-tracks          # tracks Play + versionCodes en place
+python tools/release/publish_play.py --track alpha --dry-run  # valide sans rien publier
+python tools/release/publish_play.py --track alpha --notes-file <notes.txt>  # publie (test fermé)
 # décors photo : Base.png → tools/depth_split/_src/<décor>/<v>/ → warp_batch.py
 #   → assets/photo/<décor>/<v>/{full.webp,depth.webp} ; dessin = illustrate_all.py → assets/illustrated/
 ```
@@ -89,12 +94,15 @@ supabase config push                   # pousser la config auth (SMTP, templates
 | Affichage/groupement des notifs reçues | `notifications/application/thought_notifications.dart` + payload `data` de `send-thought-push` |
 | Logique de groupe (RLS, fan-out) | nouvelle migration (helpers `private`) + `features/groups/` + RPC `send_to_group` |
 | Nouveau son / piste audio | `tools/sounds/build_audio.sh` (ou `build_seasonal.sh`) + attribution `CREDITS.md` |
+| Focus audio (interruption des autres apps) | `features/ambient/application/audio_focus.dart` **et** `MainActivity.kt` (canal `app.dewdrop/audio_focus`) + prise/rendu dans `SoundscapeNotifier` (`_applyInner`, `pauseAll`, `_teardown`) |
+| Ordre du dock d'envoi | `sortByRecency` (`features/thoughts/domain/send_order.dart`, testé) + `recentContactsProvider` ; le tri est **gelé tant que le dock est visible** (`SendDock.visible` → invalidation différée) |
 | Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
+| Procédure de publication Play | `tools/release/publish_play.py` (API Android Publisher v3) + `../play-store-publication-guide.md`. Service account JSON dans `../.dewdrop-secrets/play-sa.json` — **hors dépôt** (repo public) |
 | Nouvel anti-pattern découvert | section « Anti-patterns à éviter » de `docs/architecture.md` |
 | Changement de dépendance critique | Section III « Pile » + `pubspec.yaml` |
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : release **0.9.9+23** — au cran plein écran des aperçus accueil, le contenu remplit **tout** le panneau ; la moitié côté bord d'origine devient un **overlay de repli translucide drag-only** (taps traversants → avatars du dock cliquables partout, l'autre moitié scrolle la liste), avec un **chevron** dans une fine bande au bord libre. **Aucune migration.**
-- **Focus immédiat** : builder + uploader l'**AAB 0.9.9+23** au test fermé Play Store (notes = `CHANGELOG.md`). **À vérifier on-device** : (a) gestes à deux crans (re-glisser ↓↓ = reçus plein écran, ↑↑ = envoi ; fling inverse dans la moitié de repli = un cran ; taps actifs partout) ; (b) verrou marronnier + **3 mondes** (date device au 31/10 / 24-12 / 01-04) : décor + FX + audio, swipe favoris & entrée « Univers » désactivés, univers perso de retour hors fenêtre ; (c) send par lien `dewdrop://send?to=`, ⭐ favoris + swipe horizontal.
+- **Dernier focus** : release **0.9.10+24** (diffusée au test fermé) — **focus audio applicatif** (`AudioFocus` ↔ `MainActivity.kt`) : DewDrop interrompt désormais les autres apps à son et rend le focus dès qu'il se tait ; **tiroir d'envoi trié par derniers contacts** (`sortByRecency`, ordre gelé tant que le tiroir est ouvert) et mention « anonyme : réglages » retirée. **Aucune migration.**
+- **Focus immédiat** : vérifications **on-device** du 0.9.10+24 : (a) une vidéo/musique tierce se met en pause à l'ouverture et repart au mute / en arrière-plan ; un appel entrant met l'ambiance en pause puis la relance ; (b) ordre du tiroir d'envoi (dernier contacté en tête, pas de saut d'avatar pendant l'usage) ; (c) gestes à deux crans, verrou marronnier (dates 31/10 · 24-12 · 01-04), send par lien `dewdrop://send?to=`, ⭐ favoris + swipe horizontal.
 - **Restes hors lot** : appui long widget → « Reconfigurer » (dépend du launcher) ; durcissement sécu `HomeWidgetBackgroundReceiver` ; **iOS** WidgetKit (bloqué compte Apple Developer 99 $/an).

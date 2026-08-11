@@ -68,6 +68,10 @@ assets/photo/**/[0-9]*.png
 **/.env
 firebase-service-account.json
 *-firebase-adminsdk-*.json
+# Google Play publishing service account — belongs in ../.dewdrop-secrets/,
+# this pattern is the safety net if a copy ever lands in the tree.
+play-sa.json
+*service-account*.json
 
 # Android release signing — keystore + passwords (repo is PUBLIC: never commit)
 **/key.properties
