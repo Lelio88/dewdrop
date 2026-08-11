@@ -549,6 +549,9 @@ class _HomeViewState extends ConsumerState<HomeView>
                 onGrabDrag: _onDragEnd,
                 child: SendDock(
                   expanded: sendFull,
+                  // Stays mounted when closed (it just slides off) — the dock
+                  // needs this to defer its re-ordering until it's hidden.
+                  visible: _sheetState.sheet == HomeSheet.send,
                   onSeeAll: () => _pushImmersive('/send'),
                 ),
               ),

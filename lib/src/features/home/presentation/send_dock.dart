@@ -8,22 +8,34 @@ import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
+import 'package:dewdrop/src/features/thoughts/domain/send_order.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _ok = Color(0xFF9BE8B0); // "envoyé" green
 
 /// Compact "envoyer" dock revealed by swiping UP on the home: a horizontal row
-/// of friend + group avatars. A single tap sends a pensée **directly** (anonymity
-/// from the global default); the avatar then shows "✓" and is disabled for a
-/// short cooldown — the accidental-double-send guard. [onSeeAll] opens the full
-/// send screen for the complete list.
+/// of friend + group avatars, **most recently written-to first**. A single tap
+/// sends a pensée **directly** (anonymity from the global default); the avatar
+/// then shows "✓" and is disabled for a short cooldown — the
+/// accidental-double-send guard. [onSeeAll] opens the full send screen for the
+/// complete list.
+///
+/// Invariant: the order never changes while the dock is on screen. A send makes
+/// the recipient jump to the front, so re-ordering live would move avatars under
+/// the user's finger mid-burst; instead the refresh is deferred until [visible]
+/// goes false (see [didUpdateWidget]).
 ///
 /// NB: the direct-send + cooldown behaviour mirrors `SendThoughtsScreen`. Kept
 /// duplicated on purpose (two call sites, ~20 lines) — extract a shared
 /// SendController only if a third caller appears (YAGNI).
 class SendDock extends ConsumerStatefulWidget {
-  const SendDock({super.key, required this.onSeeAll, this.expanded = false});
+  const SendDock({
+    super.key,
+    required this.onSeeAll,
+    this.expanded = false,
+    this.visible = true,
+  });
 
   final VoidCallback onSeeAll;
 
@@ -31,6 +43,11 @@ class SendDock extends ConsumerStatefulWidget {
   /// up — a scrollable wrapped grid of every friend + group, filling the sheet.
   /// The expanded branch uses an [Expanded], so its parent must bound its height.
   final bool expanded;
+
+  /// Whether the sheet holding this dock is open. The widget stays mounted when
+  /// closed (it slides off-screen), so this is the only way it can tell — and
+  /// it is what gates the deferred re-ordering.
+  final bool visible;
 
   @override
   ConsumerState<SendDock> createState() => _SendDockState();
@@ -41,6 +58,20 @@ class _SendDockState extends ConsumerState<SendDock> {
   final Set<String> _sent = {};
   final Map<String, Timer> _timers = {};
   static const _kCooldown = Duration(seconds: 4);
+
+  // A send landed since the dock was opened → the recency order is stale.
+  bool _orderStale = false;
+
+  @override
+  void didUpdateWidget(SendDock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh "derniers contacts" only once hidden, so the reshuffle happens
+    // off-screen and the next opening already shows the new order.
+    if (oldWidget.visible && !widget.visible && _orderStale) {
+      _orderStale = false;
+      ref.invalidate(recentContactsProvider);
+    }
+  }
 
   @override
   void dispose() {
@@ -67,6 +98,7 @@ class _SendDockState extends ConsumerState<SendDock> {
             .sendThought(to!.id, anonymous: anonymous);
       }
       if (!mounted) return;
+      _orderStale = true; // applied on close — never under the user's finger
       _timers[key]?.cancel();
       _timers[key] = Timer(_kCooldown, () {
         _timers.remove(key);
@@ -98,9 +130,26 @@ class _SendDockState extends ConsumerState<SendDock> {
     final groups = ref.watch(myGroupsProvider).value ?? const <Group>[];
     final empty = friends.isEmpty && groups.isEmpty;
 
+    // Friends ordered by who you wrote to last (groups aren't tracked by
+    // `recentContactsProvider` — a group send fans out to per-member rows — so
+    // they keep their own alphabetical order up front).
+    final recent = ref.watch(recentContactsProvider).value ?? const <String>[];
+    final orderedFriends = sortByRecency(
+      friends,
+      idOf: (f) => f.profile.id,
+      labelOf: (f) => _name(f.profile),
+      recentIdsNewestFirst: recent,
+    );
+    final orderedGroups = sortByRecency(
+      groups,
+      idOf: (g) => g.id,
+      labelOf: (g) => g.name,
+      recentIdsNewestFirst: const [],
+    );
+
     // Groups first, then friends — same order in both stages.
     final avatars = <Widget>[
-      for (final g in groups)
+      for (final g in orderedGroups)
         _avatar(
           w,
           key: 'g:${g.id}',
@@ -108,7 +157,7 @@ class _SendDockState extends ConsumerState<SendDock> {
           group: true,
           onTap: () => _send(group: g),
         ),
-      for (final f in friends)
+      for (final f in orderedFriends)
         _avatar(
           w,
           key: 'u:${f.profile.id}',
@@ -157,18 +206,9 @@ class _SendDockState extends ConsumerState<SendDock> {
     );
   }
 
-  Widget _header(Color w) => Row(
-    children: [
-      Text(
-        'Envoyer une pensée',
-        style: TextStyle(color: w, fontWeight: FontWeight.w600),
-      ),
-      const Spacer(),
-      Text(
-        'anonyme : réglages',
-        style: TextStyle(color: w.withValues(alpha: 0.4), fontSize: 12),
-      ),
-    ],
+  Widget _header(Color w) => Text(
+    'Envoyer une pensée',
+    style: TextStyle(color: w, fontWeight: FontWeight.w600),
   );
 
   Widget _emptyText(Color w) => Padding(
