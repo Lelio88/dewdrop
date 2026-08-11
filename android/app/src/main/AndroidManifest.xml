@@ -4,9 +4,12 @@
     <!-- Camera: scanning a friend's QR invite code. -->
     <uses-permission android:name="android.permission.CAMERA"/>
 
+    <!-- Catégorie système (API 26+) : classe l'app dans les regroupements du launcher,
+         des stats batterie/réseau/stockage. « social » = messagerie / lien entre amis. -->
     <application
         android:label="dewdrop"
         android:name="${applicationName}"
+        android:appCategory="social"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
