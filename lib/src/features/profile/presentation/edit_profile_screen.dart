@@ -114,7 +114,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   Text(
                     'Ton pseudo est affiché ; ton @handle sert à te trouver.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: w.withValues(alpha: 0.7), fontSize: 13),
+                    style: TextStyle(
+                      color: w.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   GlassTextField(
@@ -135,11 +138,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _error!,
-                      style: const TextStyle(color: Color(0xFFFFB4A8), fontSize: 13),
+                      style: const TextStyle(
+                        color: Color(0xFFFFB4A8),
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 20),
-                  GlassButton(label: 'Enregistrer', loading: _loading, onTap: _save),
+                  GlassButton(
+                    label: 'Enregistrer',
+                    loading: _loading,
+                    onTap: _save,
+                  ),
                 ],
               ),
             ),

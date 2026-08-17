@@ -10,7 +10,8 @@ const _steps = [
   TourStep(title: 'Trois', body: 'Dernier nuage'),
 ];
 
-/// Steps whose middle one is satisfied by a real swipe.
+/// Steps whose middle one is satisfied by a real swipe, and whose last one
+/// wants a different scene on screen.
 const _gestureSteps = [
   TourStep(title: 'Un', body: 'Premier nuage'),
   TourStep(
@@ -19,7 +20,11 @@ const _gestureSteps = [
     anchor: TourAnchor.menuButton,
     gesture: TourGesture.swipeUp,
   ),
-  TourStep(title: 'Trois', body: 'Dernier nuage'),
+  TourStep(
+    title: 'Trois',
+    body: 'Dernier nuage',
+    scene: TourScene.sendPeek,
+  ),
 ];
 
 /// Pumps the tour over a stand-in home screen. [withAnchor] mounts a widget
@@ -125,12 +130,12 @@ void main() {
   group('gestes réels', () {
     /// Pumps the tour over a home that reports gestures, plus a drag detector
     /// standing in for the real decor, so we can assert the swipe reached it.
-    Future<(ValueNotifier<TourGesture?>, List<int>, List<String>)> pump(
+    Future<(ValueNotifier<TourGesture?>, List<TourScene>, List<String>)> pump(
       WidgetTester tester,
     ) async {
       final gestures = ValueNotifier<TourGesture?>(null);
       addTearDown(gestures.dispose);
-      final steps = <int>[];
+      final scenes = <TourScene>[];
       final dragsReachingHome = <String>[];
       final menuKey = GlobalKey();
       await tester.pumpWidget(
@@ -151,7 +156,7 @@ void main() {
                   steps: _gestureSteps,
                   anchors: {TourAnchor.menuButton: menuKey},
                   gestures: gestures,
-                  onStepChanged: steps.add,
+                  onScene: scenes.add,
                   onFinish: () {},
                 ),
               ],
@@ -160,7 +165,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      return (gestures, steps, dragsReachingHome);
+      return (gestures, scenes, dragsReachingHome);
     }
 
     testWidgets('a drag passes through the overlay to the home', (tester) async {
@@ -175,7 +180,7 @@ void main() {
     testWidgets('performing the asked gesture advances the step', (
       tester,
     ) async {
-      final (gestures, steps, _) = await pump(tester);
+      final (gestures, scenes, _) = await pump(tester);
       await tester.tap(find.text('Suivant'));
       await tester.pumpAndSettle();
       expect(find.text('Glisse'), findsOneWidget);
@@ -185,10 +190,15 @@ void main() {
       // Still on the step: the user gets a beat to see what the gesture did.
       expect(find.text('Glisse'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump(const Duration(milliseconds: 1700));
       await tester.pumpAndSettle();
       expect(find.text('Trois'), findsOneWidget);
-      expect(steps, [1, 2]); // the home was told to close its sheet
+      // The home was asked to stage each step's scene, the last one included.
+      expect(scenes, [
+        TourScene.closed,
+        TourScene.closed,
+        TourScene.sendPeek,
+      ]);
       expect(gestures.value, isNull); // consumed, so it can satisfy a later step
     });
 

@@ -27,7 +27,8 @@ const String _groupKey = 'dewdrop_thoughts';
 const String _stateKey = 'notif_thoughts';
 const int _summaryId = 0; // reserved; child ids are non-zero hashes
 
-final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin _plugin =
+    FlutterLocalNotificationsPlugin();
 bool _initialized = false;
 
 Future<void> _ensureInit() async {
@@ -47,7 +48,9 @@ Future<void> showThoughtNotification(RemoteMessage message) async {
   if (data['type'] != 'thought') return;
 
   final senderKey = data['sender_key'] ?? 'unknown';
-  final label = data['label']?.isNotEmpty == true ? data['label']! : 'Quelqu\'un';
+  final label = data['label']?.isNotEmpty == true
+      ? data['label']!
+      : 'Quelqu\'un';
   final body = data['message']?.isNotEmpty == true
       ? data['message']!
       : 'a pensé à toi';

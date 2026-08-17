@@ -122,6 +122,8 @@ class _HomeViewState extends ConsumerState<HomeView>
   final _sendHandleKey = GlobalKey();
   final _recusHandleKey = GlobalKey();
   final _menuKey = GlobalKey();
+  final _sendSheetKey = GlobalKey();
+  final _recusSheetKey = GlobalKey();
 
   // What the finger just did, reported to the tour so a step that asks for a
   // swipe can complete itself. Fed on every fling that clears the velocity
@@ -253,6 +255,26 @@ class _HomeViewState extends ConsumerState<HomeView>
     if (_sheetState.isOpen) setState(() => _sheetState = SheetState.closed);
   }
 
+  /// Put the drawers in the state the tour's current step wants to talk about,
+  /// so a bubble never describes something that isn't on screen (the user may
+  /// have tapped "Suivant" instead of performing the gesture).
+  void _applyTourScene(TourScene scene) {
+    final next = switch (scene) {
+      TourScene.closed => SheetState.closed,
+      TourScene.sendPeek => const SheetState(HomeSheet.send, SheetStage.peek),
+      TourScene.sendFull => const SheetState(HomeSheet.send, SheetStage.full),
+      TourScene.receivedPeek => const SheetState(
+        HomeSheet.recus,
+        SheetStage.peek,
+      ),
+      TourScene.receivedFull => const SheetState(
+        HomeSheet.recus,
+        SheetStage.full,
+      ),
+    };
+    if (next != _sheetState) setState(() => _sheetState = next);
+  }
+
   // A vertical fling drives the sheet state machine: from closed it opens the
   // matching sheet (↑ envoyer / ↓ reçus) at peek; a second fling the same way
   // escalates to full, the opposite way retreats one level (peek → closed, full
@@ -306,8 +328,15 @@ class _HomeViewState extends ConsumerState<HomeView>
     _tourGesture.value = TourGesture.swipeSide;
     // Locked to a single world during a marronnier — no favourite cycling.
     if (ref.read(seasonalOverrideProvider) != null) return;
+    // With no ⭐ yet, the gesture walks EVERY world rather than doing nothing.
+    // A brand-new account has no favourites, so the old early-return made the
+    // swipe silently dead exactly when it was being discovered — and made the
+    // tour a liar. Starring then becomes a shortlist, not a prerequisite.
     final favorites = ref.read(decorFavoritesProvider);
-    if (favorites.isEmpty) return;
+    if (favorites.isEmpty) {
+      _cycleAllWorlds(forward: v < 0);
+      return;
+    }
     // Swipe right (v > 0) reveals the previous world from the left; swipe left
     // (v < 0) brings the next world in from the right.
     _slideDir = v > 0 ? -1 : 1;
@@ -322,6 +351,26 @@ class _HomeViewState extends ConsumerState<HomeView>
         ? (idx - 1 + favorites.length) % favorites.length
         : (idx + 1) % favorites.length;
     _applyFavorite(favorites[next]);
+  }
+
+  // Fallback cycling for an account with no ⭐ yet: step through the ordinary
+  // worlds (seasonal ones excluded — they're date-locked and never chosen by
+  // hand), keeping the current render mode and landing on each world's first
+  // scene. As soon as the user stars anything, [_onHorizontalDragEnd] goes back
+  // to walking the favourites instead.
+  void _cycleAllWorlds({required bool forward}) {
+    final worlds = [
+      for (final e in Environment.values)
+        if (!e.seasonal) e,
+    ];
+    if (worlds.isEmpty) return;
+    final (currentEnv, _) = parseDecor(_decor);
+    final idx = worlds.indexOf(currentEnv);
+    final next = idx < 0
+        ? (forward ? worlds.first : worlds.last)
+        : worlds[(idx + (forward ? 1 : -1) + worlds.length) % worlds.length];
+    _slideDir = forward ? 1 : -1;
+    _applyFavorite(encodeFavorite(next, 0, _mode));
   }
 
   // Switches the live decor to a starred snapshot (world + variant + mode),
@@ -437,7 +486,7 @@ class _HomeViewState extends ConsumerState<HomeView>
     });
 
     final open = _sheetState.isOpen;
-    final showTour = ref.watch(homeTourProvider);
+    final showTour = ref.watch(showTourProvider(TourId.home));
     final media = MediaQuery.of(context);
     final fullH = media.size.height * 0.9;
     final sendFull =
@@ -554,10 +603,15 @@ class _HomeViewState extends ConsumerState<HomeView>
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
               child: _SheetPanel(
+                // Tour anchor: AnimatedSlide's transform is part of the paint
+                // transform, so localToGlobal tracks the panel WHILE it slides
+                // — that's how the cloud rides it up instead of covering it.
+                key: _sendSheetKey,
                 height: sendFull ? fullH : null,
                 onGrabDrag: _onDragEnd,
                 child: SendDock(
                   expanded: sendFull,
+                  onAddFriend: () => _pushImmersive('/friends'),
                   // Stays mounted when closed (it just slides off) — the dock
                   // needs this to defer its re-ordering until it's hidden.
                   visible: _sheetState.sheet == HomeSheet.send,
@@ -577,11 +631,15 @@ class _HomeViewState extends ConsumerState<HomeView>
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
               child: _SheetPanel(
+                key: _recusSheetKey,
                 top: true,
                 height: recusFull ? fullH : null,
                 onGrabDrag: _onDragEnd,
                 child: ReceivedPeek(
                   expanded: recusFull,
+                  // Samples stand in while the tour runs on an empty account —
+                  // see ReceivedPeek.demo.
+                  demo: showTour,
                   onSeeAll: () => _pushImmersive('/thoughts'),
                 ),
               ),
@@ -615,11 +673,14 @@ class _HomeViewState extends ConsumerState<HomeView>
               anchors: {
                 TourAnchor.sendHandle: _sendHandleKey,
                 TourAnchor.receivedHandle: _recusHandleKey,
+                TourAnchor.sendSheet: _sendSheetKey,
+                TourAnchor.receivedSheet: _recusSheetKey,
                 TourAnchor.menuButton: _menuKey,
               },
               gestures: _tourGesture,
-              onStepChanged: (_) => _closeSheets(),
-              onFinish: () => ref.read(homeTourProvider.notifier).complete(),
+              onScene: _applyTourScene,
+              onFinish: () =>
+                  ref.read(toursSeenProvider.notifier).complete(TourId.home),
             ),
         ],
       ),
@@ -910,6 +971,7 @@ class _Handle extends StatelessWidget {
 /// mid-transition, so no overflow).
 class _SheetPanel extends StatelessWidget {
   const _SheetPanel({
+    super.key,
     required this.child,
     this.top = false,
     this.height,

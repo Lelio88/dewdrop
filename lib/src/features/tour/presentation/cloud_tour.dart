@@ -37,7 +37,7 @@ class CloudTour extends StatefulWidget {
     required this.onFinish,
     this.steps = kHomeTour,
     this.gestures,
-    this.onStepChanged,
+    this.onScene,
   });
 
   /// Keys of the real widgets each [TourAnchor] designates. Anchors absent from
@@ -54,9 +54,11 @@ class CloudTour extends StatefulWidget {
   /// a later step too.
   final ValueNotifier<TourGesture?>? gestures;
 
-  /// Fired on every step change — the home uses it to close whatever sheet the
-  /// user's swipe just opened, so the next bubble isn't talking over it.
-  final ValueChanged<int>? onStepChanged;
+  /// The scene each step wants on screen, fired on entering it (including the
+  /// first). The home puts its drawers in that state, so a step explaining the
+  /// full-screen drawer is read WITH the drawer full-screen — whether the user
+  /// got there by swiping or by tapping "Suivant".
+  final ValueChanged<TourScene>? onScene;
 
   @override
   State<CloudTour> createState() => _CloudTourState();
@@ -66,9 +68,12 @@ class _CloudTourState extends State<CloudTour> {
   static const _kGap = 14.0;
   static const _kEstimatedBubbleHeight = 190.0;
 
-  /// How long the finished gesture stays on screen before the tour moves on —
-  /// enough to watch the sheet slide open, short enough not to feel stuck.
-  static const _kGestureBeat = Duration(milliseconds: 1100);
+  /// How long a finished gesture stays on screen before the tour moves on.
+  /// Longer than it looks on paper: the drawer's own slide takes ~340 ms, and
+  /// cutting in right after it lands reads as being rushed. The next bubble
+  /// comments on what just opened, so the hand-off is a continuation, not a
+  /// jump-cut.
+  static const _kGestureBeat = Duration(milliseconds: 1600);
 
   int _index = 0;
   Rect? _target;
@@ -83,6 +88,7 @@ class _CloudTourState extends State<CloudTour> {
     widget.gestures?.addListener(_onGesture);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      widget.onScene?.call(widget.steps[_index].scene);
       setState(() {
         _visible = true;
         _target = _resolve(widget.steps[_index].anchor);
@@ -138,11 +144,48 @@ class _CloudTourState extends State<CloudTour> {
       return;
     }
     final next = _index + 1;
+    final step = widget.steps[next];
+    // Ask for the scene BEFORE resolving: the new anchor is often a widget the
+    // scene change is about to mount (or unmount). Whatever isn't resolvable on
+    // this frame is picked up by [_syncTarget] on the next ones.
+    widget.onScene?.call(step.scene);
     setState(() {
       _index = next;
-      _target = _resolve(widget.steps[next].anchor);
+      // Keep the previous spotlight rather than snapping to centre while the
+      // new target is still animating in — unless the step wants none.
+      _target = step.anchor == TourAnchor.none
+          ? null
+          : (_resolve(step.anchor) ?? _target);
     });
-    widget.onStepChanged?.call(next);
+  }
+
+  /// Re-reads the current step's anchor every frame.
+  ///
+  /// This is what makes the bubble RIDE the drawer: as the panel slides up, its
+  /// rectangle changes each frame, the spotlight follows, and the cloud drifts
+  /// along instead of sitting on top of what just opened. It also fixes an
+  /// anchor that wasn't mounted yet when the step began — the case that left
+  /// the "glisse vers le bas" step with no spotlight at all, because the
+  /// previous drawer was still open (and the handles unmounted) at that instant.
+  ///
+  /// A null result is IGNORED rather than applied: an anchor that momentarily
+  /// disappears should freeze the spotlight, not fling the cloud to the centre.
+  void _syncTarget() {
+    final anchor = widget.steps[_index].anchor;
+    if (anchor == TourAnchor.none) {
+      if (_target != null) setState(() => _target = null);
+      return;
+    }
+    final next = _resolve(anchor);
+    if (next == null) return;
+    final current = _target;
+    if (current != null &&
+        (current.center - next.center).distance < 1 &&
+        (current.size.width - next.size.width).abs() < 1 &&
+        (current.size.height - next.size.height).abs() < 1) {
+      return; // settled — stop rebuilding
+    }
+    setState(() => _target = next);
   }
 
   /// Bubbles are sized by their text, so the height needed to place one above a
@@ -176,7 +219,9 @@ class _CloudTourState extends State<CloudTour> {
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _measureBubble();
+      if (!mounted) return;
+      _measureBubble();
+      _syncTarget();
     });
 
     final step = widget.steps[_index];
@@ -215,7 +260,7 @@ class _CloudTourState extends State<CloudTour> {
                 onTap: _next,
                 child: TweenAnimationBuilder<Rect?>(
                   tween: RectTween(end: hole),
-                  duration: const Duration(milliseconds: 380),
+                  duration: const Duration(milliseconds: 280),
                   curve: Curves.easeOutCubic,
                   builder: (_, animated, _) => CustomPaint(
                     painter: _SpotlightPainter(hole: animated),
@@ -230,8 +275,11 @@ class _CloudTourState extends State<CloudTour> {
               left: (size.width - bubbleWidth) / 2,
               width: bubbleWidth,
               top: _bubbleTop(size, target, safe),
-              duration: const Duration(milliseconds: 560),
-              curve: Curves.easeInOutCubic,
+              // Close to the drawer's own 340 ms slide: long enough to read as
+              // a drift between steps, short enough that the cloud rides the
+              // panel up instead of lagging behind it.
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
               child: CloudBubble(
                 key: _bubbleKey,
                 tail: target == null

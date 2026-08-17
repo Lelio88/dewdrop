@@ -5,6 +5,9 @@ import 'package:dewdrop/src/common/decor_choice.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/settings/application/decor_favorites_provider.dart';
 import 'package:dewdrop/src/features/settings/presentation/sound_sheet.dart';
+import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
+import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
+import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,6 +150,17 @@ class _DecorStoriesState extends ConsumerState<DecorStories> {
               ),
             ),
           ),
+          // This screen's own two bubbles, on first visit only.
+          if (ref.watch(showTourProvider(TourId.decors)))
+            CloudTour(
+              steps: kDecorsTour,
+              anchors: {
+                TourAnchor.decorStar: _starKey,
+                TourAnchor.decorSound: _soundKey,
+              },
+              onFinish: () =>
+                  ref.read(toursSeenProvider.notifier).complete(TourId.decors),
+            ),
         ],
       ),
     );
@@ -174,12 +188,15 @@ class _DecorStoriesState extends ConsumerState<DecorStories> {
   Widget _topBar(Color w, bool isFav) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      _starButton(isFav),
+      KeyedSubtree(key: _starKey, child: _starButton(isFav)),
       Row(
         children: [
-          _glassIcon(
-            Icons.graphic_eq_rounded,
-            () => showSoundSheet(context, _env),
+          KeyedSubtree(
+            key: _soundKey,
+            child: _glassIcon(
+              Icons.graphic_eq_rounded,
+              () => showSoundSheet(context, _env),
+            ),
           ),
           const SizedBox(width: 10),
           _modeToggle(w),
@@ -187,6 +204,10 @@ class _DecorStoriesState extends ConsumerState<DecorStories> {
       ),
     ],
   );
+
+  // Anchors for this screen's own two-bubble tour, shown on first visit.
+  final _starKey = GlobalKey();
+  final _soundKey = GlobalKey();
 
   // Stars/unstars the previewed snapshot (world + variant + dessin/photo). The
   // gold fill mirrors [decorFavoritesProvider]; the home screen swipes between

@@ -4,6 +4,8 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
+import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
+import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -29,6 +31,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifs = true; // master push switch
   bool _anonymous =
       false; // default "anonymous" for the thoughts this user sends
+
+  // Anchors for this screen's own two-bubble tour, shown on first visit.
+  final _thoughtKey = GlobalKey();
+  final _quietKey = GlobalKey();
 
   // The developer's Ko-fi page — opened in the browser from the "Soutenir" row.
   static const _kSupportUrl = 'https://ko-fi.com/heianlelio';
@@ -127,251 +133,279 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: Colors.transparent,
         title: const Text('Réglages'),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF12162A), Color(0xFF06070E)],
-          ),
-        ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            children: [
-              _section(w, 'Personnalisation'),
-              _card(
-                w,
-                child: Column(
-                  children: [
-                    // Door to the style/preset editor for the thoughts the user
-                    // sends (preview + slot-machine reels + saved presets).
-                    ListTile(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF12162A), Color(0xFF06070E)],
+              ),
+            ),
+            child: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                children: [
+                  _section(w, 'Personnalisation'),
+                  _card(
+                    w,
+                    key: _thoughtKey,
+                    child: Column(
+                      children: [
+                        // Door to the style/preset editor for the thoughts the user
+                        // sends (preview + slot-machine reels + saved presets).
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            Icons.edit_note_rounded,
+                            color: w.withValues(alpha: 0.85),
+                          ),
+                          title: const Text('Personnaliser mes pensées'),
+                          subtitle: Text(
+                            'Style de tes notifications & presets enregistrés',
+                            style: TextStyle(color: w.withValues(alpha: 0.5)),
+                          ),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: w.withValues(alpha: 0.5),
+                          ),
+                          onTap: () => context.push('/thought-settings'),
+                        ),
+                        Divider(color: w.withValues(alpha: 0.08), height: 1),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _anonymous,
+                          onChanged: (v) => unawaited(_persistAnonymous(v)),
+                          title: const Text('Envoyer anonymement par défaut'),
+                          subtitle: Text(
+                            "Ton nom sera remplacé par « Quelqu'un ».",
+                            style: TextStyle(color: w.withValues(alpha: 0.5)),
+                          ),
+                        ),
+                        Divider(color: w.withValues(alpha: 0.08), height: 1),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: ref.watch(parallaxEnabledProvider),
+                          onChanged: (v) =>
+                              ref.read(parallaxEnabledProvider.notifier).set(v),
+                          title: const Text('Parallaxe (gyroscope)'),
+                          subtitle: Text(
+                            'Le décor suit les mouvements du téléphone.',
+                            style: TextStyle(color: w.withValues(alpha: 0.5)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _section(w, 'Notifications'),
+                  _card(
+                    w,
+                    child: Column(
+                      children: [
+                        // Interrupteur maître : coupe TOUT (le serveur n'envoie plus).
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: _notifs,
+                          onChanged: (v) {
+                            setState(() => _notifs = v);
+                            unawaited(_persistNotifs(v));
+                          },
+                          title: const Text('Recevoir des notifications'),
+                          subtitle: Text(
+                            'Une notif quand on pense à toi. Désactive pour tout couper.',
+                            style: TextStyle(color: w.withValues(alpha: 0.5)),
+                          ),
+                        ),
+                        Divider(color: w.withValues(alpha: 0.08), height: 1),
+                        // Heures calmes — dans la même carte ; grisées et inactives
+                        // quand les notifications sont coupées (sans objet sinon).
+                        Opacity(
+                          opacity: _notifs ? 1 : 0.4,
+                          child: IgnorePointer(
+                            ignoring: !_notifs,
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  key: _quietKey,
+                                  contentPadding: EdgeInsets.zero,
+                                  value: _quiet,
+                                  onChanged: (v) {
+                                    setState(() => _quiet = v);
+                                    unawaited(_persist());
+                                  },
+                                  title: const Text('Heures calmes'),
+                                  subtitle: Text(
+                                    'Les pensées arrivent en silence sur ce créneau.',
+                                    style: TextStyle(
+                                      color: w.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                                if (_quiet)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: 4,
+                                      bottom: 12,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          'De',
+                                          style: TextStyle(
+                                            color: w.withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        _hourChip(
+                                          w,
+                                          _start,
+                                          () => _pickHour(true),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Text(
+                                          'à',
+                                          style: TextStyle(
+                                            color: w.withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        _hourChip(
+                                          w,
+                                          _end,
+                                          () => _pickHour(false),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _section(w, 'Soutien'),
+                  _card(
+                    w,
+                    child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        Icons.edit_note_rounded,
-                        color: w.withValues(alpha: 0.85),
+                      leading: const Icon(
+                        Icons.favorite_rounded,
+                        color: Color(0xFFF6A6C1),
                       ),
-                      title: const Text('Personnaliser mes pensées'),
+                      title: const Text('Soutenir DewDrop ☕'),
                       subtitle: Text(
-                        'Style de tes notifications & presets enregistrés',
+                        "Un café pour m'aider à continuer (Ko-fi)",
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                      trailing: Icon(
+                        Icons.open_in_new_rounded,
+                        color: w.withValues(alpha: 0.4),
+                        size: 18,
+                      ),
+                      onTap: _openSupport,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _section(w, 'À propos'),
+                  _card(
+                    w,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Revoir le tuto'),
+                      subtitle: Text(
+                        'Les gestes de l’accueil, et les nuages de chaque écran',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                      trailing: Icon(
+                        Icons.replay_rounded,
+                        color: w.withValues(alpha: 0.4),
+                      ),
+                      // Re-arms the tour and steps back to the home, where it is
+                      // already waiting (HomeView stays mounted underneath).
+                      onTap: () {
+                        // Re-arms every tour: the home one plays on return, and
+                        // each screen explains itself again on its next visit.
+                        ref.read(toursSeenProvider.notifier).replayAll();
+                        context.pop();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _card(
+                    w,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('À propos & crédits'),
+                      subtitle: Text(
+                        'Mentions légales, attributions, licences',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        color: w.withValues(alpha: 0.4),
+                      ),
+                      onTap: () => context.push('/about'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _section(w, 'Compte'),
+                  _card(
+                    w,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Modifier mon profil'),
+                      subtitle: Text(
+                        'Pseudo et @handle',
                         style: TextStyle(color: w.withValues(alpha: 0.5)),
                       ),
                       trailing: Icon(
                         Icons.chevron_right,
                         color: w.withValues(alpha: 0.5),
                       ),
-                      onTap: () => context.push('/thought-settings'),
+                      onTap: () => context.push('/edit-profile'),
                     ),
-                    Divider(color: w.withValues(alpha: 0.08), height: 1),
-                    SwitchListTile(
+                  ),
+                  const SizedBox(height: 10),
+                  _card(
+                    w,
+                    child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      value: _anonymous,
-                      onChanged: (v) => unawaited(_persistAnonymous(v)),
-                      title: const Text('Envoyer anonymement par défaut'),
+                      leading: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFFF6B5A),
+                      ),
+                      title: const Text(
+                        'Supprimer mon compte',
+                        style: TextStyle(color: Color(0xFFFF6B5A)),
+                      ),
                       subtitle: Text(
-                        "Ton nom sera remplacé par « Quelqu'un ».",
+                        'Efface définitivement ton compte et tes données',
                         style: TextStyle(color: w.withValues(alpha: 0.5)),
                       ),
+                      onTap: _confirmDelete,
                     ),
-                    Divider(color: w.withValues(alpha: 0.08), height: 1),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: ref.watch(parallaxEnabledProvider),
-                      onChanged: (v) =>
-                          ref.read(parallaxEnabledProvider.notifier).set(v),
-                      title: const Text('Parallaxe (gyroscope)'),
-                      subtitle: Text(
-                        'Le décor suit les mouvements du téléphone.',
-                        style: TextStyle(color: w.withValues(alpha: 0.5)),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              _section(w, 'Notifications'),
-              _card(
-                w,
-                child: Column(
-                  children: [
-                    // Interrupteur maître : coupe TOUT (le serveur n'envoie plus).
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: _notifs,
-                      onChanged: (v) {
-                        setState(() => _notifs = v);
-                        unawaited(_persistNotifs(v));
-                      },
-                      title: const Text('Recevoir des notifications'),
-                      subtitle: Text(
-                        'Une notif quand on pense à toi. Désactive pour tout couper.',
-                        style: TextStyle(color: w.withValues(alpha: 0.5)),
-                      ),
-                    ),
-                    Divider(color: w.withValues(alpha: 0.08), height: 1),
-                    // Heures calmes — dans la même carte ; grisées et inactives
-                    // quand les notifications sont coupées (sans objet sinon).
-                    Opacity(
-                      opacity: _notifs ? 1 : 0.4,
-                      child: IgnorePointer(
-                        ignoring: !_notifs,
-                        child: Column(
-                          children: [
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              value: _quiet,
-                              onChanged: (v) {
-                                setState(() => _quiet = v);
-                                unawaited(_persist());
-                              },
-                              title: const Text('Heures calmes'),
-                              subtitle: Text(
-                                'Les pensées arrivent en silence sur ce créneau.',
-                                style: TextStyle(
-                                  color: w.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            ),
-                            if (_quiet)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 4,
-                                  bottom: 12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'De',
-                                      style: TextStyle(
-                                        color: w.withValues(alpha: 0.7),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    _hourChip(w, _start, () => _pickHour(true)),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      'à',
-                                      style: TextStyle(
-                                        color: w.withValues(alpha: 0.7),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    _hourChip(w, _end, () => _pickHour(false)),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              _section(w, 'Soutien'),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.favorite_rounded,
-                    color: Color(0xFFF6A6C1),
-                  ),
-                  title: const Text('Soutenir DewDrop ☕'),
-                  subtitle: Text(
-                    "Un café pour m'aider à continuer (Ko-fi)",
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.open_in_new_rounded,
-                    color: w.withValues(alpha: 0.4),
-                    size: 18,
-                  ),
-                  onTap: _openSupport,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _section(w, 'À propos'),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Revoir le tuto'),
-                  subtitle: Text(
-                    'Les gestes de l’accueil, en cinq nuages',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.replay_rounded,
-                    color: w.withValues(alpha: 0.4),
-                  ),
-                  // Re-arms the tour and steps back to the home, where it is
-                  // already waiting (HomeView stays mounted underneath).
-                  onTap: () {
-                    ref.read(homeTourProvider.notifier).replay();
-                    context.pop();
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('À propos & crédits'),
-                  subtitle: Text(
-                    'Mentions légales, attributions, licences',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.4),
-                  ),
-                  onTap: () => context.push('/about'),
-                ),
-              ),
-              const SizedBox(height: 24),
-              _section(w, 'Compte'),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Modifier mon profil'),
-                  subtitle: Text(
-                    'Pseudo et @handle',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => context.push('/edit-profile'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              _card(
-                w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.delete_outline,
-                    color: Color(0xFFFF6B5A),
-                  ),
-                  title: const Text(
-                    'Supprimer mon compte',
-                    style: TextStyle(color: Color(0xFFFF6B5A)),
-                  ),
-                  subtitle: Text(
-                    'Efface définitivement ton compte et tes données',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  onTap: _confirmDelete,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          // This screen's own two bubbles, on first visit only.
+          if (ref.watch(showTourProvider(TourId.settings)))
+            CloudTour(
+              steps: kSettingsTour,
+              anchors: {
+                TourAnchor.settingsThought: _thoughtKey,
+                TourAnchor.settingsQuiet: _quietKey,
+              },
+              onFinish: () => ref
+                  .read(toursSeenProvider.notifier)
+                  .complete(TourId.settings),
+            ),
+        ],
       ),
     );
   }
@@ -427,7 +461,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   );
 
-  Widget _card(Color w, {required Widget child}) => Container(
+  Widget _card(Color w, {required Widget child, Key? key}) => Container(
+    key: key,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(18),

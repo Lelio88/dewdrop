@@ -33,11 +33,16 @@ class SendDock extends ConsumerStatefulWidget {
   const SendDock({
     super.key,
     required this.onSeeAll,
+    this.onAddFriend,
     this.expanded = false,
     this.visible = true,
   });
 
   final VoidCallback onSeeAll;
+
+  /// Opens the friends screen. An account with nobody to send to opens this
+  /// drawer on a dead end otherwise — the way out belongs where the wall is.
+  final VoidCallback? onAddFriend;
 
   /// When false, a single horizontal row (the peek). When true — a second swipe
   /// up — a scrollable wrapped grid of every friend + group, filling the sheet.
@@ -213,10 +218,42 @@ class _SendDockState extends ConsumerState<SendDock> {
 
   Widget _emptyText(Color w) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text(
-      'Ajoute un ami pour envoyer une pensée.',
-      style: TextStyle(color: w.withValues(alpha: 0.5)),
-    ),
+    child: widget.onAddFriend == null
+        ? Text(
+            'Ajoute un ami pour envoyer une pensée.',
+            style: TextStyle(color: w.withValues(alpha: 0.5)),
+          )
+        : GestureDetector(
+            onTap: widget.onAddFriend,
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF8FE3A8).withValues(alpha: 0.18),
+                    border: Border.all(
+                      color: const Color(0xFF8FE3A8).withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.person_add_alt_1,
+                    color: Color(0xFF8FE3A8),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Ajoute ton premier ami pour commencer',
+                    style: TextStyle(color: w.withValues(alpha: 0.75)),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: w.withValues(alpha: 0.45)),
+              ],
+            ),
+          ),
   );
 
   Widget _avatar(

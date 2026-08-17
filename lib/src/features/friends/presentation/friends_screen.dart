@@ -6,6 +6,9 @@ import 'package:dewdrop/src/features/profile/application/profile_providers.dart'
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/groups/application/group_providers.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
+import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
+import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
+import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +23,10 @@ class FriendsScreen extends ConsumerStatefulWidget {
 class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   final _handle = TextEditingController();
   bool _adding = false;
+
+  // Anchors for this screen's own two-bubble tour, shown on first visit.
+  final _addKey = GlobalKey();
+  final _groupsKey = GlobalKey();
 
   // Lookalikes offered after an exact handle missed ("tu voulais dire… ?").
   // Never populated proactively while typing: the suggestion only ever answers
@@ -207,111 +214,133 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF12162A), Color(0xFF06070E)],
-          ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(incomingRequestsProvider);
-              ref.invalidate(friendsProvider);
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-              children: [
-                GlassCard(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GlassTextField(
-                          controller: _handle,
-                          hint: 'Ajouter par @handle',
-                          icon: Icons.person_add_alt_1,
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => _add(),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      SizedBox(
-                        width: 80,
-                        child: GlassButton(
-                          label: 'Inviter',
-                          loading: _adding,
-                          onTap: _add,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_suggestions.isNotEmpty) _suggestionsBlock(white),
-                const SizedBox(height: 24),
-                _section(white, 'Demandes reçues'),
-                requests.when(
-                  loading: () => const _Loading(),
-                  error: (_, _) => _error(white),
-                  data: (list) => list.isEmpty
-                      ? _empty(white, 'Aucune demande.')
-                      : Column(
-                          children: [
-                            for (final r in list) _requestTile(white, r),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-                _section(white, 'Mes amis'),
-                friends.when(
-                  loading: () => const _Loading(),
-                  error: (_, _) => _error(white),
-                  data: (list) => list.isEmpty
-                      ? _empty(white, 'Pas encore d\'amis. Invite quelqu\'un !')
-                      : Column(
-                          children: [
-                            for (final f in list) _friendTile(white, f),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF12162A), Color(0xFF06070E)],
+              ),
+            ),
+            child: SafeArea(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(incomingRequestsProvider);
+                  ref.invalidate(friendsProvider);
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                   children: [
-                    _section(white, 'Mes groupes'),
-                    TextButton.icon(
-                      onPressed: _createGroup,
-                      icon: const Icon(
-                        Icons.add,
-                        size: 18,
-                        color: Color(0xFF8FE3A8),
+                    GlassCard(
+                      key: _addKey,
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GlassTextField(
+                              controller: _handle,
+                              hint: 'Ajouter par @handle',
+                              icon: Icons.person_add_alt_1,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _add(),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 80,
+                            child: GlassButton(
+                              label: 'Inviter',
+                              loading: _adding,
+                              onTap: _add,
+                            ),
+                          ),
+                        ],
                       ),
-                      label: const Text(
-                        'Créer',
-                        style: TextStyle(color: Color(0xFF8FE3A8)),
-                      ),
+                    ),
+                    if (_suggestions.isNotEmpty) _suggestionsBlock(white),
+                    const SizedBox(height: 24),
+                    _section(white, 'Demandes reçues'),
+                    requests.when(
+                      loading: () => const _Loading(),
+                      error: (_, _) => _error(white),
+                      data: (list) => list.isEmpty
+                          ? _empty(white, 'Aucune demande.')
+                          : Column(
+                              children: [
+                                for (final r in list) _requestTile(white, r),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                    _section(white, 'Mes amis'),
+                    friends.when(
+                      loading: () => const _Loading(),
+                      error: (_, _) => _error(white),
+                      data: (list) => list.isEmpty
+                          ? _empty(
+                              white,
+                              'Pas encore d\'amis. Invite quelqu\'un !',
+                            )
+                          : Column(
+                              children: [
+                                for (final f in list) _friendTile(white, f),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      key: _groupsKey,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _section(white, 'Mes groupes'),
+                        TextButton.icon(
+                          onPressed: _createGroup,
+                          icon: const Icon(
+                            Icons.add,
+                            size: 18,
+                            color: Color(0xFF8FE3A8),
+                          ),
+                          label: const Text(
+                            'Créer',
+                            style: TextStyle(color: Color(0xFF8FE3A8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    groups.when(
+                      loading: () => const _Loading(),
+                      error: (_, _) => _error(white),
+                      data: (list) => list.isEmpty
+                          ? _empty(
+                              white,
+                              'Aucun groupe. Crée un cercle pour envoyer à plusieurs amis d\'un coup.',
+                            )
+                          : Column(
+                              children: [
+                                for (final g in list) _groupTile(white, g),
+                              ],
+                            ),
                     ),
                   ],
                 ),
-                groups.when(
-                  loading: () => const _Loading(),
-                  error: (_, _) => _error(white),
-                  data: (list) => list.isEmpty
-                      ? _empty(
-                          white,
-                          'Aucun groupe. Crée un cercle pour envoyer à plusieurs amis d\'un coup.',
-                        )
-                      : Column(
-                          children: [for (final g in list) _groupTile(white, g)],
-                        ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          // This screen's own two bubbles, on first visit only.
+          if (ref.watch(showTourProvider(TourId.friends)))
+            CloudTour(
+              steps: kFriendsTour,
+              anchors: {
+                TourAnchor.friendsAdd: _addKey,
+                TourAnchor.friendsGroups: _groupsKey,
+              },
+              onFinish: () =>
+                  ref.read(toursSeenProvider.notifier).complete(TourId.friends),
+            ),
+        ],
       ),
     );
   }
@@ -342,7 +371,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             onTap: _adding ? null : () => _addProfile(p),
             trailing: Icon(
               Icons.person_add_alt_1,
-              color: const Color(0xFF8FE3A8).withValues(alpha: _adding ? 0.4 : 1),
+              color: const Color(
+                0xFF8FE3A8,
+              ).withValues(alpha: _adding ? 0.4 : 1),
             ),
           ),
       ],
@@ -394,7 +425,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 6),
       leading: CircleAvatar(
         backgroundColor: const Color(0xFF8FB7FF).withValues(alpha: 0.18),
-        child: Icon(Icons.group_rounded, color: w.withValues(alpha: 0.9), size: 20),
+        child: Icon(
+          Icons.group_rounded,
+          color: w.withValues(alpha: 0.9),
+          size: 20,
+        ),
       ),
       title: Text(g.name),
       trailing: Icon(Icons.chevron_right, color: w.withValues(alpha: 0.5)),

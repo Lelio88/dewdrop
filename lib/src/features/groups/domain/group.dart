@@ -1,11 +1,7 @@
 /// A shared "circle": a named group the [creatorId] owns and whose members can
 /// each send a pensée to everyone in it. Mirrors `public.groups`.
 class Group {
-  const Group({
-    required this.id,
-    required this.name,
-    required this.creatorId,
-  });
+  const Group({required this.id, required this.name, required this.creatorId});
 
   final String id;
   final String name;

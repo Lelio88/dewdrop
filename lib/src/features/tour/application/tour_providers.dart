@@ -1,42 +1,54 @@
 import 'dart:async';
 
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
+import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Whether the home tour should be showing right now.
+/// Which tours have already been seen on this device.
 ///
-/// Device-local (SharedPreferences), not a `profiles` column: "I've seen the
-/// tour" is knowledge about *this* install, and a fresh phone is exactly where
-/// re-showing it is useful. It also keeps the tour out of the profile round-trip
-/// on first launch, so it can paint before the network answers.
+/// Device-local (SharedPreferences), not a `profiles` column: "I've seen it" is
+/// knowledge about *this* install, and a fresh phone is exactly where showing it
+/// again helps. It also keeps the tours out of the profile round-trip on first
+/// launch, so the home one can paint before the network answers.
 ///
-/// [complete] is called when the user finishes or skips; [replay] re-arms it
-/// from Réglages. Since `HomeView` watches this provider and stays mounted
-/// under any pushed screen, replaying from Réglages means the tour is already
-/// waiting when that screen is popped.
-class HomeTourNotifier extends Notifier<bool> {
-  static const _key = 'home_tour_seen';
+/// One key per tour, so seeing the home tour doesn't silence the friends one —
+/// each screen explains itself the first time it is opened.
+class ToursSeenNotifier extends Notifier<Set<TourId>> {
+  static String _key(TourId id) => 'tour_seen_${id.name}';
 
   @override
-  bool build() {
+  Set<TourId> build() {
     final prefs = ref.watch(sharedPreferencesProvider);
-    return !(prefs.getBool(_key) ?? false);
+    return {
+      for (final id in TourId.values)
+        if (prefs.getBool(_key(id)) ?? false) id,
+    };
   }
 
-  /// Finished or skipped — don't show it again on this device.
-  void complete() => _set(seen: true);
+  /// Finished or skipped — don't show [id] again on this device.
+  void complete(TourId id) => _set(id, seen: true);
 
-  /// Re-arm the tour (from Réglages → « Revoir le tuto »).
-  void replay() => _set(seen: false);
+  /// Re-arm every tour (Réglages → « Revoir le tuto »): the home one plays at
+  /// once, and each screen explains itself again on its next visit.
+  void replayAll() {
+    for (final id in TourId.values) {
+      _set(id, seen: false);
+    }
+  }
 
-  void _set({required bool seen}) {
-    state = !seen;
+  void _set(TourId id, {required bool seen}) {
+    state = seen ? {...state, id} : (state.toSet()..remove(id));
     // Fire-and-forget: the in-memory state above is what the UI reads, and a
     // failed write only costs the user seeing the tour once more.
-    unawaited(ref.read(sharedPreferencesProvider).setBool(_key, seen));
+    unawaited(ref.read(sharedPreferencesProvider).setBool(_key(id), seen));
   }
 }
 
-final homeTourProvider = NotifierProvider<HomeTourNotifier, bool>(
-  HomeTourNotifier.new,
+final toursSeenProvider = NotifierProvider<ToursSeenNotifier, Set<TourId>>(
+  ToursSeenNotifier.new,
+);
+
+/// Whether [id] should be playing right now. Watch this, not the raw set.
+final showTourProvider = Provider.family<bool, TourId>(
+  (ref, id) => !ref.watch(toursSeenProvider).contains(id),
 );

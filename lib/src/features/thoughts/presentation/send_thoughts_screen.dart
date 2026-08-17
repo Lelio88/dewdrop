@@ -229,7 +229,9 @@ class _SendThoughtsScreenState extends ConsumerState<SendThoughtsScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           color: w.withValues(alpha: alone ? 0.10 : 0.06),
-          border: Border.all(color: accent.withValues(alpha: alone ? 0.5 : 0.25)),
+          border: Border.all(
+            color: accent.withValues(alpha: alone ? 0.5 : 0.25),
+          ),
         ),
         child: Row(
           children: [

@@ -89,7 +89,10 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                 isCreator
                     ? 'Tu gères ce groupe : ajoute ou retire des membres parmi tes amis.'
                     : 'Tout membre peut envoyer une pensée au groupe.',
-                style: TextStyle(color: w.withValues(alpha: 0.55), fontSize: 13),
+                style: TextStyle(
+                  color: w.withValues(alpha: 0.55),
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 16),
               _section(w, 'Membres'),
@@ -160,7 +163,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     bool isCreator,
     Set<String>? friendIds,
   ) {
-    final name = p.displayName?.isNotEmpty == true ? p.displayName! : '@${p.handle}';
+    final name = p.displayName?.isNotEmpty == true
+        ? p.displayName!
+        : '@${p.handle}';
     final isSelf = p.id == uid;
     final isOwner = group.isCreator(p.id);
     // Offer friendship to fellow members only once we KNOW they aren't already
@@ -184,10 +189,15 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
       // The creator can remove anyone but themselves.
       if (isCreator && !isSelf)
         IconButton(
-          icon: Icon(Icons.remove_circle_outline, color: w.withValues(alpha: 0.5)),
+          icon: Icon(
+            Icons.remove_circle_outline,
+            color: w.withValues(alpha: 0.5),
+          ),
           tooltip: 'Retirer du groupe',
           onPressed: () async {
-            await ref.read(groupRepositoryProvider).removeMember(group.id, p.id);
+            await ref
+                .read(groupRepositoryProvider)
+                .removeMember(group.id, p.id);
             ref.invalidate(groupMembersProvider(group.id));
           },
         ),
@@ -223,7 +233,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
     ];
     if (addable.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tous tes amis sont déjà dans le groupe.')),
+        const SnackBar(
+          content: Text('Tous tes amis sont déjà dans le groupe.'),
+        ),
       );
       return;
     }
@@ -236,18 +248,28 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Ajouter au groupe', style: TextStyle(color: Colors.white70)),
+              child: Text(
+                'Ajouter au groupe',
+                style: TextStyle(color: Colors.white70),
+              ),
             ),
             for (final p in addable)
               ListTile(
-                leading: const Icon(Icons.person_add_alt_1, color: Colors.white70),
+                leading: const Icon(
+                  Icons.person_add_alt_1,
+                  color: Colors.white70,
+                ),
                 title: Text(
-                  p.displayName?.isNotEmpty == true ? p.displayName! : '@${p.handle}',
+                  p.displayName?.isNotEmpty == true
+                      ? p.displayName!
+                      : '@${p.handle}',
                   style: const TextStyle(color: Colors.white),
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
-                  await ref.read(groupRepositoryProvider).addMember(group.id, p.id);
+                  await ref
+                      .read(groupRepositoryProvider)
+                      .addMember(group.id, p.id);
                   ref.invalidate(groupMembersProvider(group.id));
                 },
               ),
@@ -287,10 +309,16 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
         title: Text(title),
         content: Text(body),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirmer', style: TextStyle(color: Color(0xFFFF6B5A))),
+            child: const Text(
+              'Confirmer',
+              style: TextStyle(color: Color(0xFFFF6B5A)),
+            ),
           ),
         ],
       ),

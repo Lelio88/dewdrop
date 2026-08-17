@@ -58,8 +58,11 @@ class CloudBubble extends StatelessWidget {
 
   // The puffs shrink away from the bubble; above the bubble that means
   // mirroring them vertically.
-  Widget _flip(Widget puffs) =>
-      Transform(alignment: Alignment.center, transform: Matrix4.rotationX(3.14159), child: puffs);
+  Widget _flip(Widget puffs) => Transform(
+    alignment: Alignment.center,
+    transform: Matrix4.rotationX(3.14159),
+    child: puffs,
+  );
 }
 
 /// Which side of a [CloudBubble] the trailing puffs sit on.
@@ -82,7 +85,11 @@ class _Puffs extends StatelessWidget {
         children: [
           // Each puff carries its own soft white glow, so the trail fades out
           // the way the cloud's edge does instead of ending in hard dots.
-          for (final (d, a) in const [(12.0, 0.95), (7.5, 0.75), (4.0, 0.5)]) ...[
+          for (final (d, a) in const [
+            (12.0, 0.95),
+            (7.5, 0.75),
+            (4.0, 0.5),
+          ]) ...[
             Container(
               width: d,
               height: d,

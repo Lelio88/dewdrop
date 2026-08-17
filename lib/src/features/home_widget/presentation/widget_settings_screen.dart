@@ -34,7 +34,8 @@ class WidgetSettingsScreen extends ConsumerStatefulWidget {
 
 class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   late String _source; // 'auto' | 'custom'
-  late List<String> _pinned; // friend ids, in display order (≤ kWidgetSlotCount)
+  late List<String>
+  _pinned; // friend ids, in display order (≤ kWidgetSlotCount)
 
   @override
   void initState() {
@@ -79,7 +80,10 @@ class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
   }
 
   void _remove(List<Friend> pinned, String id) => unawaited(
-    _savePinned([for (final f in pinned) if (f.profile.id != id) f.profile.id]),
+    _savePinned([
+      for (final f in pinned)
+        if (f.profile.id != id) f.profile.id,
+    ]),
   );
 
   void _add(List<Friend> pinned, String id) =>

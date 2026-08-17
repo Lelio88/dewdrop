@@ -18,18 +18,28 @@ class ReceivedPeek extends ConsumerWidget {
     super.key,
     required this.onSeeAll,
     this.expanded = false,
+    this.demo = false,
   });
 
   final VoidCallback onSeeAll;
   final bool expanded;
 
+  /// While the tour is running, a brand-new account would open this drawer on
+  /// nothing at all — and "voilà tes pensées" over an empty panel teaches
+  /// nothing. With [demo] on, and ONLY when there is genuinely nothing to show,
+  /// two sample lines stand in, each labelled « exemple ». Nothing is written
+  /// anywhere: they exist for the length of the tour and vanish with it.
+  final bool demo;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final w = Colors.white;
-    final received =
+    final real =
         ref.watch(receivedThoughtsProvider).value ?? const <ReceivedThought>[];
+    final received = (demo && real.isEmpty) ? _samples() : real;
+    final isDemo = demo && real.isEmpty;
 
-    if (expanded) return _expanded(w, received);
+    if (expanded) return _expanded(w, received, isDemo);
 
     final recent = received.take(3).toList();
     return Column(
@@ -38,14 +48,17 @@ class ReceivedPeek extends ConsumerWidget {
       children: [
         _header(w),
         const SizedBox(height: 12),
-        if (recent.isEmpty) _empty(w) else for (final t in recent) _item(w, t),
+        if (recent.isEmpty)
+          _empty(w)
+        else
+          for (final t in recent) _item(w, t, isDemo),
         const SizedBox(height: 14),
         GlassButton(label: 'Voir toutes mes pensées', onTap: onSeeAll),
       ],
     );
   }
 
-  Widget _expanded(Color w, List<ReceivedThought> received) {
+  Widget _expanded(Color w, List<ReceivedThought> received, bool isDemo) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -57,13 +70,31 @@ class ReceivedPeek extends ConsumerWidget {
               : ListView.builder(
                   padding: EdgeInsets.zero,
                   itemCount: received.length,
-                  itemBuilder: (_, i) => _item(w, received[i]),
+                  itemBuilder: (_, i) => _item(w, received[i], isDemo),
                 ),
         ),
         const SizedBox(height: 10),
         GlassButton(label: 'Ouvrir en plein écran', onTap: onSeeAll),
       ],
     );
+  }
+
+  /// Stand-in lines for the tour. Deliberately unremarkable — one named sender,
+  /// one anonymous — so the drawer shows both shapes it can take.
+  List<ReceivedThought> _samples() {
+    final now = DateTime.now();
+    return [
+      ReceivedThought(
+        id: '_demo_1',
+        createdAt: now.subtract(const Duration(minutes: 12)),
+        isAnonymous: true,
+      ),
+      ReceivedThought(
+        id: '_demo_2',
+        createdAt: now.subtract(const Duration(hours: 5)),
+        isAnonymous: true,
+      ),
+    ];
   }
 
   Widget _header(Color w) => Row(
@@ -85,7 +116,7 @@ class ReceivedPeek extends ConsumerWidget {
     ),
   );
 
-  Widget _item(Color w, ReceivedThought t) {
+  Widget _item(Color w, ReceivedThought t, [bool isDemo = false]) {
     final who = t.isAnonymous ? "Quelqu'un" : _name(t.sender);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -101,9 +132,38 @@ class ReceivedPeek extends ConsumerWidget {
           ),
           const SizedBox(width: 11),
           Expanded(
-            child: Text(
-              '$who a pensé à toi',
-              style: TextStyle(color: w.withValues(alpha: 0.9)),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    '$who a pensé à toi',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: w.withValues(alpha: 0.9)),
+                  ),
+                ),
+                // Never let a tour sample pass for a real pensée.
+                if (isDemo) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      color: w.withValues(alpha: 0.14),
+                    ),
+                    child: Text(
+                      'exemple',
+                      style: TextStyle(
+                        color: w.withValues(alpha: 0.65),
+                        fontSize: 10,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           Text(
