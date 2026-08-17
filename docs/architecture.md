@@ -99,6 +99,14 @@ one-shots (assets/audio/oneshot/*.ogg) — 1 timer par catégorie, intervalle al
 - **Reset** : `sendPasswordReset(redirectTo: reset-password)` → email → l'app rouvre en mode recovery → `ResetPasswordScreen` → `updateUser(password)`. Formulation **anti-énumération** (ne révèle pas si l'email a un compte).
 - **Emails via Brevo (SMTP)** : `[auth.email.smtp]` dans `config.toml` (`pass = env(BREVO_SMTP_KEY)`, jamais commitée). Poussés par `supabase config push`.
 - **Tous les gabarits d'email sont surchargés en FR** : `supabase/templates/{confirmation,recovery,email_change,magic_link,reauthentication,invite}.html` (sujets « …DewDrop » → filtrables). C'est exhaustif **par nécessité** : pour tout gabarit non surchargé, GoTrue retombe **silencieusement** sur le sien, **en anglais**. `test/supabase/email_templates_test.dart` verrouille l'invariant (liste complète, fichier présent, `lang="fr"`, substitution attendue — `{{ .Token }}` pour la ré-authentification, `{{ .ConfirmationURL }}` partout ailleurs). Un gabarit modifié n'atteint les testeurs **qu'après `supabase config push`**.
+- **⚠ `supabase config push` exige le CLI ≥ 2.114.** Les versions antérieures (constaté en 2.106) poussent les **sujets** mais **pas les corps HTML**, sans le moindre avertissement : le diff n'affiche que les sujets, la commande se termine « avec succès », et les testeurs reçoivent un sujet français sur un corps anglais. C'est resté invisible de juin à août 2026. **Vérifier ce qui est réellement stocké, jamais la sortie du CLI** :
+  ```bash
+  curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    https://api.supabase.com/v1/projects/<ref>/config/auth \
+    | python -c "import json,sys; print(json.load(sys.stdin)['mailer_templates_confirmation_content'][:120])"
+  ```
+  Doit renvoyer notre `<!DOCTYPE html><html lang="fr">…`. Si ça commence par `<h2>Confirm your email address</h2>`, le corps est le gabarit anglais par défaut et le push n'a pas fait ce qu'il prétend.
+- **Jeton du CLI** : `supabase login` refuse de s'exécuter hors TTY (agent, script, CI). Le jeton personnel vit hors dépôt dans `../.dewdrop-secrets/supabase-cli.env` (`SUPABASE_ACCESS_TOKEN=`) ; il porte sur **tout le compte** Supabase, pas seulement DewDrop.
 
 ## Temps réel (Realtime)
 

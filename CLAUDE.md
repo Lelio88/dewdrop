@@ -65,7 +65,10 @@ flutter build apk --release \          # build testeurs — signé via android/k
   --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=<clé publishable>
 supabase migration new <slug>          # nouvelle migration (prod : supabase db push)
-supabase config push                   # pousser la config auth (SMTP, templates, redirects) ; BREVO_SMTP_KEY en env
+supabase config push                   # config auth (SMTP, gabarits, redirects). CLI >= 2.114 OBLIGATOIRE :
+                                       # avant, seuls les SUJETS partent, les corps restent en anglais sans alerte.
+                                       # Env : BREVO_SMTP_KEY + SUPABASE_ACCESS_TOKEN (coffres hors dépôt).
+                                       # Vérifier le résultat côté serveur, pas la sortie du CLI (docs/architecture.md).
 flutter build appbundle --release \     # AAB pour le Play Store (mêmes --dart-define que l'APK)
   --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…
 python tools/release/publish_play.py --list-tracks          # tracks Play + versionCodes en place
