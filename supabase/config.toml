@@ -255,6 +255,12 @@ sender_name = "DewDrop"
 # Custom FR email templates (branded "DewDrop"). The subjects carry "DewDrop"
 # so inbox filters can catch every app email; the bodies keep
 # {{ .ConfirmationURL }} (the verify/redirect link) — never remove it.
+#
+# EVERY template GoTrue can send is overridden here on purpose: any one left out
+# falls back to Supabase's built-in gabarit, which is in ENGLISH. Adding an auth
+# flow (magic link, email change…) without its template silently ships an
+# English email to a French user — that's how it happened before. So: a new
+# flow ⇒ a new template in ./supabase/templates/ ⇒ `supabase config push`.
 [auth.email.template.confirmation]
 subject = "Confirme ton compte DewDrop"
 content_path = "./supabase/templates/confirmation.html"
@@ -263,10 +269,28 @@ content_path = "./supabase/templates/confirmation.html"
 subject = "Réinitialise ton mot de passe DewDrop"
 content_path = "./supabase/templates/recovery.html"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Sent when the account's email address is changed. `double_confirm_changes`
+# is on, so BOTH the old and the new address receive this one.
+[auth.email.template.email_change]
+subject = "Confirme ta nouvelle adresse DewDrop"
+content_path = "./supabase/templates/email_change.html"
+
+# Not wired in the app today (sign-in is email + password), but GoTrue sends it
+# as soon as a passwordless sign-in is attempted — keep it French.
+[auth.email.template.magic_link]
+subject = "Ton lien de connexion DewDrop"
+content_path = "./supabase/templates/magic_link.html"
+
+# `secure_password_change = true` ⇒ GoTrue asks for a 6-digit code before a
+# password change. Body carries {{ .Token }}, NOT a link.
+[auth.email.template.reauthentication]
+subject = "Ton code de confirmation DewDrop"
+content_path = "./supabase/templates/reauthentication.html"
+
+# Only sent from the Supabase dashboard ("Invite user"), never by the app.
+[auth.email.template.invite]
+subject = "Tu es invité·e sur DewDrop"
+content_path = "./supabase/templates/invite.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

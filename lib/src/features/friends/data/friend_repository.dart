@@ -26,10 +26,15 @@ class SupabaseFriendRepository implements FriendRepository {
         .select('id')
         .eq('handle', h)
         .maybeSingle();
-    if (target == null) throw FriendException('Aucun utilisateur @$h.');
+    if (target == null) {
+      throw FriendException('Aucun utilisateur @$h.', unknownHandle: true);
+    }
+    await sendRequestTo(target['id'] as String);
+  }
 
-    final targetId = target['id'] as String;
-    if (targetId == _uid) {
+  @override
+  Future<void> sendRequestTo(String userId) async {
+    if (userId == _uid) {
       throw FriendException("Tu ne peux pas t'ajouter toi-même.");
     }
 
@@ -37,8 +42,8 @@ class SupabaseFriendRepository implements FriendRepository {
         .from('friendships')
         .select('status')
         .or(
-          'and(requester_id.eq.$_uid,addressee_id.eq.$targetId),'
-          'and(requester_id.eq.$targetId,addressee_id.eq.$_uid)',
+          'and(requester_id.eq.$_uid,addressee_id.eq.$userId),'
+          'and(requester_id.eq.$userId,addressee_id.eq.$_uid)',
         )
         .maybeSingle();
     if (existing != null) {
@@ -51,8 +56,27 @@ class SupabaseFriendRepository implements FriendRepository {
 
     await _client.from('friendships').insert({
       'requester_id': _uid,
-      'addressee_id': targetId,
+      'addressee_id': userId,
     });
+  }
+
+  /// Trigram lookalikes of [query] via the `search_profiles` RPC (see the
+  /// `profiles_fuzzy_handle_search` migration for the thresholds and why this
+  /// isn't an open directory). Best-effort: any failure yields an empty list so
+  /// the caller's own "Aucun utilisateur @x" message still gets through.
+  @override
+  Future<List<Profile>> suggestHandles(String query) async {
+    final q = query.trim().toLowerCase();
+    if (q.length < 3) return [];
+    try {
+      final rows = await _client.rpc('search_profiles', params: {'q': q});
+      return [
+        for (final m in (rows as List).cast<Map<String, dynamic>>())
+          Profile.fromMap(m),
+      ];
+    } on Exception catch (_) {
+      return [];
+    }
   }
 
   @override

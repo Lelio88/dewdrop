@@ -4,6 +4,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
+import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -55,6 +56,10 @@ class FakeFriendRepository implements FriendRepository {
 
   @override
   Future<void> sendRequest(String handle) async {}
+  @override
+  Future<void> sendRequestTo(String userId) async {}
+  @override
+  Future<List<Profile>> suggestHandles(String query) async => const [];
   @override
   Future<void> acceptRequest(String friendshipId) async {}
   @override

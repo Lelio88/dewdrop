@@ -21,8 +21,22 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   final _handle = TextEditingController();
   bool _adding = false;
 
+  // Lookalikes offered after an exact handle missed ("tu voulais dire… ?").
+  // Never populated proactively while typing: the suggestion only ever answers
+  // a failed attempt, so the app stays a private circle rather than a
+  // browsable directory. Cleared on the next attempt or a successful add.
+  List<Profile> _suggestions = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Editing the field invalidates the suggestions it produced.
+    _handle.addListener(_clearSuggestions);
+  }
+
   @override
   void dispose() {
+    _handle.removeListener(_clearSuggestions);
     _handle.dispose();
     super.dispose();
   }
@@ -32,14 +46,49 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _clearSuggestions() {
+    if (_suggestions.isNotEmpty) setState(() => _suggestions = const []);
+  }
+
   Future<void> _add() async {
     final h = _handle.text.trim();
     if (h.isEmpty) return;
-    setState(() => _adding = true);
+    setState(() {
+      _adding = true;
+      _suggestions = const [];
+    });
     try {
       await ref.read(friendRepositoryProvider).sendRequest(h);
       _handle.clear();
       _snack('Demande envoyée à @${h.toLowerCase()} ✨');
+    } on FriendException catch (e) {
+      _snack(e.message);
+      if (e.unknownHandle) await _loadSuggestions(h);
+    } on Exception catch (_) {
+      _snack('Une erreur est survenue.');
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  /// Offer the closest handles to a typo. Best-effort — the repository swallows
+  /// its own failures, so a suggestion outage leaves the plain error message
+  /// (already shown) as the only feedback.
+  Future<void> _loadSuggestions(String query) async {
+    final list = await ref.read(friendRepositoryProvider).suggestHandles(query);
+    if (!mounted) return;
+    setState(() => _suggestions = list);
+  }
+
+  /// Add someone already resolved to a profile — a suggestion here, a fellow
+  /// group member in [GroupScreen].
+  Future<void> _addProfile(Profile p) async {
+    setState(() => _adding = true);
+    try {
+      await ref.read(friendRepositoryProvider).sendRequestTo(p.id);
+      _handle.clear();
+      if (mounted) setState(() => _suggestions = const []);
+      _snack('Demande envoyée à @${p.handle} ✨');
     } on FriendException catch (e) {
       _snack(e.message);
     } on Exception catch (_) {
@@ -201,6 +250,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     ],
                   ),
                 ),
+                if (_suggestions.isNotEmpty) _suggestionsBlock(white),
                 const SizedBox(height: 24),
                 _section(white, 'Demandes reçues'),
                 requests.when(
@@ -265,6 +315,39 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       ),
     );
   }
+
+  /// The "tu voulais dire… ?" block: the few handles closest to what was typed,
+  /// each addable in one tap. Shown only after an exact handle came back empty.
+  Widget _suggestionsBlock(Color w) => Padding(
+    padding: const EdgeInsets.only(top: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Text(
+            'Tu voulais dire…',
+            style: TextStyle(
+              fontSize: 13,
+              letterSpacing: 0.4,
+              fontWeight: FontWeight.w600,
+              color: w.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        for (final p in _suggestions)
+          _personTile(
+            w,
+            p,
+            onTap: _adding ? null : () => _addProfile(p),
+            trailing: Icon(
+              Icons.person_add_alt_1,
+              color: const Color(0xFF8FE3A8).withValues(alpha: _adding ? 0.4 : 1),
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _section(Color w, String title) => Padding(
     padding: const EdgeInsets.only(bottom: 8, left: 4),

@@ -10,6 +10,7 @@ import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// "Envoyer une pensée" — pick a friend or a group; a single tap sends directly
 /// (no confirmation sheet). Anonymity follows the profile's global default (the
@@ -135,6 +136,11 @@ class _SendThoughtsScreenState extends ConsumerState<SendThoughtsScreen> {
                           children: [for (final f in list) _friendTile(w, f)],
                         ),
                 ),
+                // Closing call to action. It sits at the very bottom of the
+                // list, which means an account with nobody yet finds it right
+                // under the (short) empty state — exactly where it's needed.
+                const SizedBox(height: 20),
+                _addFriendsCta(w, alone: friends.value?.isEmpty ?? false),
               ],
             ),
           ),
@@ -207,6 +213,55 @@ class _SendThoughtsScreenState extends ConsumerState<SendThoughtsScreen> {
             sent ? Icons.check_circle_rounded : Icons.send_rounded,
             color: sent ? ok : w.withValues(alpha: 0.5),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Way out to the friends screen. Worded for the two cases it lands in: the
+  /// bottom of a populated list, or an account with nobody to send to yet.
+  Widget _addFriendsCta(Color w, {required bool alone}) {
+    const accent = Color(0xFF8FE3A8);
+    return GestureDetector(
+      onTap: () => context.push('/friends'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: w.withValues(alpha: alone ? 0.10 : 0.06),
+          border: Border.all(color: accent.withValues(alpha: alone ? 0.5 : 0.25)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.person_add_alt_1, color: accent, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    alone ? 'Ajoute ton premier ami' : 'Ajouter des amis',
+                    style: TextStyle(
+                      color: w,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    alone
+                        ? 'Par @handle ou en scannant son QR code.'
+                        : 'Par @handle, par QR code, ou depuis tes groupes.',
+                    style: TextStyle(
+                      color: w.withValues(alpha: 0.5),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: w.withValues(alpha: 0.5)),
+          ],
         ),
       ),
     );

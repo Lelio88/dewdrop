@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
+import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -292,6 +293,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 24),
               _section(w, 'À propos'),
+              _card(
+                w,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Revoir le tuto'),
+                  subtitle: Text(
+                    'Les gestes de l’accueil, en cinq nuages',
+                    style: TextStyle(color: w.withValues(alpha: 0.5)),
+                  ),
+                  trailing: Icon(
+                    Icons.replay_rounded,
+                    color: w.withValues(alpha: 0.4),
+                  ),
+                  // Re-arms the tour and steps back to the home, where it is
+                  // already waiting (HomeView stays mounted underneath).
+                  onTap: () {
+                    ref.read(homeTourProvider.notifier).replay();
+                    context.pop();
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
               _card(
                 w,
                 child: ListTile(

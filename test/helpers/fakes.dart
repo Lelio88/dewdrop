@@ -156,6 +156,12 @@ class FakeFriendRepository implements FriendRepository {
   List<Friend> friendsList = const [];
   Object? friendsError;
 
+  /// Profile ids passed to [sendRequestTo], in order.
+  final List<String> requestedIds = [];
+
+  /// What [suggestHandles] answers, whatever the query.
+  List<Profile> suggestions = const [];
+
   @override
   Future<List<Friend>> friends() async {
     if (friendsError != null) throw friendsError!;
@@ -166,6 +172,10 @@ class FakeFriendRepository implements FriendRepository {
   Future<List<IncomingRequest>> incomingRequests() async => const [];
   @override
   Future<void> sendRequest(String handle) async {}
+  @override
+  Future<void> sendRequestTo(String userId) async => requestedIds.add(userId);
+  @override
+  Future<List<Profile>> suggestHandles(String query) async => suggestions;
   @override
   Future<void> acceptRequest(String friendshipId) async {}
   @override

@@ -23,6 +23,9 @@ import 'package:dewdrop/src/features/settings/application/decor_favorites_provid
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/settings/application/seasonal_providers.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
+import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
+import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
+import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -113,7 +116,12 @@ class _HomeViewState extends ConsumerState<HomeView>
   // full screen (see [nextSheetState]). Both paths also live in the ☰ menu,
   // since a gesture isn't discoverable.
   SheetState _sheetState = SheetState.closed;
-  bool _showHint = false; // one-time "swipe" hint on the first home view
+
+  // Anchors the cloud tour points at. They live on the real chrome, so the
+  // tour's spotlight follows it if the layout ever moves.
+  final _sendHandleKey = GlobalKey();
+  final _recusHandleKey = GlobalKey();
+  final _menuKey = GlobalKey();
 
   // Direction the next favourite slides in from: +1 = from the right (swiped
   // left → next world), -1 = from the left (swiped right → previous world).
@@ -131,7 +139,6 @@ class _HomeViewState extends ConsumerState<HomeView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncAmbient();
       unawaited(_checkUnseenOnOpen());
-      _maybeShowHint();
       _prewarmNeighbours(); // warm the first swipe's neighbours
     });
   }
@@ -331,17 +338,6 @@ class _HomeViewState extends ConsumerState<HomeView>
     });
   }
 
-  // One-time hint on the first home view so the invisible gestures are findable.
-  void _maybeShowHint() {
-    final prefs = ref.read(sharedPreferencesProvider);
-    if (prefs.getBool('home_gesture_hint_seen') ?? false) return;
-    setState(() => _showHint = true);
-    unawaited(prefs.setBool('home_gesture_hint_seen', true));
-    Timer(const Duration(milliseconds: 3500), () {
-      if (mounted) setState(() => _showHint = false);
-    });
-  }
-
   void _openMenu() {
     showModalBottomSheet<String>(
       context: context,
@@ -428,8 +424,8 @@ class _HomeViewState extends ConsumerState<HomeView>
       }
     });
 
-    final w = Colors.white;
     final open = _sheetState.isOpen;
+    final showTour = ref.watch(homeTourProvider);
     final media = MediaQuery.of(context);
     final fullH = media.size.height * 0.9;
     final sendFull =
@@ -496,11 +492,11 @@ class _HomeViewState extends ConsumerState<HomeView>
                 if (!open) ...[
                   Align(
                     alignment: Alignment.topCenter,
-                    child: _Handle(onTap: _openRecus),
+                    child: _Handle(key: _recusHandleKey, onTap: _openRecus),
                   ),
                   Align(
                     alignment: Alignment.bottomCenter,
-                    child: _Handle(onTap: _openSend),
+                    child: _Handle(key: _sendHandleKey, onTap: _openSend),
                   ),
                 ],
                 Positioned(
@@ -509,6 +505,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                   child: Opacity(
                     opacity: 0.5,
                     child: _GlassCircleButton(
+                      key: _menuKey,
                       icon: Icons.menu_rounded,
                       onTap: _openMenu,
                     ),
@@ -591,28 +588,20 @@ class _HomeViewState extends ConsumerState<HomeView>
               ),
             ),
 
-          // One-time "swipe" hint.
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: _showHint && !open ? 1 : 0,
-              duration: const Duration(milliseconds: 500),
-              child: SafeArea(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 64),
-                    child: Text(
-                      'glisse ↑ envoyer · ↓ tes pensées · re-glisse = plein écran',
-                      style: TextStyle(
-                        color: w.withValues(alpha: 0.6),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+          // First-run tour. It supersedes the one-line "glisse ↑ / ↓" hint that
+          // used to flash here: the same gestures, but shown where they happen
+          // and at a pace that can actually be read. Suppressed while a sheet
+          // is open (the anchors it points at are unmounted then), and replayed
+          // from Réglages via homeTourProvider.
+          if (showTour && !open)
+            CloudTour(
+              anchors: {
+                TourAnchor.sendHandle: _sendHandleKey,
+                TourAnchor.receivedHandle: _recusHandleKey,
+                TourAnchor.menuButton: _menuKey,
+              },
+              onFinish: () => ref.read(homeTourProvider.notifier).complete(),
             ),
-          ),
         ],
       ),
     );
@@ -824,7 +813,11 @@ class _HomeMenu extends ConsumerWidget {
 }
 
 class _GlassCircleButton extends StatelessWidget {
-  const _GlassCircleButton({required this.icon, required this.onTap});
+  const _GlassCircleButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
@@ -856,7 +849,7 @@ class _GlassCircleButton extends StatelessWidget {
 /// A very discreet pull handle (a thin, faint bar) hinting the swipe gestures.
 /// The 12 px padding gives a comfortable tap target without making it look big.
 class _Handle extends StatelessWidget {
-  const _Handle({required this.onTap});
+  const _Handle({super.key, required this.onTap});
 
   final VoidCallback onTap;
 
