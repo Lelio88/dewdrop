@@ -8,15 +8,13 @@ class _Target {
   final String label;
 }
 
-List<String> _order(
-  List<_Target> targets,
-  List<String> recent,
-) => sortByRecency(
-  targets,
-  idOf: (t) => t.id,
-  labelOf: (t) => t.label,
-  recentIdsNewestFirst: recent,
-).map((t) => t.id).toList();
+List<String> _order(List<_Target> targets, List<String> recent) =>
+    sortByRecency(
+      targets,
+      idOf: (t) => t.id,
+      labelOf: (t) => t.label,
+      recentIdsNewestFirst: recent,
+    ).map((t) => t.id).toList();
 
 void main() {
   const alice = _Target('a', 'Alice');
@@ -25,18 +23,18 @@ void main() {
 
   group('sortByRecency', () {
     test('puts the most recently contacted first', () {
-      expect(
-        _order([alice, bob, chloe], ['c', 'a']),
-        ['c', 'a', 'b'],
-      );
+      expect(_order([alice, bob, chloe], ['c', 'a']), ['c', 'a', 'b']);
     });
 
-    test('sorts never-contacted entries alphabetically, after contacted ones', () {
-      expect(
-        _order([chloe, bob, alice], ['c']),
-        ['c', 'a', 'b'], // Chloé (recent), then Alice, bob (case-insensitive)
-      );
-    });
+    test(
+      'sorts never-contacted entries alphabetically, after contacted ones',
+      () {
+        expect(
+          _order([chloe, bob, alice], ['c']),
+          ['c', 'a', 'b'], // Chloé (recent), then Alice, bob (case-insensitive)
+        );
+      },
+    );
 
     test('falls back to alphabetical order when nothing was ever sent', () {
       expect(_order([chloe, bob, alice], const []), ['a', 'b', 'c']);

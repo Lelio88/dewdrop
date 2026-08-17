@@ -6,7 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _steps = [
   TourStep(title: 'Un', body: 'Premier nuage'),
-  TourStep(title: 'Deux', body: 'Deuxième nuage', anchor: TourAnchor.menuButton),
+  TourStep(
+    title: 'Deux',
+    body: 'Deuxième nuage',
+    anchor: TourAnchor.menuButton,
+  ),
   TourStep(title: 'Trois', body: 'Dernier nuage'),
 ];
 
@@ -20,11 +24,7 @@ const _gestureSteps = [
     anchor: TourAnchor.menuButton,
     gesture: TourGesture.swipeUp,
   ),
-  TourStep(
-    title: 'Trois',
-    body: 'Dernier nuage',
-    scene: TourScene.sendPeek,
-  ),
+  TourStep(title: 'Trois', body: 'Dernier nuage', scene: TourScene.sendPeek),
 ];
 
 /// Pumps the tour over a stand-in home screen. [withAnchor] mounts a widget
@@ -68,13 +68,17 @@ void main() {
 
   testWidgets('a tap anywhere advances one step', (tester) async {
     await _pump(tester);
-    await tester.tapAt(const Offset(30, 300)); // bare decor, away from the bubble
+    await tester.tapAt(
+      const Offset(30, 300),
+    ); // bare decor, away from the bubble
     await tester.pumpAndSettle();
     expect(find.text('Deux'), findsOneWidget);
     expect(find.text('Un'), findsNothing);
   });
 
-  testWidgets('the last step swaps "Suivant" for "C’est parti"', (tester) async {
+  testWidgets('the last step swaps "Suivant" for "C’est parti"', (
+    tester,
+  ) async {
     await _pump(tester);
     await tester.tap(find.text('Suivant'));
     await tester.pumpAndSettle();
@@ -119,24 +123,24 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(find.text('Passer'), findsOneWidget);
+    expect(find.text('Passer le tuto'), findsOneWidget);
     await tester.tap(find.text('Suivant'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Suivant'));
     await tester.pumpAndSettle();
-    expect(find.text('Passer'), findsNothing);
+    expect(find.text('Passer le tuto'), findsNothing);
   });
 
   group('gestes réels', () {
-    /// Pumps the tour over a home that reports gestures, plus a drag detector
-    /// standing in for the real decor, so we can assert the swipe reached it.
-    Future<(ValueNotifier<TourGesture?>, List<TourScene>, List<String>)> pump(
+    /// Pumps the tour over a stand-in home. `performed` collects the gestures
+    /// the tour approved and asked the host to carry out; `reachedHome` records
+    /// any drag that got past the overlay (there should never be one).
+    Future<(List<TourGesture>, List<TourScene>, List<String>)> pump(
       WidgetTester tester,
     ) async {
-      final gestures = ValueNotifier<TourGesture?>(null);
-      addTearDown(gestures.dispose);
+      final performed = <TourGesture>[];
       final scenes = <TourScene>[];
-      final dragsReachingHome = <String>[];
+      final reachedHome = <String>[];
       final menuKey = GlobalKey();
       await tester.pumpWidget(
         MaterialApp(
@@ -147,7 +151,8 @@ void main() {
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    onVerticalDragEnd: (_) => dragsReachingHome.add('vertical'),
+                    onVerticalDragEnd: (_) => reachedHome.add('vertical'),
+                    onHorizontalDragEnd: (_) => reachedHome.add('horizontal'),
                     child: const ColoredBox(color: Colors.indigo),
                   ),
                 ),
@@ -155,7 +160,7 @@ void main() {
                 CloudTour(
                   steps: _gestureSteps,
                   anchors: {TourAnchor.menuButton: menuKey},
-                  gestures: gestures,
+                  onPerform: performed.add,
                   onScene: scenes.add,
                   onFinish: () {},
                 ),
@@ -165,41 +170,62 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      return (gestures, scenes, dragsReachingHome);
+      return (performed, scenes, reachedHome);
     }
 
-    testWidgets('a drag passes through the overlay to the home', (tester) async {
-      final (_, _, drags) = await pump(tester);
-      // From a bare corner of the decor, clear of the bubble and its buttons.
-      await tester.flingFrom(const Offset(40, 520), const Offset(0, -300), 1000);
+    /// A fling from a bare corner, clear of the bubble and its buttons.
+    Future<void> fling(WidgetTester tester, Offset delta) async {
+      await tester.flingFrom(const Offset(40, 520), delta, 1000);
       await tester.pumpAndSettle();
-      // The whole point: the tour dims the screen without confiscating swipes.
-      expect(drags, contains('vertical'));
+    }
+
+    testWidgets('the screen underneath never sees a raw drag', (tester) async {
+      // The tour owns the screen while it runs: that is what keeps the bubble's
+      // words and the pixels behind it from drifting apart.
+      final (_, _, reachedHome) = await pump(tester);
+      await fling(tester, const Offset(0, -300));
+      await fling(tester, const Offset(0, 300));
+      await fling(tester, const Offset(-300, 0));
+      expect(reachedHome, isEmpty);
     });
 
-    testWidgets('performing the asked gesture advances the step', (
+    testWidgets('the asked gesture is carried out, then the step advances', (
       tester,
     ) async {
-      final (gestures, scenes, _) = await pump(tester);
+      final (performed, scenes, _) = await pump(tester);
       await tester.tap(find.text('Suivant'));
       await tester.pumpAndSettle();
       expect(find.text('Glisse'), findsOneWidget);
 
-      gestures.value = TourGesture.swipeUp; // the home reports the swipe
-      await tester.pump();
-      // Still on the step: the user gets a beat to see what the gesture did.
+      await fling(tester, const Offset(0, -300)); // swipe up, as asked
+      // The host was told to actually open the drawer…
+      expect(performed, [TourGesture.swipeUp]);
+      // …and we're still on the step: a beat to see what the gesture did.
       expect(find.text('Glisse'), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pumpAndSettle();
       expect(find.text('Trois'), findsOneWidget);
-      // The home was asked to stage each step's scene, the last one included.
-      expect(scenes, [
-        TourScene.closed,
-        TourScene.closed,
-        TourScene.sendPeek,
-      ]);
-      expect(gestures.value, isNull); // consumed, so it can satisfy a later step
+      // The host was asked to stage each step's scene, the last one included.
+      expect(scenes, [TourScene.closed, TourScene.closed, TourScene.sendPeek]);
+    });
+
+    testWidgets('a gesture the step did not ask for changes nothing', (
+      tester,
+    ) async {
+      final (performed, _, _) = await pump(tester);
+      await tester.tap(find.text('Suivant'));
+      await tester.pumpAndSettle();
+
+      await fling(tester, const Offset(0, 300)); // down, when up was asked
+      expect(performed, isEmpty, reason: 'rien ne doit être exécuté');
+      await tester.pump(const Duration(milliseconds: 1700));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Glisse'),
+        findsOneWidget,
+        reason: 'on reste sur l’étape',
+      );
     });
 
     testWidgets('the cloud hands over to what the gesture opens, at once', (
@@ -211,8 +237,6 @@ void main() {
       // for as long as a drawer is open, so there was nothing left to follow.
       // It must borrow the NEXT step's anchor the moment the gesture lands,
       // well before the step itself changes.
-      final gestures = ValueNotifier<TourGesture?>(null);
-      addTearDown(gestures.dispose);
       final handleKey = GlobalKey();
       final sheetKey = GlobalKey();
       await tester.pumpWidget(
@@ -252,7 +276,6 @@ void main() {
                     TourAnchor.sendHandle: handleKey,
                     TourAnchor.sendSheet: sheetKey,
                   },
-                  gestures: gestures,
                   onFinish: () {},
                 ),
               ],
@@ -265,7 +288,11 @@ void main() {
       double cloudTop() => tester.getTopLeft(find.byType(CloudBubble).first).dy;
       final beforeGesture = cloudTop();
 
-      gestures.value = TourGesture.swipeUp;
+      await tester.flingFrom(
+        const Offset(40, 300),
+        const Offset(0, -300),
+        1000,
+      );
       await tester.pumpAndSettle();
 
       // Still reading the SAME bubble — the step has not advanced yet…
@@ -274,7 +301,8 @@ void main() {
       expect(
         cloudTop(),
         isNot(closeTo(beforeGesture, 1)),
-        reason: 'le nuage doit céder la place au tiroir dès le geste, '
+        reason:
+            'le nuage doit céder la place au tiroir dès le geste, '
             'pas attendre le changement d’étape',
       );
       // It sits above the drawer's top edge rather than over its contents.
@@ -282,26 +310,14 @@ void main() {
       expect(cloudTop(), lessThan(sheetTop));
     });
 
-    testWidgets('an unrelated gesture does not advance the step', (
+    testWidgets('a step that teaches no gesture just ignores swipes', (
       tester,
     ) async {
-      final (gestures, _, _) = await pump(tester);
-      await tester.tap(find.text('Suivant'));
-      await tester.pumpAndSettle();
-
-      gestures.value = TourGesture.swipeSide; // not what this step asked for
+      final (performed, _, _) = await pump(tester);
+      await fling(tester, const Offset(0, -300)); // step 1 asks for nothing
       await tester.pump(const Duration(milliseconds: 1500));
       await tester.pumpAndSettle();
-      expect(find.text('Glisse'), findsOneWidget);
-    });
-
-    testWidgets('a gesture on a step that asks for none is ignored', (
-      tester,
-    ) async {
-      final (gestures, _, _) = await pump(tester);
-      gestures.value = TourGesture.swipeUp; // step 1 has no gesture
-      await tester.pump(const Duration(milliseconds: 1500));
-      await tester.pumpAndSettle();
+      expect(performed, isEmpty);
       expect(find.text('Un'), findsOneWidget);
     });
   });
@@ -336,8 +352,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    double bubbleTop() =>
-        tester.getTopLeft(find.byType(CloudBubble).first).dy;
+    double bubbleTop() => tester.getTopLeft(find.byType(CloudBubble).first).dy;
     final start = bubbleTop();
 
     await tester.tap(find.text('Suivant'));
@@ -346,11 +361,16 @@ void main() {
     await tester.pumpAndSettle();
     final settled = bubbleTop();
 
-    expect(settled, isNot(closeTo(start, 1)), reason: 'la bulle doit se déplacer');
+    expect(
+      settled,
+      isNot(closeTo(start, 1)),
+      reason: 'la bulle doit se déplacer',
+    );
     expect(
       midway,
       isNot(closeTo(settled, 1)),
-      reason: 'elle doit encore glisser 60 ms après le changement, pas y être déjà',
+      reason:
+          'elle doit encore glisser 60 ms après le changement, pas y être déjà',
     );
   });
 

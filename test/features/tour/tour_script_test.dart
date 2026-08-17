@@ -53,7 +53,8 @@ void main() {
       expect(
         sheetAnchors,
         contains(s.anchor),
-        reason: '"${s.title}" stages ${s.scene.name} but points at ${s.anchor.name}',
+        reason:
+            '"${s.title}" stages ${s.scene.name} but points at ${s.anchor.name}',
       );
     }
   });
@@ -81,7 +82,11 @@ void main() {
       'phrase',
       'silencieuses',
     ]) {
-      expect(elsewhere, contains(promise), reason: 'jamais expliqué : $promise');
+      expect(
+        elsewhere,
+        contains(promise),
+        reason: 'jamais expliqué : $promise',
+      );
     }
   });
 }

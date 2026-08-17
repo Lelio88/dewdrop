@@ -50,9 +50,12 @@ void main() {
   final toml = File('supabase/config.toml').readAsStringSync();
   final templates = _declaredTemplates(toml);
 
-  test('every auth email GoTrue can send has a template (no English fallback)', () {
-    expect(templates.keys, containsAll(_mustBeOverridden));
-  });
+  test(
+    'every auth email GoTrue can send has a template (no English fallback)',
+    () {
+      expect(templates.keys, containsAll(_mustBeOverridden));
+    },
+  );
 
   for (final name in _mustBeOverridden) {
     group('template "$name"', () {
@@ -83,7 +86,11 @@ void main() {
         // Getting this wrong ships a mail the user cannot act on.
         expect(
           html,
-          contains(name == 'reauthentication' ? '{{ .Token }}' : '{{ .ConfirmationURL }}'),
+          contains(
+            name == 'reauthentication'
+                ? '{{ .Token }}'
+                : '{{ .ConfirmationURL }}',
+          ),
         );
       });
     });

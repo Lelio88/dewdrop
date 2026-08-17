@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
 import 'package:dewdrop/src/features/tour/presentation/cloud_bubble.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// The home tour: a dimmed screen with a hole punched over the element being
 /// explained, and a cloud bubble ([CloudBubble]) that DRIFTS from one step's
@@ -12,11 +13,21 @@ import 'package:flutter/material.dart';
 ///
 /// Three things drive the design:
 ///
-/// **Gestures stay live.** The overlay is `translucent`, not `opaque`: it claims
-/// taps (to advance) but lets drags fall through to the real home underneath.
-/// A step that names a gesture ([TourStep.gesture]) completes itself once the
-/// user performs it — reading "glisse vers le haut" teaches far less than doing
-/// it once. [gestures] is how the home reports what the finger did.
+/// **The tour owns the screen while it runs.** The overlay is `opaque`, so
+/// nothing reaches the screen underneath, and it offers exactly three moves:
+/// perform the gesture the step asks for, tap to move on, or "Passer".
+///
+/// This is the whole reason the tour can describe anything at all. A bubble
+/// talks *about* the screen; letting the user change that screen mid-sentence
+/// means the words and the pixels drift apart, and every trick to re-sync them
+/// afterwards (following a drawer that opened one step too early, guessing
+/// which anchor is current) is a patch over a hole that should not exist.
+///
+/// A drag is recognised HERE, not below: matching the step's [TourStep.gesture]
+/// forwards it to [onPerform], which is what actually moves the drawer — so the
+/// user really performs the gesture, and the tour still knows exactly what the
+/// screen is doing. A different gesture is refused with a nudge, never in
+/// silence: nothing-happens reads as a frozen app.
 ///
 /// **The bubble travels.** Position is always expressed as a single `top`
 /// (never `top` for one step and `bottom` for the next — you cannot interpolate
@@ -36,7 +47,7 @@ class CloudTour extends StatefulWidget {
     required this.anchors,
     required this.onFinish,
     this.steps = kHomeTour,
-    this.gestures,
+    this.onPerform,
     this.onScene,
   });
 
@@ -49,10 +60,10 @@ class CloudTour extends StatefulWidget {
 
   final List<TourStep> steps;
 
-  /// The last gesture the user performed on the home screen. The tour consumes
-  /// it (sets it back to null) once acted upon, so the same gesture can satisfy
-  /// a later step too.
-  final ValueNotifier<TourGesture?>? gestures;
+  /// Carries out the gesture the user just performed, when it is the one this
+  /// step asked for. The tour recognises it, the host applies it — the drawer
+  /// opens for real, and the tour knows precisely when.
+  final ValueChanged<TourGesture>? onPerform;
 
   /// The scene each step wants on screen, fired on entering it (including the
   /// first). The home puts its drawers in that state, so a step explaining the
@@ -64,9 +75,15 @@ class CloudTour extends StatefulWidget {
   State<CloudTour> createState() => _CloudTourState();
 }
 
-class _CloudTourState extends State<CloudTour> {
+class _CloudTourState extends State<CloudTour>
+    with SingleTickerProviderStateMixin {
   static const _kGap = 14.0;
   static const _kEstimatedBubbleHeight = 190.0;
+
+  /// Below this, a drag is a slip of the thumb rather than a swipe. Same
+  /// threshold the home uses, so what counts as a gesture doesn't change
+  /// depending on whether the tour is up.
+  static const _kFlingVelocity = 250.0;
 
   /// How long a finished gesture stays on screen before the tour moves on.
   /// Longer than it looks on paper: the drawer's own slide takes ~340 ms, and
@@ -102,8 +119,7 @@ class _CloudTourState extends State<CloudTour> {
   Timer? _followTimer;
 
   /// The anchor actually being tracked right now.
-  TourAnchor get _activeAnchor =>
-      _previewAnchor ?? widget.steps[_index].anchor;
+  TourAnchor get _activeAnchor => _previewAnchor ?? widget.steps[_index].anchor;
 
   /// Ease into the new anchor, then track it exactly. The `setState` matters:
   /// flipping the flag after the caller's own rebuild would let that frame
@@ -120,10 +136,15 @@ class _CloudTourState extends State<CloudTour> {
     });
   }
 
+  /// Drives the refusal nudge (see [_refuse]).
+  late final AnimationController _nudge = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  );
+
   @override
   void initState() {
     super.initState();
-    widget.gestures?.addListener(_onGesture);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       widget.onScene?.call(widget.steps[_index].scene);
@@ -136,29 +157,35 @@ class _CloudTourState extends State<CloudTour> {
   }
 
   @override
-  void didUpdateWidget(CloudTour old) {
-    super.didUpdateWidget(old);
-    if (old.gestures != widget.gestures) {
-      old.gestures?.removeListener(_onGesture);
-      widget.gestures?.addListener(_onGesture);
-    }
-  }
-
-  @override
   void dispose() {
     _advanceTimer?.cancel();
     _followTimer?.cancel();
-    widget.gestures?.removeListener(_onGesture);
+    _nudge.dispose();
     super.dispose();
   }
 
-  /// The user did something on the home screen. If it's what this step asked
-  /// for, let them watch the result, then move on.
-  void _onGesture() {
-    final done = widget.gestures?.value;
-    if (done == null || _advanceTimer != null) return;
-    if (done != widget.steps[_index].gesture) return;
-    widget.gestures?.value = null; // consumed
+  void _onVerticalDrag(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < _kFlingVelocity) return;
+    _handle(v < 0 ? TourGesture.swipeUp : TourGesture.swipeDown);
+  }
+
+  void _onHorizontalDrag(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < _kFlingVelocity) return;
+    _handle(TourGesture.swipeSide);
+  }
+
+  /// A swipe happened. Either it is the one this step teaches — carry it out
+  /// for real, then move on after a beat — or it isn't, and the cloud says no.
+  void _handle(TourGesture done) {
+    if (_advanceTimer != null) return; // already on the way out
+    final wanted = widget.steps[_index].gesture;
+    if (wanted == null) return; // this step teaches no gesture: ignore quietly
+    if (done != wanted) {
+      _refuse();
+      return;
+    }
 
     // Hand the cloud over to whatever the gesture is opening, NOW — the step's
     // own anchor (a handle) is about to be unmounted by that very drawer.
@@ -171,10 +198,19 @@ class _CloudTourState extends State<CloudTour> {
       }
     }
 
+    widget.onPerform?.call(done);
     _advanceTimer = Timer(_kGestureBeat, () {
       _advanceTimer = null;
       if (mounted) _next();
     });
+  }
+
+  /// Refuse a gesture the step didn't ask for, visibly. A swipe that changes
+  /// nothing and says nothing reads as a frozen screen, so the cloud shivers:
+  /// "not that one, the one I'm pointing at".
+  void _refuse() {
+    HapticFeedback.selectionClick();
+    _nudge.forward(from: 0);
   }
 
   /// The on-screen rectangle of [anchor]'s widget, or null when it has no key,
@@ -314,8 +350,12 @@ class _CloudTourState extends State<CloudTour> {
             // actually perform the swipe the step is describing.
             Positioned.fill(
               child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
+                // OPAQUE: while the tour is up, it owns the screen. The three
+                // ways forward are the step's gesture, a tap, and "Passer".
+                behavior: HitTestBehavior.opaque,
                 onTap: _next,
+                onVerticalDragEnd: _onVerticalDrag,
+                onHorizontalDragEnd: _onHorizontalDrag,
                 child: TweenAnimationBuilder<Rect?>(
                   tween: RectTween(end: hole),
                   // Same reasoning as the bubble: the spotlight must sit ON the
@@ -345,24 +385,28 @@ class _CloudTourState extends State<CloudTour> {
                   ? Duration.zero
                   : const Duration(milliseconds: 400),
               curve: Curves.easeOutCubic,
-              child: CloudBubble(
-                key: _bubbleKey,
-                tail: target == null
-                    ? CloudTail.none
-                    : (below ? CloudTail.above : CloudTail.below),
-                tailAlignX: target == null
-                    ? 0
-                    : ((target.center.dx - size.width / 2) / (bubbleWidth / 2))
-                          .clamp(-0.75, 0.75),
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: KeyedSubtree(
-                      key: ValueKey(_index),
-                      child: _bubbleContent(step, isLast),
+              child: _Shiver(
+                animation: _nudge,
+                child: CloudBubble(
+                  key: _bubbleKey,
+                  tail: target == null
+                      ? CloudTail.none
+                      : (below ? CloudTail.above : CloudTail.below),
+                  tailAlignX: target == null
+                      ? 0
+                      : ((target.center.dx - size.width / 2) /
+                                (bubbleWidth / 2))
+                            .clamp(-0.75, 0.75),
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: KeyedSubtree(
+                        key: ValueKey(_index),
+                        child: _bubbleContent(step, isLast),
+                      ),
                     ),
                   ),
                 ),
@@ -374,13 +418,32 @@ class _CloudTourState extends State<CloudTour> {
                 top: 0,
                 right: 0,
                 child: SafeArea(
-                  child: TextButton(
-                    onPressed: widget.onFinish,
-                    child: Text(
-                      'Passer',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 14,
+                  // The tour now holds every other gesture, so this is the only
+                  // way out — it has to look like one, not like fine print.
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: GestureDetector(
+                      onTap: widget.onFinish,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(99),
+                          color: Colors.black.withValues(alpha: 0.35),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: Text(
+                          'Passer le tuto',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -453,6 +516,30 @@ class _CloudTourState extends State<CloudTour> {
         ],
       ),
     ],
+  );
+}
+
+/// Sways its child from side to side, once, whenever [animation] runs.
+///
+/// A damped sine rather than a two-step jerk: this is a cloud saying "not that
+/// gesture", not an error dialog. The amplitude decays over the run, so it
+/// settles rather than stopping dead.
+class _Shiver extends StatelessWidget {
+  const _Shiver({required this.animation, required this.child});
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: animation,
+    builder: (_, inner) {
+      final t = animation.value;
+      if (t == 0 || t == 1) return inner!;
+      final dx = math.sin(t * math.pi * 3) * 12 * (1 - t);
+      return Transform.translate(offset: Offset(dx, 0), child: inner);
+    },
+    child: child,
   );
 }
 

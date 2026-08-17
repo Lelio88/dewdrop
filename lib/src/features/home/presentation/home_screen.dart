@@ -125,12 +125,36 @@ class _HomeViewState extends ConsumerState<HomeView>
   final _sendSheetKey = GlobalKey();
   final _recusSheetKey = GlobalKey();
 
-  // What the finger just did, reported to the tour so a step that asks for a
-  // swipe can complete itself. Fed on every fling that clears the velocity
-  // threshold — including ones the home then ignores (a marronnier lock, a
-  // single favourite): the point is that the USER made the gesture, not that
-  // it changed anything. The tour sets it back to null once consumed.
-  final _tourGesture = ValueNotifier<TourGesture?>(null);
+  /// Carries out a gesture the tour recognised and approved.
+  ///
+  /// While the tour is up it owns the screen, so the home never sees the raw
+  /// drag: the tour matches it against the current step and calls this only for
+  /// the one it teaches. Same effects as the real handlers — this IS the real
+  /// gesture, just routed through the one place that knows what step we're on.
+  void _performTourGesture(TourGesture g) {
+    switch (g) {
+      case TourGesture.swipeUp:
+        setState(() => _sheetState = nextSheetState(_sheetState, up: true));
+      case TourGesture.swipeDown:
+        setState(() => _sheetState = nextSheetState(_sheetState, up: false));
+      case TourGesture.swipeSide:
+        _cycleWorldsForTour();
+    }
+  }
+
+  /// The sideways swipe as the tour needs it: always a visible world change,
+  /// favourites or not (that step exists to show the gesture works).
+  void _cycleWorldsForTour() {
+    if (ref.read(seasonalOverrideProvider) != null) return; // world is locked
+    final favorites = ref.read(decorFavoritesProvider);
+    _slideDir = 1;
+    if (favorites.isEmpty) {
+      _cycleAllWorlds(forward: true);
+      return;
+    }
+    final idx = favorites.indexOf(_currentFavoriteKey());
+    _applyFavorite(favorites[idx < 0 ? 0 : (idx + 1) % favorites.length]);
+  }
 
   // Direction the next favourite slides in from: +1 = from the right (swiped
   // left → next world), -1 = from the left (swiped right → previous world).
@@ -159,7 +183,6 @@ class _HomeViewState extends ConsumerState<HomeView>
     SystemUi.edgeToEdge();
     unawaited(_sound.pauseAll());
     _reception.dispose();
-    _tourGesture.dispose();
     super.dispose();
   }
 
@@ -283,7 +306,6 @@ class _HomeViewState extends ConsumerState<HomeView>
   void _onDragEnd(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 250) return;
-    _tourGesture.value = v < 0 ? TourGesture.swipeUp : TourGesture.swipeDown;
     setState(() => _sheetState = nextSheetState(_sheetState, up: v < 0));
   }
 
@@ -323,9 +345,6 @@ class _HomeViewState extends ConsumerState<HomeView>
     if (_sheetState.isOpen) return;
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 250) return;
-    // Reported before the early exits below: the tour cares that the gesture
-    // was made, not that it happened to change the world.
-    _tourGesture.value = TourGesture.swipeSide;
     // Locked to a single world during a marronnier — no favourite cycling.
     if (ref.read(seasonalOverrideProvider) != null) return;
     // With no ⭐ yet, the gesture walks EVERY world rather than doing nothing.
@@ -677,7 +696,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                 TourAnchor.receivedSheet: _recusSheetKey,
                 TourAnchor.menuButton: _menuKey,
               },
-              gestures: _tourGesture,
+              onPerform: _performTourGesture,
               onScene: _applyTourScene,
               onFinish: () =>
                   ref.read(toursSeenProvider.notifier).complete(TourId.home),

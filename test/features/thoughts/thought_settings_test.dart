@@ -38,7 +38,11 @@ void main() {
     tester,
   ) async {
     final repo = FakeProfileRepository()
-      ..profile = const Profile(id: 'u1', handle: 'claude', displayName: 'Claude');
+      ..profile = const Profile(
+        id: 'u1',
+        handle: 'claude',
+        displayName: 'Claude',
+      );
     await _pump(tester, repo);
 
     // Open the name dialog.
@@ -58,30 +62,31 @@ void main() {
     expect(repo.savedThoughtPresets!.first['name'], 'Bonjour');
   });
 
-  testWidgets('the save button alerts (and saves nothing) when 5 already exist', (
-    tester,
-  ) async {
-    final presets = [
-      for (var i = 0; i < 5; i++)
-        {
-          'name': 'P$i',
-          'style': {'lead': '', 'body': '%s a pensé à toi', 'tail': '✨'},
-        },
-    ];
-    final repo = FakeProfileRepository()
-      ..profile = Profile(
-        id: 'u1',
-        handle: 'claude',
-        displayName: 'Claude',
-        thoughtPresetsRaw: presets,
-      );
-    await _pump(tester, repo);
+  testWidgets(
+    'the save button alerts (and saves nothing) when 5 already exist',
+    (tester) async {
+      final presets = [
+        for (var i = 0; i < 5; i++)
+          {
+            'name': 'P$i',
+            'style': {'lead': '', 'body': '%s a pensé à toi', 'tail': '✨'},
+          },
+      ];
+      final repo = FakeProfileRepository()
+        ..profile = Profile(
+          id: 'u1',
+          handle: 'claude',
+          displayName: 'Claude',
+          thoughtPresetsRaw: presets,
+        );
+      await _pump(tester, repo);
 
-    await tester.ensureVisible(find.text('Enregistrer ce style'));
-    await tester.tap(find.text('Enregistrer ce style'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Enregistrer ce style'));
+      await tester.tap(find.text('Enregistrer ce style'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Maximum atteint'), findsOneWidget);
-    expect(repo.savedThoughtPresets, isNull); // nothing persisted
-  });
+      expect(find.text('Maximum atteint'), findsOneWidget);
+      expect(repo.savedThoughtPresets, isNull); // nothing persisted
+    },
+  );
 }
