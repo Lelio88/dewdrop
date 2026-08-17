@@ -82,6 +82,44 @@ class _CloudTourState extends State<CloudTour> {
   Timer? _advanceTimer;
   final _bubbleKey = GlobalKey();
 
+  /// Anchor adopted early, the moment the step's gesture lands — before the
+  /// step itself changes.
+  ///
+  /// Without it, the cloud freezes while the drawer travels: the step still
+  /// points at a handle, and the handle is unmounted for as long as a drawer is
+  /// open, so there is nothing to follow. Borrowing the NEXT step's anchor (the
+  /// drawer) makes the cloud ride the panel — up from the bottom, or down from
+  /// the top — instead of sitting still while it passes underneath.
+  TourAnchor? _previewAnchor;
+
+  /// True once the bubble should stick to its target frame-for-frame.
+  ///
+  /// A moving target and an implicit animation don't compose: the panel slides
+  /// (~340 ms) AND the bubble eases toward it (~400 ms), which reads as lag.
+  /// So each jump to a NEW anchor is animated, then the bubble snaps to the
+  /// target for the rest of that anchor's life.
+  bool _follow = false;
+  Timer? _followTimer;
+
+  /// The anchor actually being tracked right now.
+  TourAnchor get _activeAnchor =>
+      _previewAnchor ?? widget.steps[_index].anchor;
+
+  /// Ease into the new anchor, then track it exactly. The `setState` matters:
+  /// flipping the flag after the caller's own rebuild would let that frame
+  /// paint in follow mode and snap the very move meant to be animated.
+  void _animateThenFollow() {
+    _followTimer?.cancel();
+    if (mounted) {
+      setState(() => _follow = false);
+    } else {
+      _follow = false;
+    }
+    _followTimer = Timer(const Duration(milliseconds: 420), () {
+      if (mounted) setState(() => _follow = true);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,6 +131,7 @@ class _CloudTourState extends State<CloudTour> {
         _visible = true;
         _target = _resolve(widget.steps[_index].anchor);
       });
+      _animateThenFollow();
     });
   }
 
@@ -108,6 +147,7 @@ class _CloudTourState extends State<CloudTour> {
   @override
   void dispose() {
     _advanceTimer?.cancel();
+    _followTimer?.cancel();
     widget.gestures?.removeListener(_onGesture);
     super.dispose();
   }
@@ -119,6 +159,18 @@ class _CloudTourState extends State<CloudTour> {
     if (done == null || _advanceTimer != null) return;
     if (done != widget.steps[_index].gesture) return;
     widget.gestures?.value = null; // consumed
+
+    // Hand the cloud over to whatever the gesture is opening, NOW — the step's
+    // own anchor (a handle) is about to be unmounted by that very drawer.
+    final next = _index + 1;
+    if (next < widget.steps.length) {
+      final ahead = widget.steps[next].anchor;
+      if (ahead != TourAnchor.none && ahead != widget.steps[_index].anchor) {
+        setState(() => _previewAnchor = ahead);
+        _animateThenFollow();
+      }
+    }
+
     _advanceTimer = Timer(_kGestureBeat, () {
       _advanceTimer = null;
       if (mounted) _next();
@@ -149,14 +201,20 @@ class _CloudTourState extends State<CloudTour> {
     // scene change is about to mount (or unmount). Whatever isn't resolvable on
     // this frame is picked up by [_syncTarget] on the next ones.
     widget.onScene?.call(step.scene);
+    final borrowed = _previewAnchor;
     setState(() {
       _index = next;
+      _previewAnchor = null;
       // Keep the previous spotlight rather than snapping to centre while the
       // new target is still animating in — unless the step wants none.
       _target = step.anchor == TourAnchor.none
           ? null
           : (_resolve(step.anchor) ?? _target);
     });
+    // Only re-animate when the anchor actually changes. Arriving on a step
+    // whose anchor the cloud already borrowed (it rode the drawer here) must
+    // not re-trigger an ease — it is already exactly where it belongs.
+    if (borrowed != step.anchor) _animateThenFollow();
   }
 
   /// Re-reads the current step's anchor every frame.
@@ -171,7 +229,7 @@ class _CloudTourState extends State<CloudTour> {
   /// A null result is IGNORED rather than applied: an anchor that momentarily
   /// disappears should freeze the spotlight, not fling the cloud to the centre.
   void _syncTarget() {
-    final anchor = widget.steps[_index].anchor;
+    final anchor = _activeAnchor;
     if (anchor == TourAnchor.none) {
       if (_target != null) setState(() => _target = null);
       return;
@@ -260,7 +318,11 @@ class _CloudTourState extends State<CloudTour> {
                 onTap: _next,
                 child: TweenAnimationBuilder<Rect?>(
                   tween: RectTween(end: hole),
-                  duration: const Duration(milliseconds: 280),
+                  // Same reasoning as the bubble: the spotlight must sit ON the
+                  // moving panel, not trail it.
+                  duration: _follow
+                      ? Duration.zero
+                      : const Duration(milliseconds: 280),
                   curve: Curves.easeOutCubic,
                   builder: (_, animated, _) => CustomPaint(
                     painter: _SpotlightPainter(hole: animated),
@@ -275,10 +337,13 @@ class _CloudTourState extends State<CloudTour> {
               left: (size.width - bubbleWidth) / 2,
               width: bubbleWidth,
               top: _bubbleTop(size, target, safe),
-              // Close to the drawer's own 340 ms slide: long enough to read as
-              // a drift between steps, short enough that the cloud rides the
-              // panel up instead of lagging behind it.
-              duration: const Duration(milliseconds: 400),
+              // Zero once locked on: a drawer in motion moves its rectangle
+              // every frame, and easing toward a target that is itself easing
+              // reads as the cloud dragging behind. Ease only when switching to
+              // a NEW anchor; after that, follow exactly.
+              duration: _follow
+                  ? Duration.zero
+                  : const Duration(milliseconds: 400),
               curve: Curves.easeOutCubic,
               child: CloudBubble(
                 key: _bubbleKey,

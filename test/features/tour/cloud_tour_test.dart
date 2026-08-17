@@ -202,6 +202,86 @@ void main() {
       expect(gestures.value, isNull); // consumed, so it can satisfy a later step
     });
 
+    testWidgets('the cloud hands over to what the gesture opens, at once', (
+      tester,
+    ) async {
+      // The two reported symptoms — the cloud staying put while the drawer
+      // travels, and sitting on top of the drawer that slid under it — were the
+      // same bug: the step still pointed at a handle, and a handle is unmounted
+      // for as long as a drawer is open, so there was nothing left to follow.
+      // It must borrow the NEXT step's anchor the moment the gesture lands,
+      // well before the step itself changes.
+      final gestures = ValueNotifier<TourGesture?>(null);
+      addTearDown(gestures.dispose);
+      final handleKey = GlobalKey();
+      final sheetKey = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                const Positioned.fill(child: ColoredBox(color: Colors.indigo)),
+                // The handle, near the bottom.
+                Positioned(
+                  bottom: 4,
+                  left: 380,
+                  child: SizedBox(key: handleKey, width: 40, height: 8),
+                ),
+                // The drawer it opens, taking the lower third.
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: SizedBox(key: sheetKey, height: 200),
+                ),
+                CloudTour(
+                  steps: const [
+                    TourStep(
+                      title: 'Glisse',
+                      body: 'Fais le geste',
+                      anchor: TourAnchor.sendHandle,
+                      gesture: TourGesture.swipeUp,
+                    ),
+                    TourStep(
+                      title: 'Le tiroir',
+                      body: 'Voilà ce que ça ouvre',
+                      anchor: TourAnchor.sendSheet,
+                    ),
+                  ],
+                  anchors: {
+                    TourAnchor.sendHandle: handleKey,
+                    TourAnchor.sendSheet: sheetKey,
+                  },
+                  gestures: gestures,
+                  onFinish: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      double cloudTop() => tester.getTopLeft(find.byType(CloudBubble).first).dy;
+      final beforeGesture = cloudTop();
+
+      gestures.value = TourGesture.swipeUp;
+      await tester.pumpAndSettle();
+
+      // Still reading the SAME bubble — the step has not advanced yet…
+      expect(find.text('Glisse'), findsOneWidget);
+      // …but the cloud has already moved to clear the drawer.
+      expect(
+        cloudTop(),
+        isNot(closeTo(beforeGesture, 1)),
+        reason: 'le nuage doit céder la place au tiroir dès le geste, '
+            'pas attendre le changement d’étape',
+      );
+      // It sits above the drawer's top edge rather than over its contents.
+      final sheetTop = tester.getTopLeft(find.byKey(sheetKey)).dy;
+      expect(cloudTop(), lessThan(sheetTop));
+    });
+
     testWidgets('an unrelated gesture does not advance the step', (
       tester,
     ) async {
