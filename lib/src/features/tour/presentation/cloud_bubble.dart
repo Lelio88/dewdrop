@@ -80,16 +80,25 @@ class _Puffs extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          for (final d in const [11.0, 7.0, 4.0]) ...[
+          // Each puff carries its own soft white glow, so the trail fades out
+          // the way the cloud's edge does instead of ending in hard dots.
+          for (final (d, a) in const [(12.0, 0.95), (7.5, 0.75), (4.0, 0.5)]) ...[
             Container(
               width: d,
               height: d,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFEFF4FF),
+                color: const Color(0xFFF4F8FF).withValues(alpha: a),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: a * 0.55),
+                    blurRadius: d * 0.9,
+                    spreadRadius: d * 0.15,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
           ],
         ],
       ),
@@ -107,57 +116,100 @@ class _CloudPainter extends CustomPainter {
     if (size.isEmpty) return;
     final path = _cloud(size);
 
-    // Soft ground shadow so the cloud floats over the decor rather than sitting
-    // flat on it.
+    // The cottony look is three passes, not one shape. Painting the fill alone
+    // gives a crisp cut-out that reads as a sticker; the blurred passes are
+    // what make the edge look like vapour.
+
+    // 1. Ground shadow — lets the cloud float instead of lying flat.
     canvas.drawPath(
-      path.shift(const Offset(0, 6)),
+      path.shift(const Offset(0, 7)),
       Paint()
-        ..color = const Color(0x33000000)
-        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 14),
+        ..color = const Color(0x26000000)
+        ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 16),
     );
 
+    // 2. Two haloes of decreasing spread. Because they are drawn UNDER the
+    // fill and bleed past the outline, the silhouette dissolves outward — the
+    // fluff. Wide-then-tight beats a single blur, which just looks out of focus.
+    for (final (blur, alpha) in const [(22.0, 0.34), (10.0, 0.55)]) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.white.withValues(alpha: alpha)
+          ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, blur),
+      );
+    }
+
+    // 3. The body itself, kept very pale so the haloes blend into it instead
+    // of stopping at a visible border. No stroke on purpose: any rim, however
+    // faint, brings the sticker look straight back.
     canvas.drawPath(
       path,
       Paint()
         ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFBFCFF), Color(0xFFE6EDFF)],
+          colors: [Color(0xFFFFFFFF), Color(0xFFF2F6FF), Color(0xFFE7EEFF)],
+          stops: [0.0, 0.55, 1.0],
         ).createShader(Offset.zero & size),
     );
 
-    // Barely-there rim: keeps the silhouette readable on a bright decor.
+    // 4. A soft light pooling in the upper lobes, so the cloud has a volume
+    // rather than being a flat gradient.
     canvas.drawPath(
       path,
       Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = const Color(0x22405080),
+        ..blendMode = BlendMode.plus
+        ..shader = ui.Gradient.radial(
+          Offset(size.width * 0.42, lobeBand * 0.7),
+          size.width * 0.55,
+          [const Color(0x1AFFFFFF), const Color(0x00FFFFFF)],
+        ),
     );
   }
 
-  /// Rounded body ∪ three lobes, unioned into a single outline.
+  /// Rounded body ∪ lobes all around it, unioned into a single outline.
+  ///
+  /// The lobes are deliberately uneven — different radii, off-centre spacing,
+  /// smaller ones tucked at the bottom and sides. Evenly spaced identical
+  /// circles read as a machine-drawn scallop; real cumulus never repeats.
   Path _cloud(Size size) {
-    final body = Path()
+    final w = size.width;
+    final h = size.height;
+    final r = lobeBand;
+    var path = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTRB(0, lobeBand * 0.62, size.width, size.height),
-          const Radius.circular(30),
+          Rect.fromLTRB(r * 0.30, r * 0.58, w - r * 0.30, h - r * 0.34),
+          Radius.circular(r * 0.9),
         ),
       );
-    // Lobe centres sit ON the band line, so each circle rises above it by its
-    // radius minus the band — all three stay inside the canvas.
-    const lobes = [(0.24, 0.85), (0.5, 1.0), (0.78, 0.72)];
-    var path = body;
-    for (final (fx, fr) in lobes) {
+
+    // (fraction of width, fraction of height, radius as a fraction of the band)
+    const lobes = <(double, double, double)>[
+      // crown
+      (0.20, 0.0, 0.78),
+      (0.40, 0.0, 1.02),
+      (0.62, 0.0, 0.86),
+      (0.82, 0.0, 0.62),
+      // shoulders
+      (0.06, 0.34, 0.52),
+      (0.95, 0.42, 0.46),
+      // underside — small, so the bottom stays calm enough to read text over
+      (0.28, 1.0, 0.40),
+      (0.58, 1.0, 0.34),
+      (0.80, 1.0, 0.28),
+    ];
+
+    for (final (fx, fy, fr) in lobes) {
+      // fy is expressed against the band at the top and the body's bottom edge,
+      // so a lobe never drifts into the text area.
+      final cy = fy == 0.0 ? r : (fy == 1.0 ? h - r * 0.34 : r + (h - r) * fy);
       path = Path.combine(
         PathOperation.union,
         path,
         Path()..addOval(
-          Rect.fromCircle(
-            center: Offset(size.width * fx, lobeBand),
-            radius: lobeBand * fr,
-          ),
+          Rect.fromCircle(center: Offset(w * fx, cy), radius: r * fr),
         ),
       );
     }

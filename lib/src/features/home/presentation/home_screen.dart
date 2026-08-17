@@ -123,6 +123,13 @@ class _HomeViewState extends ConsumerState<HomeView>
   final _recusHandleKey = GlobalKey();
   final _menuKey = GlobalKey();
 
+  // What the finger just did, reported to the tour so a step that asks for a
+  // swipe can complete itself. Fed on every fling that clears the velocity
+  // threshold — including ones the home then ignores (a marronnier lock, a
+  // single favourite): the point is that the USER made the gesture, not that
+  // it changed anything. The tour sets it back to null once consumed.
+  final _tourGesture = ValueNotifier<TourGesture?>(null);
+
   // Direction the next favourite slides in from: +1 = from the right (swiped
   // left → next world), -1 = from the left (swiped right → previous world).
   // Read by the home décor's AnimatedSwitcher so the world glides in the same
@@ -150,6 +157,7 @@ class _HomeViewState extends ConsumerState<HomeView>
     SystemUi.edgeToEdge();
     unawaited(_sound.pauseAll());
     _reception.dispose();
+    _tourGesture.dispose();
     super.dispose();
   }
 
@@ -253,6 +261,7 @@ class _HomeViewState extends ConsumerState<HomeView>
   void _onDragEnd(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 250) return;
+    _tourGesture.value = v < 0 ? TourGesture.swipeUp : TourGesture.swipeDown;
     setState(() => _sheetState = nextSheetState(_sheetState, up: v < 0));
   }
 
@@ -290,10 +299,13 @@ class _HomeViewState extends ConsumerState<HomeView>
   // chosen favourite becomes the live + persisted selection.
   void _onHorizontalDragEnd(DragEndDetails d) {
     if (_sheetState.isOpen) return;
-    // Locked to a single world during a marronnier — no favourite cycling.
-    if (ref.read(seasonalOverrideProvider) != null) return;
     final v = d.primaryVelocity ?? 0;
     if (v.abs() < 250) return;
+    // Reported before the early exits below: the tour cares that the gesture
+    // was made, not that it happened to change the world.
+    _tourGesture.value = TourGesture.swipeSide;
+    // Locked to a single world during a marronnier — no favourite cycling.
+    if (ref.read(seasonalOverrideProvider) != null) return;
     final favorites = ref.read(decorFavoritesProvider);
     if (favorites.isEmpty) return;
     // Swipe right (v > 0) reveals the previous world from the left; swipe left
@@ -590,16 +602,23 @@ class _HomeViewState extends ConsumerState<HomeView>
 
           // First-run tour. It supersedes the one-line "glisse ↑ / ↓" hint that
           // used to flash here: the same gestures, but shown where they happen
-          // and at a pace that can actually be read. Suppressed while a sheet
-          // is open (the anchors it points at are unmounted then), and replayed
-          // from Réglages via homeTourProvider.
-          if (showTour && !open)
+          // and at a pace that can actually be read. Replayed from Réglages via
+          // homeTourProvider.
+          //
+          // It deliberately stays up while a sheet is open — the swipe steps
+          // WANT the user to open one, and yanking the tour away mid-gesture
+          // would punish the very thing it just asked for. Instead, each step
+          // change closes whatever the swipe opened, so the next bubble never
+          // talks over a sheet.
+          if (showTour)
             CloudTour(
               anchors: {
                 TourAnchor.sendHandle: _sendHandleKey,
                 TourAnchor.receivedHandle: _recusHandleKey,
                 TourAnchor.menuButton: _menuKey,
               },
+              gestures: _tourGesture,
+              onStepChanged: (_) => _closeSheets(),
               onFinish: () => ref.read(homeTourProvider.notifier).complete(),
             ),
         ],

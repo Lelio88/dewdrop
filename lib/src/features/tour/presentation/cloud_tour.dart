@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
@@ -5,25 +6,38 @@ import 'package:dewdrop/src/features/tour/presentation/cloud_bubble.dart';
 import 'package:flutter/material.dart';
 
 /// The home tour: a dimmed screen with a hole punched over the element being
-/// explained, and a cloud bubble ([CloudBubble]) next to it. Steps come from
-/// [kHomeTour]; a tap anywhere advances, "Passer" ends it.
+/// explained, and a cloud bubble ([CloudBubble]) that DRIFTS from one step's
+/// position to the next. Steps come from [kHomeTour]; a tap anywhere advances,
+/// "Passer" ends it.
 ///
-/// Anchoring, and why it is resolved in a post-frame callback: the tour is a
-/// sibling of the widgets it points at, inside the same [Stack]. During the
-/// first build those siblings have no layout yet, so `localToGlobal` cannot be
-/// called on them. The first frame therefore paints with no hole (invisible —
-/// the whole overlay fades in over ~450 ms) and the real rectangle lands on the
-/// frame after. From step two onward everything is laid out, so each rectangle
-/// is resolved synchronously as the step changes.
+/// Three things drive the design:
 ///
-/// A missing or unmounted key degrades to "no spotlight, bubble centred"
-/// instead of throwing — a step whose target got hidden still reads fine.
+/// **Gestures stay live.** The overlay is `translucent`, not `opaque`: it claims
+/// taps (to advance) but lets drags fall through to the real home underneath.
+/// A step that names a gesture ([TourStep.gesture]) completes itself once the
+/// user performs it — reading "glisse vers le haut" teaches far less than doing
+/// it once. [gestures] is how the home reports what the finger did.
+///
+/// **The bubble travels.** Position is always expressed as a single `top`
+/// (never `top` for one step and `bottom` for the next — you cannot interpolate
+/// between those), so [AnimatedPositioned] can slide it. That needs the
+/// bubble's height, which is only known after layout: [_bubbleHeight] is
+/// measured post-frame and starts from an estimate.
+///
+/// **Anchors resolve post-frame.** The tour is a sibling of the widgets it
+/// points at, inside the same [Stack]; during the first build they have no
+/// layout yet and `localToGlobal` cannot be called. The first frame paints with
+/// no hole (invisible — the overlay fades in over ~450 ms) and the rectangle
+/// lands on the next frame. A missing or unmounted key degrades to "no
+/// spotlight, bubble centred" instead of throwing.
 class CloudTour extends StatefulWidget {
   const CloudTour({
     super.key,
     required this.anchors,
     required this.onFinish,
     this.steps = kHomeTour,
+    this.gestures,
+    this.onStepChanged,
   });
 
   /// Keys of the real widgets each [TourAnchor] designates. Anchors absent from
@@ -35,24 +49,73 @@ class CloudTour extends StatefulWidget {
 
   final List<TourStep> steps;
 
+  /// The last gesture the user performed on the home screen. The tour consumes
+  /// it (sets it back to null) once acted upon, so the same gesture can satisfy
+  /// a later step too.
+  final ValueNotifier<TourGesture?>? gestures;
+
+  /// Fired on every step change — the home uses it to close whatever sheet the
+  /// user's swipe just opened, so the next bubble isn't talking over it.
+  final ValueChanged<int>? onStepChanged;
+
   @override
   State<CloudTour> createState() => _CloudTourState();
 }
 
 class _CloudTourState extends State<CloudTour> {
+  static const _kGap = 14.0;
+  static const _kEstimatedBubbleHeight = 190.0;
+
+  /// How long the finished gesture stays on screen before the tour moves on —
+  /// enough to watch the sheet slide open, short enough not to feel stuck.
+  static const _kGestureBeat = Duration(milliseconds: 1100);
+
   int _index = 0;
   Rect? _target;
   bool _visible = false;
+  double _bubbleHeight = _kEstimatedBubbleHeight;
+  Timer? _advanceTimer;
+  final _bubbleKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    widget.gestures?.addListener(_onGesture);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
         _visible = true;
         _target = _resolve(widget.steps[_index].anchor);
       });
+    });
+  }
+
+  @override
+  void didUpdateWidget(CloudTour old) {
+    super.didUpdateWidget(old);
+    if (old.gestures != widget.gestures) {
+      old.gestures?.removeListener(_onGesture);
+      widget.gestures?.addListener(_onGesture);
+    }
+  }
+
+  @override
+  void dispose() {
+    _advanceTimer?.cancel();
+    widget.gestures?.removeListener(_onGesture);
+    super.dispose();
+  }
+
+  /// The user did something on the home screen. If it's what this step asked
+  /// for, let them watch the result, then move on.
+  void _onGesture() {
+    final done = widget.gestures?.value;
+    if (done == null || _advanceTimer != null) return;
+    if (done != widget.steps[_index].gesture) return;
+    widget.gestures?.value = null; // consumed
+    _advanceTimer = Timer(_kGestureBeat, () {
+      _advanceTimer = null;
+      if (mounted) _next();
     });
   }
 
@@ -68,8 +131,9 @@ class _CloudTourState extends State<CloudTour> {
   }
 
   void _next() {
-    final last = _index >= widget.steps.length - 1;
-    if (last) {
+    _advanceTimer?.cancel();
+    _advanceTimer = null;
+    if (_index >= widget.steps.length - 1) {
       widget.onFinish();
       return;
     }
@@ -78,15 +142,47 @@ class _CloudTourState extends State<CloudTour> {
       _index = next;
       _target = _resolve(widget.steps[next].anchor);
     });
+    widget.onStepChanged?.call(next);
+  }
+
+  /// Bubbles are sized by their text, so the height needed to place one above a
+  /// target is only knowable after it has been laid out. Re-measured every
+  /// frame; the guard keeps it from looping on itself.
+  void _measureBubble() {
+    final box = _bubbleKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    if ((box.size.height - _bubbleHeight).abs() < 0.5) return;
+    setState(() => _bubbleHeight = box.size.height);
+  }
+
+  /// Where the bubble's top edge goes: below the target when it sits high on
+  /// screen, above it otherwise, centred when the step has no target. Always a
+  /// `top`, never a `bottom` — that is what makes the move interpolable.
+  double _bubbleTop(Size screen, Rect? target, EdgeInsets safe) {
+    final minTop = safe.top + 8;
+    final maxTop = screen.height - safe.bottom - _bubbleHeight - 8;
+    final double wanted;
+    if (target == null) {
+      wanted = (screen.height - _bubbleHeight) / 2;
+    } else if (target.center.dy < screen.height * 0.45) {
+      wanted = target.bottom + _kGap;
+    } else {
+      wanted = target.top - _kGap - _bubbleHeight;
+    }
+    // maxTop can fall below minTop on a very short screen; clamp needs order.
+    return maxTop <= minTop ? minTop : wanted.clamp(minTop, maxTop);
   }
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _measureBubble();
+    });
+
     final step = widget.steps[_index];
     final size = MediaQuery.sizeOf(context);
+    final safe = MediaQuery.paddingOf(context);
     final target = _target;
-    // Below the target when it sits in the upper part of the screen, above it
-    // otherwise — the bubble always grows toward the free space.
     final below = target != null && target.center.dy < size.height * 0.45;
     final bubbleWidth = math.min(360.0, size.width - 40);
     final isLast = _index >= widget.steps.length - 1;
@@ -109,29 +205,35 @@ class _CloudTourState extends State<CloudTour> {
         type: MaterialType.transparency,
         child: Stack(
           children: [
-            // Dim + spotlight. Also the tap surface that advances the tour.
+            // Dim + spotlight, and the tap surface that advances the tour.
+            // TRANSLUCENT, not opaque: taps are claimed here, drags fall
+            // through to the home's own gesture detector so the user can
+            // actually perform the swipe the step is describing.
             Positioned.fill(
               child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+                behavior: HitTestBehavior.translucent,
                 onTap: _next,
                 child: TweenAnimationBuilder<Rect?>(
                   tween: RectTween(end: hole),
-                  duration: const Duration(milliseconds: 320),
+                  duration: const Duration(milliseconds: 380),
                   curve: Curves.easeOutCubic,
-                  builder: (_, hole, _) => CustomPaint(
-                    painter: _SpotlightPainter(hole: hole),
+                  builder: (_, animated, _) => CustomPaint(
+                    painter: _SpotlightPainter(hole: animated),
                     size: Size.infinite,
                   ),
                 ),
               ),
             ),
 
-            _positionBubble(
-              size: size,
-              target: target,
-              below: below,
+            // The cloud drifts to its new spot rather than reappearing there.
+            AnimatedPositioned(
+              left: (size.width - bubbleWidth) / 2,
               width: bubbleWidth,
+              top: _bubbleTop(size, target, safe),
+              duration: const Duration(milliseconds: 560),
+              curve: Curves.easeInOutCubic,
               child: CloudBubble(
+                key: _bubbleKey,
                 tail: target == null
                     ? CloudTail.none
                     : (below ? CloudTail.above : CloudTail.below),
@@ -139,7 +241,18 @@ class _CloudTourState extends State<CloudTour> {
                     ? 0
                     : ((target.center.dx - size.width / 2) / (bubbleWidth / 2))
                           .clamp(-0.75, 0.75),
-                child: _bubbleContent(step, isLast),
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: KeyedSubtree(
+                      key: ValueKey(_index),
+                      child: _bubbleContent(step, isLast),
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -163,35 +276,6 @@ class _CloudTourState extends State<CloudTour> {
           ],
         ),
       ),
-    );
-  }
-
-  /// Places the bubble under the target, over it, or dead centre when the step
-  /// has none. `AnimatedSwitcher` cross-fades the text between steps so the
-  /// cloud never blinks.
-  Widget _positionBubble({
-    required Size size,
-    required Rect? target,
-    required bool below,
-    required double width,
-    required Widget child,
-  }) {
-    final animated = AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      child: KeyedSubtree(key: ValueKey(_index), child: child),
-    );
-    if (target == null) {
-      return Positioned.fill(
-        child: Center(child: SizedBox(width: width, child: animated)),
-      );
-    }
-    const gap = 12.0;
-    return Positioned(
-      left: (size.width - width) / 2,
-      width: width,
-      top: below ? target.bottom + gap : null,
-      bottom: below ? null : size.height - target.top + gap,
-      child: animated,
     );
   }
 
@@ -223,7 +307,9 @@ class _CloudTourState extends State<CloudTour> {
           for (var i = 0; i < widget.steps.length; i++)
             Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
                 width: i == _index ? 18 : 6,
                 height: 6,
                 decoration: BoxDecoration(
@@ -283,6 +369,14 @@ class _SpotlightPainter extends CustomPainter {
     }
     canvas.restore();
   }
+
+  /// Opt OUT of hit testing. `RenderCustomPaint.hitTestSelf` is
+  /// `painter.hitTest(position) ?? true` — a CustomPaint carrying a `painter`
+  /// swallows pointers by default, which would make the dimming layer eat every
+  /// swipe no matter how translucent its GestureDetector is. Returning false
+  /// is what lets the user actually perform the gesture the step describes.
+  @override
+  bool? hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(_SpotlightPainter old) => old.hole != hole;

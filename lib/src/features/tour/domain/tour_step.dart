@@ -17,17 +17,30 @@ library;
 /// the bubble sits centred.
 enum TourAnchor { none, sendHandle, receivedHandle, menuButton }
 
+/// A gesture a step invites the user to actually perform.
+///
+/// The tour never blocks these: reading "glisse vers le haut" teaches far less
+/// than doing it once, so the overlay lets the swipe through to the real home
+/// and the step completes itself when the gesture lands.
+enum TourGesture { swipeUp, swipeDown, swipeSide }
+
 /// One bubble of the tour.
 class TourStep {
   const TourStep({
     required this.title,
     required this.body,
     this.anchor = TourAnchor.none,
+    this.gesture,
   });
 
   final String title;
   final String body;
   final TourAnchor anchor;
+
+  /// The gesture that satisfies this step, if any. When the user performs it,
+  /// the step advances on its own after a beat — long enough to see what the
+  /// gesture did.
+  final TourGesture? gesture;
 }
 
 /// The home tour, in order.
@@ -46,22 +59,25 @@ const List<TourStep> kHomeTour = [
   TourStep(
     title: 'Glisse vers le haut',
     body:
-        'Ton cercle apparaît en bas. Un appui sur un visage envoie la pensée, '
-        'tout de suite. Re-glisse vers le haut pour voir tout le monde.',
+        'Essaie : ton cercle apparaît en bas. Un appui sur un visage envoie la '
+        'pensée, tout de suite. Re-glisse vers le haut pour voir tout le monde.',
     anchor: TourAnchor.sendHandle,
+    gesture: TourGesture.swipeUp,
   ),
   TourStep(
     title: 'Glisse vers le bas',
     body:
-        'Tu retrouves les pensées qu’on t’a envoyées. Quand il en arrive une, '
-        'le décor s’illumine tout seul.',
+        'À toi : tu retrouves les pensées qu’on t’a envoyées. Quand il en '
+        'arrive une, le décor s’illumine tout seul.',
     anchor: TourAnchor.receivedHandle,
+    gesture: TourGesture.swipeDown,
   ),
   TourStep(
     title: 'Glisse sur les côtés',
     body:
-        'Tu passes d’un univers à l’autre parmi tes favoris ⭐. Touche le '
-        'décor pour le faire réagir, et écoute : chacun a son ambiance.',
+        'Vas-y : tu passes d’un univers à l’autre parmi tes favoris ⭐. Touche '
+        'le décor pour le faire réagir, et écoute — chacun a son ambiance.',
+    gesture: TourGesture.swipeSide,
   ),
   TourStep(
     title: 'Et tout est aussi ici',
