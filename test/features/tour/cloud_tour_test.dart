@@ -203,7 +203,7 @@ void main() {
       // …and we're still on the step: a beat to see what the gesture did.
       expect(find.text('Glisse'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 1700));
+      await tester.pump(const Duration(milliseconds: 2300));
       await tester.pumpAndSettle();
       expect(find.text('Trois'), findsOneWidget);
       // The host was asked to stage each step's scene, the last one included.
@@ -219,7 +219,7 @@ void main() {
 
       await fling(tester, const Offset(0, 300)); // down, when up was asked
       expect(performed, isEmpty, reason: 'rien ne doit être exécuté');
-      await tester.pump(const Duration(milliseconds: 1700));
+      await tester.pump(const Duration(milliseconds: 2300));
       await tester.pumpAndSettle();
       expect(
         find.text('Glisse'),
@@ -442,6 +442,70 @@ void main() {
     expect(
       tester.widget<CloudBubble>(find.byType(CloudBubble).first).tail,
       isNot(CloudTail.none),
+    );
+  });
+
+  testWidgets('a placement change is animated, never an instant jump', (
+    tester,
+  ) async {
+    // The reported "teleport". Both steps share an anchor, so the re-animation
+    // was skipped — but their PLACEMENT differs, so the position changed all
+    // the same, in one frame. Anchor and placement decide the position
+    // together; either one changing has to be eased.
+    final targetKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: Colors.indigo)),
+              Positioned(
+                top: 40,
+                left: 180,
+                child: SizedBox(key: targetKey, width: 40, height: 20),
+              ),
+              CloudTour(
+                steps: const [
+                  TourStep(
+                    title: 'Un',
+                    body: 'Placement automatique',
+                    anchor: TourAnchor.sendSheetHint,
+                  ),
+                  TourStep(
+                    title: 'Deux',
+                    body: 'Même cible, autre bord',
+                    anchor: TourAnchor.sendSheetHint,
+                    placement: TourPlacement.screenBottom,
+                  ),
+                ],
+                anchors: {TourAnchor.sendSheetHint: targetKey},
+                onFinish: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    double top() => tester.getTopLeft(find.byType(CloudBubble).first).dy;
+    final before = top();
+
+    await tester.tap(find.text('Suivant'));
+    await tester.pump(const Duration(milliseconds: 80)); // mid-flight
+    final midway = top();
+    await tester.pumpAndSettle();
+    final settled = top();
+
+    expect(
+      settled,
+      isNot(closeTo(before, 1)),
+      reason: 'elle doit changer de bord',
+    );
+    expect(
+      midway,
+      isNot(closeTo(settled, 1)),
+      reason: 'elle doit encore glisser 80 ms après, pas être déjà arrivée',
     );
   });
 

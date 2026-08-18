@@ -93,7 +93,7 @@ class _CloudTourState extends State<CloudTour>
   /// cutting in right after it lands reads as being rushed. The next bubble
   /// comments on what just opened, so the hand-off is a continuation, not a
   /// jump-cut.
-  static const _kGestureBeat = Duration(milliseconds: 1600);
+  static const _kGestureBeat = Duration(milliseconds: 2100);
 
   int _index = 0;
   Rect? _target;
@@ -112,6 +112,13 @@ class _CloudTourState extends State<CloudTour>
   /// the top — instead of sitting still while it passes underneath.
   TourAnchor? _previewAnchor;
 
+  /// Borrowed together with [_previewAnchor]. Anchor and placement decide the
+  /// position jointly, so taking one without the other means moving twice:
+  /// once toward the new anchor under the old rule, then again when the step
+  /// finally changes — and that second move was instant, because an unchanged
+  /// anchor skipped the re-animation. That was the jump.
+  TourPlacement? _previewPlacement;
+
   /// True once the bubble should stick to its target frame-for-frame.
   ///
   /// A moving target and an implicit animation don't compose: the panel slides
@@ -124,6 +131,10 @@ class _CloudTourState extends State<CloudTour>
   /// The anchor actually being tracked right now.
   TourAnchor get _activeAnchor => _previewAnchor ?? widget.steps[_index].anchor;
 
+  /// The placement rule in force right now.
+  TourPlacement get _activePlacement =>
+      _previewPlacement ?? widget.steps[_index].placement;
+
   /// Ease into the new anchor, then track it exactly. The `setState` matters:
   /// flipping the flag after the caller's own rebuild would let that frame
   /// paint in follow mode and snap the very move meant to be animated.
@@ -134,7 +145,7 @@ class _CloudTourState extends State<CloudTour>
     } else {
       _follow = false;
     }
-    _followTimer = Timer(const Duration(milliseconds: 420), () {
+    _followTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) setState(() => _follow = true);
     });
   }
@@ -196,9 +207,14 @@ class _CloudTourState extends State<CloudTour>
     // own anchor (a handle) is about to be unmounted by that very drawer.
     final next = _index + 1;
     if (next < widget.steps.length) {
-      final ahead = widget.steps[next].anchor;
-      if (ahead != TourAnchor.none && ahead != widget.steps[_index].anchor) {
-        setState(() => _previewAnchor = ahead);
+      final ahead = widget.steps[next];
+      if (ahead.anchor != TourAnchor.none &&
+          (ahead.anchor != widget.steps[_index].anchor ||
+              ahead.placement != widget.steps[_index].placement)) {
+        setState(() {
+          _previewAnchor = ahead.anchor;
+          _previewPlacement = ahead.placement;
+        });
         _animateThenFollow();
       }
     }
@@ -243,19 +259,23 @@ class _CloudTourState extends State<CloudTour>
     // this frame is picked up by [_syncTarget] on the next ones.
     widget.onScene?.call(step.scene);
     final borrowed = _previewAnchor;
+    final borrowedPlacement = _previewPlacement;
     setState(() {
       _index = next;
       _previewAnchor = null;
+      _previewPlacement = null;
       // Keep the previous spotlight rather than snapping to centre while the
       // new target is still animating in — unless the step wants none.
       _target = step.anchor == TourAnchor.none
           ? null
           : (_resolve(step.anchor) ?? _target);
     });
-    // Only re-animate when the anchor actually changes. Arriving on a step
-    // whose anchor the cloud already borrowed (it rode the drawer here) must
-    // not re-trigger an ease — it is already exactly where it belongs.
-    if (borrowed != step.anchor) _animateThenFollow();
+    // Re-animate unless the cloud is ALREADY where this step wants it — which
+    // means both the anchor and the placement were borrowed. Comparing only the
+    // anchor let a placement change through as an instant jump.
+    if (borrowed != step.anchor || borrowedPlacement != step.placement) {
+      _animateThenFollow();
+    }
   }
 
   /// Re-reads the current step's anchor every frame.
@@ -293,7 +313,10 @@ class _CloudTourState extends State<CloudTour>
   void _measureBubble() {
     final box = _bubbleKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
-    if ((box.size.height - _bubbleHeight).abs() < 0.5) return;
+    // 2 px, not a fraction: when the bubble is pinned to an edge its `top` is
+    // derived from this height, so sub-pixel wobble from re-layout turned into
+    // visible twitches once it started tracking its target exactly.
+    if ((box.size.height - _bubbleHeight).abs() < 2) return;
     setState(() => _bubbleHeight = box.size.height);
   }
 
@@ -304,7 +327,7 @@ class _CloudTourState extends State<CloudTour>
     final minTop = safe.top + 8;
     final maxTop = screen.height - safe.bottom - _bubbleHeight - 8;
     final double wanted;
-    switch (widget.steps[_index].placement) {
+    switch (_activePlacement) {
       case TourPlacement.screenTop:
         wanted = minTop;
       case TourPlacement.screenBottom:
@@ -394,9 +417,14 @@ class _CloudTourState extends State<CloudTour>
                       ? Duration.zero
                       : const Duration(milliseconds: 280),
                   curve: Curves.easeOutCubic,
-                  builder: (_, animated, _) => CustomPaint(
-                    painter: _SpotlightPainter(hole: animated),
-                    size: Size.infinite,
+                  // Isolated: the dimming layer and the cloud sit in the same
+                  // subtree, and without boundaries a moving spotlight repaints
+                  // the cloud (three blurred passes) and vice versa.
+                  builder: (_, animated, _) => RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _SpotlightPainter(hole: animated),
+                      size: Size.infinite,
+                    ),
                   ),
                 ),
               ),
@@ -413,27 +441,29 @@ class _CloudTourState extends State<CloudTour>
               // a NEW anchor; after that, follow exactly.
               duration: _follow
                   ? Duration.zero
-                  : const Duration(milliseconds: 400),
+                  : const Duration(milliseconds: 520),
               curve: Curves.easeOutCubic,
-              child: _Shiver(
-                animation: _nudge,
-                child: CloudBubble(
-                  key: _bubbleKey,
-                  tail: tail,
-                  tailAlignX: target == null
-                      ? 0
-                      : ((target.center.dx - size.width / 2) /
-                                (bubbleWidth / 2))
-                            .clamp(-0.75, 0.75),
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: KeyedSubtree(
-                        key: ValueKey(_index),
-                        child: _bubbleContent(step, isLast),
+              child: RepaintBoundary(
+                child: _Shiver(
+                  animation: _nudge,
+                  child: CloudBubble(
+                    key: _bubbleKey,
+                    tail: tail,
+                    tailAlignX: target == null
+                        ? 0
+                        : ((target.center.dx - size.width / 2) /
+                                  (bubbleWidth / 2))
+                              .clamp(-0.75, 0.75),
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 420),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 420),
+                        child: KeyedSubtree(
+                          key: ValueKey(_index),
+                          child: _bubbleContent(step, isLast),
+                        ),
                       ),
                     ),
                   ),
@@ -624,18 +654,24 @@ class _SpotlightPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final full = Offset.zero & size;
+    final h = hole;
+    // No hole to punch? Then no layer. A full-screen saveLayer allocates a
+    // screen-sized texture on every frame, and it exists only to make the
+    // erase below possible — paying for it on steps without a spotlight was
+    // pure waste.
+    if (h == null || h.isEmpty) {
+      canvas.drawRect(full, Paint()..color = const Color(0x9E000000));
+      return;
+    }
     canvas.saveLayer(full, Paint());
     canvas.drawRect(full, Paint()..color = const Color(0x9E000000));
-    final h = hole;
-    if (h != null && !h.isEmpty) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(h.inflate(18), const Radius.circular(26)),
-        Paint()
-          ..blendMode = BlendMode.dstOut
-          ..color = Colors.black
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
-      );
-    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(h.inflate(18), const Radius.circular(26)),
+      Paint()
+        ..blendMode = BlendMode.dstOut
+        ..color = Colors.black
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
     canvas.restore();
   }
 

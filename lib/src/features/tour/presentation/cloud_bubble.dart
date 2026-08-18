@@ -118,10 +118,30 @@ class _CloudPainter extends CustomPainter {
 
   final double lobeBand;
 
+  // The silhouette costs nine boolean path unions to build, and it was rebuilt
+  // on every paint — which, while a drawer slides, means every frame. The shape
+  // depends only on (size, lobeBand), and exactly one bubble is ever on screen,
+  // so a single-entry cache removes that work entirely.
+  static Size? _cachedSize;
+  static double? _cachedBand;
+  static Path? _cachedPath;
+
+  Path _cloudCached(Size size) {
+    final hit = _cachedPath;
+    if (hit != null && _cachedSize == size && _cachedBand == lobeBand) {
+      return hit;
+    }
+    final built = _cloud(size);
+    _cachedSize = size;
+    _cachedBand = lobeBand;
+    _cachedPath = built;
+    return built;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final path = _cloud(size);
+    final path = _cloudCached(size);
 
     // The cottony look is three passes, not one shape. Painting the fill alone
     // gives a crisp cut-out that reads as a sticker; the blurred passes are
