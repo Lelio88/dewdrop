@@ -127,12 +127,16 @@ const List<TourStep> kHomeTour = [
   TourStep(
     title: 'En grand, deux zones',
     body:
-        'Le haut du tiroir — là où pointe le chevron — le referme d’un '
-        'glissement, sans t’empêcher de toucher les visages au passage. Tout '
-        'le bas fait défiler la liste.',
+        'Tout le bas fait défiler la liste. Le haut — là où pointe le chevron '
+        '— referme le tiroir d’un glissement, sans t’empêcher de toucher les '
+        'visages au passage. Essaie de le refermer.',
     // The chevron band, not the whole panel: a full-screen drawer leaves the
     // bubble nowhere to stand, and it is that band the step is about anyway.
     anchor: TourAnchor.sendSheetHint,
+    // Closing IS the lesson here, so it doubles as the way forward: the step
+    // used to teach two zones while asking for nothing, leaving the reader
+    // swiping at a screen that answered neither way.
+    gesture: TourGesture.swipeDown,
     scene: TourScene.sendFull,
     placement: TourPlacement.screenBottom,
   ),

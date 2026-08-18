@@ -81,6 +81,25 @@ void main() {
     }
   });
 
+  test('the home tour never leaves the reader without a way forward', () {
+    // Either the step teaches a gesture, or the bubble's tap invitation applies.
+    // The failure this guards against is subtler: a step that teaches no
+    // gesture reads exactly like one that does, so the reader swipes at a
+    // screen that will not answer. Every home step therefore either asks for a
+    // gesture or is explicitly a read-and-tap step — never ambiguous.
+    for (final s in kHomeTour) {
+      final teaches = s.gesture != null;
+      final staged = s.scene != TourScene.closed;
+      expect(
+        teaches || !staged,
+        isTrue,
+        reason:
+            '"${s.title}" met une scène en place sans rien demander : '
+            'le lecteur ne saura pas comment en sortir',
+      );
+    }
+  });
+
   test('the second notch and the split scroll are actually explained', () {
     // The two things users could not guess on their own, per direct feedback.
     final home = kHomeTour.map((s) => '${s.title} ${s.body}').join(' ');

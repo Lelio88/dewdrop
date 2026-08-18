@@ -184,8 +184,10 @@ class _CloudTourState extends State<CloudTour>
   void _handle(TourGesture done) {
     if (_advanceTimer != null) return; // already on the way out
     final wanted = widget.steps[_index].gesture;
-    if (wanted == null) return; // this step teaches no gesture: ignore quietly
-    if (done != wanted) {
+    // A swipe on a step that teaches none is refused just as visibly as a wrong
+    // one. Staying silent there was the same mistake in a different coat: the
+    // reader tries something, nothing answers, and the screen looks broken.
+    if (wanted == null || done != wanted) {
       _refuse();
       return;
     }
@@ -503,7 +505,31 @@ class _CloudTourState extends State<CloudTour>
           height: 1.45,
         ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 14),
+      // What to do next, spelled out. Without it a step that asks for no
+      // gesture looks identical to one that does, and the reader swipes at a
+      // screen that will not answer.
+      Row(
+        children: [
+          Icon(
+            _inviteIcon(step.gesture),
+            size: 15,
+            color: const Color(0xFF7E9BE0),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              _inviteLabel(step.gesture, isLast),
+              style: const TextStyle(
+                color: Color(0xFF6B77A0),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
       Row(
         children: [
           for (var i = 0; i < widget.steps.length; i++)
@@ -544,6 +570,23 @@ class _CloudTourState extends State<CloudTour>
     ],
   );
 }
+
+IconData _inviteIcon(TourGesture? g) => switch (g) {
+  TourGesture.swipeUp => Icons.swipe_up_rounded,
+  TourGesture.swipeDown => Icons.swipe_down_rounded,
+  TourGesture.swipeSide => Icons.swipe_rounded,
+  null => Icons.touch_app_rounded,
+};
+
+String _inviteLabel(TourGesture? g, bool isLast) => switch (g) {
+  TourGesture.swipeUp => 'Glisse vers le haut pour continuer',
+  TourGesture.swipeDown => 'Glisse vers le bas pour continuer',
+  TourGesture.swipeSide => 'Glisse sur le côté pour continuer',
+  null =>
+    isLast
+        ? 'Appuie n’importe où pour commencer'
+        : 'Appuie n’importe où pour continuer',
+};
 
 /// Sways its child from side to side, once, whenever [animation] runs.
 ///

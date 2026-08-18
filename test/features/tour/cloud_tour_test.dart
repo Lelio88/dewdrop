@@ -310,7 +310,7 @@ void main() {
       expect(cloudTop(), lessThan(sheetTop));
     });
 
-    testWidgets('a step that teaches no gesture just ignores swipes', (
+    testWidgets('a step that teaches no gesture performs none either', (
       tester,
     ) async {
       final (performed, _, _) = await pump(tester);
@@ -319,6 +319,26 @@ void main() {
       await tester.pumpAndSettle();
       expect(performed, isEmpty);
       expect(find.text('Un'), findsOneWidget);
+    });
+
+    testWidgets('every step says what it expects', (tester) async {
+      // Reported: on a step asking for no gesture, swiping did nothing and
+      // nothing explained why — the reader had to guess that tapping was the
+      // way out. Each bubble now states its own way forward.
+      await pump(tester);
+      expect(
+        find.textContaining('Appuie n’importe où'),
+        findsOneWidget,
+        reason: 'une étape sans geste doit inviter au tap',
+      );
+
+      await tester.tap(find.text('Suivant'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Glisse vers le haut pour continuer'),
+        findsOneWidget,
+        reason: 'une étape avec geste doit nommer ce geste',
+      );
     });
   });
 
