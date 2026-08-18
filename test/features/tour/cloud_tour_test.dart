@@ -376,6 +376,53 @@ void main() {
     // …and it must sit at the bottom edge, not floating over the middle.
     final screen = tester.getSize(find.byType(Scaffold));
     expect(bubble.bottom, greaterThan(screen.height * 0.8));
+    // …and it drops the puffs: they bridge a short gap between the bubble and
+    // its subject. Across half a screen they bridge nothing and just look like
+    // crumbs stuck to the cloud.
+    expect(
+      tester.widget<CloudBubble>(find.byType(CloudBubble).first).tail,
+      CloudTail.none,
+    );
+  });
+
+  testWidgets('the puffs stay when the target is right next to the bubble', (
+    tester,
+  ) async {
+    // The other half of the rule: over a short gap they do their job, so they
+    // must not disappear everywhere.
+    final targetKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: Colors.indigo)),
+              Positioned(
+                top: 30,
+                left: 180,
+                child: SizedBox(key: targetKey, width: 40, height: 8),
+              ),
+              CloudTour(
+                steps: const [
+                  TourStep(
+                    title: 'Ici',
+                    body: 'Juste dessous',
+                    anchor: TourAnchor.sendHandle,
+                  ),
+                ],
+                anchors: {TourAnchor.sendHandle: targetKey},
+                onFinish: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<CloudBubble>(find.byType(CloudBubble).first).tail,
+      isNot(CloudTail.none),
+    );
   });
 
   testWidgets('the bubble slides between positions instead of jumping', (

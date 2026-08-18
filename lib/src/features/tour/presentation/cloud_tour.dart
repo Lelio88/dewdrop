@@ -78,6 +78,9 @@ class CloudTour extends StatefulWidget {
 class _CloudTourState extends State<CloudTour>
     with SingleTickerProviderStateMixin {
   static const _kGap = 14.0;
+
+  /// How far the puffs can meaningfully bridge, in logical pixels.
+  static const _kTailReach = 90.0;
   static const _kEstimatedBubbleHeight = 190.0;
 
   /// Below this, a drag is a slip of the thumb rather than a swipe. Same
@@ -334,6 +337,20 @@ class _CloudTourState extends State<CloudTour>
     // from the rule that would have placed it — a step may override that.
     final bubbleAboveTarget =
         target != null && bubbleTop + _bubbleHeight <= target.center.dy;
+    // The puffs are a LINK between the bubble and what it talks about: three
+    // shrinking dots that carry the eye across a short gap. Past that, they
+    // carry it nowhere — they stop a few pixels out and read as crumbs floating
+    // beside the cloud, which is exactly how a forced placement leaves things
+    // (bubble pinned to one edge, target at the other). Beyond the reach, drop
+    // them: the spotlight already says where to look.
+    final tailGap = target == null
+        ? double.infinity
+        : (bubbleAboveTarget
+              ? target.top - (bubbleTop + _bubbleHeight)
+              : bubbleTop - target.bottom);
+    final tail = target == null || tailGap > _kTailReach || tailGap < 0
+        ? CloudTail.none
+        : (bubbleAboveTarget ? CloudTail.below : CloudTail.above);
     final bubbleWidth = math.min(360.0, size.width - 40);
     final isLast = _index >= widget.steps.length - 1;
     // RectTween needs a non-null end. A zero-size rect at the centre stands in
@@ -400,9 +417,7 @@ class _CloudTourState extends State<CloudTour>
                 animation: _nudge,
                 child: CloudBubble(
                   key: _bubbleKey,
-                  tail: target == null
-                      ? CloudTail.none
-                      : (bubbleAboveTarget ? CloudTail.below : CloudTail.above),
+                  tail: tail,
                   tailAlignX: target == null
                       ? 0
                       : ((target.center.dx - size.width / 2) /
