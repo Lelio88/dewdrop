@@ -159,6 +159,15 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 - ❌ `127.0.0.1` pour Supabase depuis un émulateur Android (géré par `SupabaseConfig`).
 - ❌ Un **`CustomPaint` en surimpression sans `hitTest => false`** dans son painter. `RenderCustomPaint.hitTestSelf` vaut `painter.hitTest(position) ?? **true**` : un painter qui n'en dit rien **absorbe tous les pointeurs**, quel que soit le `HitTestBehavior` du `GestureDetector` autour. Symptôme : une couche décorative plein écran (voile du tuto, halo, filtre) qui gèle silencieusement les gestes de l'écran en dessous. Vérifier avec `tester.hitTestOnBinding(offset)` et lire le chemin, plutôt que de raisonner sur les `behavior`.
 
+## Outils de release
+
+| Outil | Rôle |
+|---|---|
+| `tools/release/ship.py` | **La** commande de release. Tout ce qui peut refuser passe AVANT les 4 min de Gradle (arbre git propre, `analyze`, `test`) ; ce qui ne se vérifie qu'après passe avant l'upload (le bundle contient-il l'hôte Supabase **cloud** — un build sans `--dart-define` compile parfaitement et ne joint rien). |
+| `tools/release/verify_prod.py` | Interroge l'API de gestion Supabase : gabarits d'e-mail réellement servis, expéditeur SMTP, présence de `search_profiles` **avec ses garde-fous**. Né d'une panne de 2 mois où le dépôt était juste et la prod fausse. |
+| `tools/release/publish_play.py` | Upload Play (API Android Publisher v3). Appelé par `ship.py`. |
+| `.github/workflows/ci.yml` | `analyze` + `test` sur chaque push. Pas de build : le keystore et les clés vivent hors dépôt (public). Les goldens y sont informatifs — la rastérisation diffère d'une machine à l'autre. |
+
 ## Stratégie de test
 
 État : tests ciblés sur la logique pure + le câblage critique (`SoundPrefs`, `authErrorMessage`, `parseDecor`, **deep links**, **refresh temps réel des listes**) ; fakes manuels au boundary repo (`test/helpers/fakes.dart`). Cible : élargir aux écrans interactifs (robot pattern) + goldens design-system. Vérification **obligatoire** avant commit : `flutter analyze` vert + `flutter test` vert + build qui passe.

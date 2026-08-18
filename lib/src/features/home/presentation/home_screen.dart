@@ -1,22 +1,21 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:dewdrop/decor/decor_image_cache.dart';
 import 'package:dewdrop/decor/environment.dart';
 import 'package:dewdrop/decor/reception_signal.dart';
 import 'package:dewdrop/src/common/decor_choice.dart';
-import 'package:dewdrop/src/common/seasonal.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
-import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
-import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/presentation/onboarding_view.dart';
 import 'package:dewdrop/src/features/home/domain/home_sheet.dart';
 import 'package:dewdrop/src/features/home/presentation/dewdrop_loader.dart';
+import 'package:dewdrop/src/features/home/presentation/home_chrome.dart';
+import 'package:dewdrop/src/features/home/presentation/home_menu.dart';
 import 'package:dewdrop/src/features/home/presentation/received_peek.dart';
+import 'package:dewdrop/src/features/home/presentation/sheet_panel.dart';
 import 'package:dewdrop/src/features/home/presentation/send_dock.dart';
 import 'package:dewdrop/src/features/settings/presentation/decor_stories.dart';
 import 'package:dewdrop/src/features/settings/application/decor_favorites_provider.dart';
@@ -426,7 +425,7 @@ class _HomeViewState extends ConsumerState<HomeView>
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.18),
       isScrollControlled: true, // tall menu must never clip its bottom items
-      builder: (_) => _HomeMenu(profile: widget.profile),
+      builder: (_) => HomeMenu(profile: widget.profile),
     ).then((result) {
       if (!mounted || result == null) return;
       if (result == 'decor') {
@@ -554,12 +553,25 @@ class _HomeViewState extends ConsumerState<HomeView>
               },
               child: KeyedSubtree(
                 key: ValueKey('$decorStr:${mode.name}'),
-                child: buildDecor(
-                  env,
-                  variant,
-                  mode,
-                  reception: _reception,
-                  parallax: parallax,
+                // Freeze the world while a tour is up. Its bespoke FX animate
+                // continuously and its parallax rebuilds a depth mesh on every
+                // gyroscope sample — all of it behind a 62%-black scrim, for a
+                // few seconds, at the exact moment the app makes its first
+                // impression.
+                //
+                // TickerMode sits INSIDE the AnimatedSwitcher on purpose: the
+                // switcher's own ticker must keep running, or the sideways
+                // swipe the tour asks for would leave the incoming world parked
+                // off-screen with its slide animation stuck at zero.
+                child: TickerMode(
+                  enabled: !showTour,
+                  child: buildDecor(
+                    env,
+                    variant,
+                    mode,
+                    reception: _reception,
+                    parallax: parallax && !showTour,
+                  ),
                 ),
               ),
             ),
@@ -574,11 +586,11 @@ class _HomeViewState extends ConsumerState<HomeView>
                 if (!open) ...[
                   Align(
                     alignment: Alignment.topCenter,
-                    child: _Handle(key: _recusHandleKey, onTap: _openRecus),
+                    child: HomeHandle(key: _recusHandleKey, onTap: _openRecus),
                   ),
                   Align(
                     alignment: Alignment.bottomCenter,
-                    child: _Handle(key: _sendHandleKey, onTap: _openSend),
+                    child: HomeHandle(key: _sendHandleKey, onTap: _openSend),
                   ),
                 ],
                 Positioned(
@@ -586,7 +598,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                   bottom: 20,
                   child: Opacity(
                     opacity: 0.5,
-                    child: _GlassCircleButton(
+                    child: GlassCircleButton(
                       key: _menuKey,
                       icon: Icons.menu_rounded,
                       onTap: _openMenu,
@@ -623,7 +635,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                   : const Offset(0, 1.1),
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
-              child: _SheetPanel(
+              child: SheetPanel(
                 // Tour anchor: AnimatedSlide's transform is part of the paint
                 // transform, so localToGlobal tracks the panel WHILE it slides
                 // — that's how the cloud rides it up instead of covering it.
@@ -652,7 +664,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                   : const Offset(0, -1.1),
               duration: const Duration(milliseconds: 340),
               curve: Curves.easeOutCubic,
-              child: _SheetPanel(
+              child: SheetPanel(
                 key: _recusSheetKey,
                 hintKey: _recusHintKey,
                 top: true,
@@ -676,7 +688,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                 alignment: Alignment.topCenter,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 40),
-                  child: _SeasonalBadge(event: seasonal),
+                  child: SeasonalBadge(event: seasonal),
                 ),
               ),
             ),
@@ -708,480 +720,6 @@ class _HomeViewState extends ConsumerState<HomeView>
                   ref.read(toursSeenProvider.notifier).complete(TourId.home),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeMenu extends ConsumerWidget {
-  const _HomeMenu({required this.profile});
-
-  final Profile profile;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final white = Colors.white;
-    final seasonal = ref.watch(seasonalOverrideProvider);
-    final media = MediaQuery.of(context);
-    // viewPadding (not padding): the inset survives even when the nav bar is
-    // hidden by immersive mode, so the bottom items stay above where it sits.
-    final bottom = media.viewPadding.bottom;
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: Container(
-          width: double.infinity,
-          // Cap the height + scroll, so a small screen never pushes the last
-          // items ("Réglages" / "Se déconnecter") off the bottom.
-          constraints: BoxConstraints(maxHeight: media.size.height * 0.85),
-          padding: EdgeInsets.fromLTRB(22, 14, 22, 18 + bottom),
-          decoration: BoxDecoration(
-            color: white.withValues(alpha: 0.10),
-            border: Border.all(color: white.withValues(alpha: 0.18)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: white.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Centered identity header — app name, then name + handle, no avatar.
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'DewDrop',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: 2,
-                          color: white,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (profile.displayName?.isNotEmpty == true) ...[
-                        Text(
-                          profile.displayName!,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '@${profile.handle}',
-                          style: TextStyle(
-                            color: white.withValues(alpha: 0.55),
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          '@${profile.handle}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: white,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Divider(color: white.withValues(alpha: 0.15), height: 1),
-                const SizedBox(height: 6),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.send_rounded,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Envoyer une pensée'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('send'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.auto_awesome_outlined,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Pensées reçues'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('thoughts'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.group_outlined,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Amis'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('friends'),
-                ),
-                // Univers — locked shut while a marronnier owns the screen; the
-                // user's own world returns on its own once the window closes.
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  enabled: seasonal == null,
-                  leading: Icon(
-                    Icons.palette_outlined,
-                    color: white.withValues(
-                      alpha: seasonal == null ? 0.85 : 0.4,
-                    ),
-                  ),
-                  title: const Text('Univers'),
-                  subtitle: seasonal == null
-                      ? null
-                      : Text(
-                          '${seasonal.emoji} ${seasonal.label} — verrouillé pour aujourd’hui',
-                          style: TextStyle(
-                            color: white.withValues(alpha: 0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                  trailing: Icon(
-                    seasonal == null
-                        ? Icons.chevron_right
-                        : Icons.lock_outline_rounded,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: seasonal == null
-                      ? () => Navigator.of(context).pop('decor')
-                      : null,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.tune_rounded,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Réglages'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('settings'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.logout_rounded,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Se déconnecter'),
-                  onTap: () async {
-                    // Capture before popping — the sheet's `ref` is gone after pop.
-                    final push = ref.read(pushServiceProvider);
-                    final auth = ref.read(authRepositoryProvider);
-                    Navigator.of(context).pop();
-                    try {
-                      // Drop the device token while still authenticated (RLS),
-                      // then sign out. Best-effort: a failure must not strand the
-                      // user in a half-signed-out state silently.
-                      await push.unregister();
-                      await auth.signOut();
-                    } on Exception catch (_) {
-                      // The router redirect handles navigation on success.
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassCircleButton extends StatelessWidget {
-  const _GlassCircleButton({
-    super.key,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final white = Colors.white;
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: white.withValues(alpha: 0.14),
-              border: Border.all(color: white.withValues(alpha: 0.28)),
-            ),
-            child: Icon(icon, color: white.withValues(alpha: 0.9), size: 24),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A very discreet pull handle (a thin, faint bar) hinting the swipe gestures.
-/// The 12 px padding gives a comfortable tap target without making it look big.
-class _Handle extends StatelessWidget {
-  const _Handle({super.key, required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Container(
-          width: 34,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Glass panel hosting a gesture sheet's content. [top] flips the rounded
-/// corners + safe-area inset so the same panel works sliding from the top
-/// (pensées reçues) or the bottom (envoyer).
-///
-/// Two stages: at peek [height] is null and the panel hugs its content (with a
-/// thin grabber at the free edge). At full [height] is set and the panel grows
-/// to it and the child fills the WHOLE panel (bounded height, so its own
-/// scrollable list stretches full-page). The half against the free edge (top for
-/// the bottom "envoyer" sheet, bottom for the top "reçus" sheet) is overlaid by a
-/// TRANSLUCENT, drag-only collapse zone: a swipe there falls back to peek (via
-/// [onGrabDrag]) while taps fall THROUGH it (so the send dock's avatars stay
-/// tappable across that half) and the opposite half scrolls the list. A slim
-/// chevron sits in a thin band at the very free edge to hint the gesture; the
-/// child is inset by that band so the hint never covers the content. The
-/// peek↔full height change is animated by [AnimatedSize] (which clips
-/// mid-transition, so no overflow).
-class _SheetPanel extends StatelessWidget {
-  const _SheetPanel({
-    super.key,
-    required this.child,
-    this.top = false,
-    this.height,
-    this.onGrabDrag,
-    this.hintKey,
-  });
-
-  /// Tour anchor for the chevron band. The step about the full-screen drawer
-  /// points HERE rather than at the whole panel: a panel filling 90% of the
-  /// screen leaves the bubble nowhere to stand that isn't on top of the faces.
-  final GlobalKey? hintKey;
-
-  final Widget child;
-  final bool top;
-  final double? height;
-  final GestureDragEndCallback? onGrabDrag;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = Colors.white;
-    final media = MediaQuery.of(context);
-    final inset = top ? media.viewPadding.top : media.viewPadding.bottom;
-    final expanded = height != null;
-
-    // The drag affordance (reused at peek and in the full-stage collapse zone).
-    final grabberBar = Container(
-      width: 44,
-      height: 5,
-      decoration: BoxDecoration(
-        color: w.withValues(alpha: 0.30),
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
-
-    // Peek: a thin grabber at the free edge.
-    final peekGrabber = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragEnd: onGrabDrag,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: grabberBar,
-      ),
-    );
-
-    // Full: the child fills the WHOLE panel; the half against the FREE edge (top
-    // for the bottom "envoyer" sheet, bottom for the top "reçus" sheet) is a
-    // TRANSLUCENT, drag-only collapse zone — a swipe there falls back to peek
-    // (via onGrabDrag) while taps fall through (the send dock's avatars stay
-    // tappable there) and the opposite half scrolls the list. A slim chevron sits
-    // in a thin band at the very free edge; the child is inset by that band so the
-    // hint never covers the content.
-    const hintBand = 34.0;
-
-    // Points toward the free edge (up for the top "reçus" sheet, down for the
-    // bottom "envoyer" sheet) — the direction of the collapsing swipe.
-    final collapseHint = IgnorePointer(
-      key: hintKey,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (top) ...[
-              grabberBar,
-              const SizedBox(height: 4),
-              Icon(
-                Icons.keyboard_arrow_up_rounded,
-                size: 20,
-                color: w.withValues(alpha: 0.5),
-              ),
-            ] else ...[
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 20,
-                color: w.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 4),
-              grabberBar,
-            ],
-          ],
-        ),
-      ),
-    );
-
-    // Invisible gesture layer over the free-edge half; taps pass through it.
-    final collapseZone = Align(
-      alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
-      child: FractionallySizedBox(
-        heightFactor: 0.5,
-        widthFactor: 1,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onVerticalDragEnd: onGrabDrag,
-          child: Align(
-            alignment: top ? Alignment.bottomCenter : Alignment.topCenter,
-            child: collapseHint,
-          ),
-        ),
-      ),
-    );
-
-    final inner = expanded
-        ? Stack(
-            children: [
-              // The list fills the whole panel, inset by the hint band at the
-              // free edge so the chevron never overlaps it or its trailing button.
-              Positioned.fill(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: top ? 0 : hintBand,
-                    bottom: top ? hintBand : 0,
-                  ),
-                  child: child,
-                ),
-              ),
-              collapseZone,
-            ],
-          )
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [if (!top) peekGrabber, child, if (top) peekGrabber],
-          );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.vertical(
-        top: top ? Radius.zero : const Radius.circular(26),
-        bottom: top ? const Radius.circular(26) : Radius.zero,
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(
-              20,
-              top ? 8 + inset : 10,
-              20,
-              top ? 10 : 8 + inset,
-            ),
-            decoration: BoxDecoration(
-              color: w.withValues(alpha: 0.10),
-              border: Border.all(color: w.withValues(alpha: 0.16)),
-            ),
-            child: expanded ? SizedBox(height: height, child: inner) : inner,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A small glass pill shown on the home while a marronnier locks the world,
-/// e.g. "🎃 Halloween". Explains why the universe can't be changed today.
-class _SeasonalBadge extends StatelessWidget {
-  const _SeasonalBadge({required this.event});
-
-  final SeasonalEvent event;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = Colors.white;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(99),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(99),
-            color: Colors.black.withValues(alpha: 0.28),
-            border: Border.all(color: w.withValues(alpha: 0.22)),
-          ),
-          child: Text(
-            '${event.emoji}  ${event.label}',
-            style: TextStyle(
-              color: w.withValues(alpha: 0.92),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
       ),
     );
   }

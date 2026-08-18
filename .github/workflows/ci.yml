@@ -1,0 +1,41 @@
+# The safety net under `ship.py`: the same two gates, but on every push, so a
+# regression is caught when it is written rather than when someone next ships.
+#
+# Deliberately narrow. No build, no signing, no secrets — the release keystore
+# and the Supabase keys live outside the repo (it is public), and a job that
+# needs them would either leak them or bit-rot unrun. Analyze + test are what
+# can run honestly here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      - name: Analyse (zéro issue exigée)
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      # Goldens are pixel comparisons: fonts and rasterisation differ between a
+      # Windows dev machine and this runner, so a mismatch here does NOT mean
+      # the UI regressed. They are informative until the images are regenerated
+      # on Linux; failing the build on them would train everyone to ignore CI.
+      - name: Tests visuels (informatif)
+        run: flutter test test/features/tour/cloud_tour_golden_test.dart
+        continue-on-error: true

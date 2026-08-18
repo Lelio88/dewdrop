@@ -71,9 +71,12 @@ supabase config push                   # config auth (SMTP, gabarits, redirects)
                                        # Vérifier le résultat côté serveur, pas la sortie du CLI (docs/architecture.md).
 flutter build appbundle --release \     # AAB pour le Play Store (mêmes --dart-define que l'APK)
   --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…
+python tools/release/ship.py --notes-file <notes.txt> --push   # RELEASE : arbre propre → analyze →
+                                       # test → build → contrôle du binaire → publication → vérif prod → push
+python tools/release/verify_prod.py    # ce que le SERVEUR sert vraiment (gabarits, RPC) — après un push Supabase
 python tools/release/publish_play.py --list-tracks          # tracks Play + versionCodes en place
 python tools/release/publish_play.py --track alpha --dry-run  # valide sans rien publier
-python tools/release/publish_play.py --track alpha --notes-file <notes.txt>  # publie (test fermé)
+flutter test --update-goldens test/features/tour/cloud_tour_golden_test.dart  # puis REGARDER les images
 # décors photo : Base.png → tools/depth_split/_src/<décor>/<v>/ → warp_batch.py
 #   → assets/photo/<décor>/<v>/{full.webp,depth.webp} ; dessin = illustrate_all.py → assets/illustrated/
 ```
@@ -105,6 +108,7 @@ python tools/release/publish_play.py --track alpha --notes-file <notes.txt>  # p
 | Ordre du dock d'envoi | `sortByRecency` (`features/thoughts/domain/send_order.dart`, testé) + `recentContactsProvider` ; le tri est **gelé tant que le dock est visible** (`SendDock.visible` → invalidation différée) |
 | Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
 | Procédure de publication Play | `tools/release/publish_play.py` (API Android Publisher v3) + `../play-store-publication-guide.md`. Service account JSON dans `../.dewdrop-secrets/play-sa.json` — **hors dépôt** (repo public) |
+| Apparence du tuto (nuage, placement, halo) | régénérer `test/features/tour/goldens/` puis **regarder** les images avant de committer — un golden mis à jour sans être vu enregistre le bug comme vérité |
 | Nouvel anti-pattern découvert | section « Anti-patterns à éviter » de `docs/architecture.md` |
 | Changement de dépendance critique | Section III « Pile » + `pubspec.yaml` |
 
