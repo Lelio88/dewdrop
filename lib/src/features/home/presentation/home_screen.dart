@@ -124,6 +124,8 @@ class _HomeViewState extends ConsumerState<HomeView>
   final _menuKey = GlobalKey();
   final _sendSheetKey = GlobalKey();
   final _recusSheetKey = GlobalKey();
+  final _sendHintKey = GlobalKey();
+  final _recusHintKey = GlobalKey();
 
   /// Carries out a gesture the tour recognised and approved.
   ///
@@ -626,6 +628,7 @@ class _HomeViewState extends ConsumerState<HomeView>
                 // transform, so localToGlobal tracks the panel WHILE it slides
                 // — that's how the cloud rides it up instead of covering it.
                 key: _sendSheetKey,
+                hintKey: _sendHintKey,
                 height: sendFull ? fullH : null,
                 onGrabDrag: _onDragEnd,
                 child: SendDock(
@@ -651,6 +654,7 @@ class _HomeViewState extends ConsumerState<HomeView>
               curve: Curves.easeOutCubic,
               child: _SheetPanel(
                 key: _recusSheetKey,
+                hintKey: _recusHintKey,
                 top: true,
                 height: recusFull ? fullH : null,
                 onGrabDrag: _onDragEnd,
@@ -694,6 +698,8 @@ class _HomeViewState extends ConsumerState<HomeView>
                 TourAnchor.receivedHandle: _recusHandleKey,
                 TourAnchor.sendSheet: _sendSheetKey,
                 TourAnchor.receivedSheet: _recusSheetKey,
+                TourAnchor.sendSheetHint: _sendHintKey,
+                TourAnchor.receivedSheetHint: _recusHintKey,
                 TourAnchor.menuButton: _menuKey,
               },
               onPerform: _performTourGesture,
@@ -995,7 +1001,13 @@ class _SheetPanel extends StatelessWidget {
     this.top = false,
     this.height,
     this.onGrabDrag,
+    this.hintKey,
   });
+
+  /// Tour anchor for the chevron band. The step about the full-screen drawer
+  /// points HERE rather than at the whole panel: a panel filling 90% of the
+  /// screen leaves the bubble nowhere to stand that isn't on top of the faces.
+  final GlobalKey? hintKey;
 
   final Widget child;
   final bool top;
@@ -1041,6 +1053,7 @@ class _SheetPanel extends StatelessWidget {
     // Points toward the free edge (up for the top "reçus" sheet, down for the
     // bottom "envoyer" sheet) — the direction of the collapsing swipe.
     final collapseHint = IgnorePointer(
+      key: hintKey,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(

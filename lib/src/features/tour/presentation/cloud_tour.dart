@@ -299,12 +299,19 @@ class _CloudTourState extends State<CloudTour>
     final minTop = safe.top + 8;
     final maxTop = screen.height - safe.bottom - _bubbleHeight - 8;
     final double wanted;
-    if (target == null) {
-      wanted = (screen.height - _bubbleHeight) / 2;
-    } else if (target.center.dy < screen.height * 0.45) {
-      wanted = target.bottom + _kGap;
-    } else {
-      wanted = target.top - _kGap - _bubbleHeight;
+    switch (widget.steps[_index].placement) {
+      case TourPlacement.screenTop:
+        wanted = minTop;
+      case TourPlacement.screenBottom:
+        wanted = maxTop;
+      case TourPlacement.auto:
+        if (target == null) {
+          wanted = (screen.height - _bubbleHeight) / 2;
+        } else if (target.center.dy < screen.height * 0.45) {
+          wanted = target.bottom + _kGap;
+        } else {
+          wanted = target.top - _kGap - _bubbleHeight;
+        }
     }
     // maxTop can fall below minTop on a very short screen; clamp needs order.
     return maxTop <= minTop ? minTop : wanted.clamp(minTop, maxTop);
@@ -322,7 +329,11 @@ class _CloudTourState extends State<CloudTour>
     final size = MediaQuery.sizeOf(context);
     final safe = MediaQuery.paddingOf(context);
     final target = _target;
-    final below = target != null && target.center.dy < size.height * 0.45;
+    final bubbleTop = _bubbleTop(size, target, safe);
+    // Which way the puffs point: derived from where the bubble ENDED UP, not
+    // from the rule that would have placed it — a step may override that.
+    final bubbleAboveTarget =
+        target != null && bubbleTop + _bubbleHeight <= target.center.dy;
     final bubbleWidth = math.min(360.0, size.width - 40);
     final isLast = _index >= widget.steps.length - 1;
     // RectTween needs a non-null end. A zero-size rect at the centre stands in
@@ -376,7 +387,7 @@ class _CloudTourState extends State<CloudTour>
             AnimatedPositioned(
               left: (size.width - bubbleWidth) / 2,
               width: bubbleWidth,
-              top: _bubbleTop(size, target, safe),
+              top: bubbleTop,
               // Zero once locked on: a drawer in motion moves its rectangle
               // every frame, and easing toward a target that is itself easing
               // reads as the cloud dragging behind. Ease only when switching to
@@ -391,7 +402,7 @@ class _CloudTourState extends State<CloudTour>
                   key: _bubbleKey,
                   tail: target == null
                       ? CloudTail.none
-                      : (below ? CloudTail.above : CloudTail.below),
+                      : (bubbleAboveTarget ? CloudTail.below : CloudTail.above),
                   tailAlignX: target == null
                       ? 0
                       : ((target.center.dx - size.width / 2) /

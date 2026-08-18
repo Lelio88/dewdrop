@@ -322,6 +322,62 @@ void main() {
     });
   });
 
+  testWidgets('a step can force its bubble to an edge, off the content', (
+    tester,
+  ) async {
+    // Reported: on "En grand, deux zones" the cloud sat on the faces. Its
+    // target was the whole full-screen drawer, so "beside the target" had
+    // nowhere to go and fell back to the top — right onto the list. Such a step
+    // names the edge it wants, and points at the chevron band instead.
+    final bandKey = GlobalKey();
+    final contentKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: Colors.indigo)),
+              // A drawer filling most of the screen: band on top, faces below.
+              Positioned(
+                top: 60,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Column(
+                  children: [
+                    SizedBox(key: bandKey, height: 34, width: 400),
+                    Expanded(child: SizedBox(key: contentKey)),
+                  ],
+                ),
+              ),
+              CloudTour(
+                steps: const [
+                  TourStep(
+                    title: 'En grand',
+                    body: 'Deux zones',
+                    anchor: TourAnchor.sendSheetHint,
+                    placement: TourPlacement.screenBottom,
+                  ),
+                ],
+                anchors: {TourAnchor.sendSheetHint: bandKey},
+                onFinish: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bubble = tester.getRect(find.byType(CloudBubble).first);
+    final band = tester.getRect(find.byKey(bandKey));
+    // It must not cover the band it is describing…
+    expect(bubble.top, greaterThan(band.bottom));
+    // …and it must sit at the bottom edge, not floating over the middle.
+    final screen = tester.getSize(find.byType(Scaffold));
+    expect(bubble.bottom, greaterThan(screen.height * 0.8));
+  });
+
   testWidgets('the bubble slides between positions instead of jumping', (
     tester,
   ) async {

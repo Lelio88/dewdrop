@@ -46,8 +46,15 @@ void main() {
 
   test('a step that stages a drawer points at that drawer', () {
     // Otherwise the spotlight lands on a handle the scene just unmounted, and
-    // the bubble covers what it is describing.
-    const sheetAnchors = {TourAnchor.sendSheet, TourAnchor.receivedSheet};
+    // the bubble covers what it is describing. The chevron bands count: they
+    // are part of the drawer, and a step about a FULL-screen drawer is better
+    // off pointing at a band than at a panel with no room beside it.
+    const sheetAnchors = {
+      TourAnchor.sendSheet,
+      TourAnchor.receivedSheet,
+      TourAnchor.sendSheetHint,
+      TourAnchor.receivedSheetHint,
+    };
     for (final s in kHomeTour) {
       if (s.scene == TourScene.closed) continue;
       expect(
@@ -55,6 +62,21 @@ void main() {
         contains(s.anchor),
         reason:
             '"${s.title}" stages ${s.scene.name} but points at ${s.anchor.name}',
+      );
+    }
+  });
+
+  test('a full-screen step says where its bubble goes', () {
+    // With the drawer filling ~90% of the screen there is no "beside the
+    // target" left; leaving it automatic drops the bubble onto the faces.
+    for (final s in kHomeTour) {
+      if (s.scene != TourScene.sendFull && s.scene != TourScene.receivedFull) {
+        continue;
+      }
+      expect(
+        s.placement,
+        isNot(TourPlacement.auto),
+        reason: '"${s.title}" occupe tout l’écran et doit choisir son bord',
       );
     }
   });

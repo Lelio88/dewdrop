@@ -28,6 +28,8 @@ enum TourAnchor {
   receivedHandle,
   sendSheet,
   receivedSheet,
+  sendSheetHint,
+  receivedSheetHint,
   menuButton,
   // Friends
   friendsAdd,
@@ -47,6 +49,14 @@ enum TourAnchor {
 /// and the step completes itself when the gesture lands.
 enum TourGesture { swipeUp, swipeDown, swipeSide }
 
+/// Where a step wants its bubble, when the automatic choice can't work.
+///
+/// [auto] puts it beside its target — below when the target sits high, above
+/// otherwise. That breaks down when the target is nearly the whole screen (a
+/// full-screen drawer): there is no "beside" left, and the bubble lands on the
+/// very content it is describing. Such a step names the edge it wants instead.
+enum TourPlacement { auto, screenTop, screenBottom }
+
 /// What the home should be showing while a step is read.
 ///
 /// The tour drives the scene instead of hoping the user got there: a step that
@@ -63,6 +73,7 @@ class TourStep {
     this.anchor = TourAnchor.none,
     this.gesture,
     this.scene = TourScene.closed,
+    this.placement = TourPlacement.auto,
   });
 
   final String title;
@@ -76,6 +87,10 @@ class TourStep {
 
   /// The home state this step wants on screen. Ignored by the other tours.
   final TourScene scene;
+
+  /// Where the bubble goes when [TourPlacement.auto] would put it somewhere
+  /// unhelpful. See [TourPlacement].
+  final TourPlacement placement;
 }
 
 /// The home tour: the gestures, and only the gestures.
@@ -112,11 +127,14 @@ const List<TourStep> kHomeTour = [
   TourStep(
     title: 'En grand, deux zones',
     body:
-        'La moitié du bas fait défiler la liste. La moitié du haut, celle du '
-        'petit chevron, referme le tiroir d’un glissement — les visages y '
-        'restent tapables au passage.',
-    anchor: TourAnchor.sendSheet,
+        'Le haut du tiroir — là où pointe le chevron — le referme d’un '
+        'glissement, sans t’empêcher de toucher les visages au passage. Tout '
+        'le bas fait défiler la liste.',
+    // The chevron band, not the whole panel: a full-screen drawer leaves the
+    // bubble nowhere to stand, and it is that band the step is about anyway.
+    anchor: TourAnchor.sendSheetHint,
     scene: TourScene.sendFull,
+    placement: TourPlacement.screenBottom,
   ),
   TourStep(
     title: 'Glisse vers le bas',
