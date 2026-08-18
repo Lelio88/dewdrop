@@ -22,6 +22,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,8 +43,14 @@ def root() -> Path:
 
 
 def run(cmd: list[str], cwd: Path, capture: bool = False) -> subprocess.CompletedProcess:
+    # Resolve through PATH ourselves rather than reaching for shell=True: on
+    # Windows `flutter` is a .bat that CreateProcess will not find on its own,
+    # and a shell would also start interpreting the arguments.
+    exe = shutil.which(cmd[0])
+    if exe is None:
+        fail(f"Commande introuvable dans le PATH : {cmd[0]}")
     return subprocess.run(
-        cmd, cwd=cwd, text=True, shell=False,
+        [exe, *cmd[1:]], cwd=cwd, text=True, shell=False,
         capture_output=capture, encoding="utf-8", errors="replace",
     )
 
