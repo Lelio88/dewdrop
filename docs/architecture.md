@@ -119,7 +119,7 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 
 **Double barrière obligatoire** sur chaque table accédée par l'app :
 1. **RLS** (`enable row level security` + policies `to authenticated`) — quelles **lignes**.
-2. **GRANT** (`grant … to authenticated`) — privilèges **table**. Sans GRANT → `42501 permission denied` même si la RLS autorise.
+2. **GRANT** (`grant … to authenticated`) — privilèges **table**. Sans GRANT → `42501 permission denied` même si la RLS autorise. **Et à `service_role` pour toute table lue par une Edge Function** : `service_role` outrepasse la RLS mais pas les privilèges de table, et PostgREST rend le refus comme une **liste vide** — la fonction ne plante pas, elle dégrade. C'est ainsi que `groups`, créée après la migration des grants, a fait dire « un groupe » à toutes les notifications de cercle. Tables concernées aujourd'hui : `profiles`, `devices`, `groups` — `verify_prod.py` les vérifie sur le serveur, seul endroit où le trou est visible.
 
 **Cloisonnement** : `profiles` n'est lisible **que par son propriétaire** ; les autres passent par la **vue `public_profiles`** (handle/nom/avatar only). Les helpers RLS (`are_friends`, `is_blocked`, `is_group_member`, `is_group_creator`) vivent dans le schéma **`private`** (non exposé par PostgREST, `search_path = ''`) → pas de récursion de policy ni d'énumération par RPC. Anti-flood : trigger **25 pensées/min** par expéditeur (les pensées de groupe en sont exemptées, plafonnées dans `send_to_group`).
 

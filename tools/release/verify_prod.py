@@ -74,6 +74,23 @@ DB_CHECKS = [
         lambda rows: rows[0]["count"] == 1,
     ),
     (
+        # The push function reads these three tables through PostgREST as
+        # service_role. service_role bypasses RLS but NOT table privileges, so a
+        # table added after the grants migration reads back 42501 and the
+        # function silently degrades — `groups` did exactly that, and every group
+        # notification said "un groupe" whichever circle it was. The repo cannot
+        # see this: each migration file is correct on its own. Only the server
+        # knows. Adding a read to send-thought-push means listing the table here
+        # AND granting it.
+        "GRANTs service_role des tables lues par send-thought-push",
+        "select string_agg(table_name, ',' order by table_name) as t "
+        "from (select distinct table_name from information_schema.role_table_grants "
+        "where table_schema = 'public' and grantee = 'service_role' "
+        "and privilege_type = 'SELECT' "
+        "and table_name in ('profiles', 'devices', 'groups')) q",
+        lambda rows: rows[0]["t"] == "devices,groups,profiles",
+    ),
+    (
         "vue public_profiles (annuaire restreint)",
         "select count(*) from information_schema.views "
         "where table_name = 'public_profiles'",
