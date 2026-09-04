@@ -10,11 +10,13 @@ void main() {
     String sender, {
     required bool anon,
     Object? createdAt = '2026-06-16T10:00:00.000Z',
+    String? groupId,
   }) => {
     'id': id,
     'sender_id': sender,
     'is_anonymous': anon,
     'created_at': createdAt,
+    'group_id': ?groupId,
   };
 
   test('a named thought keeps its sender', () {
@@ -68,6 +70,48 @@ void main() {
       out.single.createdAt,
       DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
     );
+  });
+
+  test('a group pensée carries its group id and resolved name', () {
+    final out = mapReceivedThoughts(
+      [row('t1', 's1', anon: false, groupId: 'g1')],
+      {'s1': bob},
+      groupNamesById: {'g1': 'Famille'},
+    );
+    expect(out.single.isGroup, true);
+    expect(out.single.groupId, 'g1');
+    expect(out.single.groupName, 'Famille');
+  });
+
+  test('a group we left resolves to no name (never a stale one)', () {
+    // RLS "see my groups" returns nothing for a group we are no longer in, so
+    // its id is simply absent from the map.
+    final out = mapReceivedThoughts(
+      [row('t1', 's1', anon: false, groupId: 'gone')],
+      {'s1': bob},
+    );
+    expect(out.single.isGroup, true);
+    expect(out.single.groupName, isNull);
+  });
+
+  test('a personal pensée stays group-less even with names in hand', () {
+    final out = mapReceivedThoughts(
+      [row('t1', 's1', anon: false)],
+      {'s1': bob},
+      groupNamesById: {'g1': 'Famille'},
+    );
+    expect(out.single.isGroup, false);
+    expect(out.single.groupName, isNull);
+  });
+
+  test('anonymity still wins on a group pensée', () {
+    final out = mapReceivedThoughts(
+      [row('t1', 's1', anon: true, groupId: 'g1')],
+      {'s1': bob},
+      groupNamesById: {'g1': 'Famille'},
+    );
+    expect(out.single.sender, isNull);
+    expect(out.single.groupName, 'Famille'); // the group is not the secret
   });
 
   test('preserves row order', () {

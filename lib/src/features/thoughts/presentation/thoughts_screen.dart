@@ -3,7 +3,9 @@ import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// History of thoughts received ("X a pensé à toi").
+/// History of thoughts received ("X a pensé à toi", "X a pensé au groupe « Y »").
+/// The wording comes from [thoughtLine] so this screen and the home peek can
+/// never drift apart on what a group pensée looks like.
 class ThoughtsScreen extends ConsumerWidget {
   const ThoughtsScreen({super.key});
 
@@ -92,22 +94,21 @@ class ThoughtsScreen extends ConsumerWidget {
   );
 
   Widget _tile(Color w, ReceivedThought t) {
-    final who = t.isAnonymous
-        ? "Quelqu'un"
-        : (t.sender?.displayName?.isNotEmpty == true
-              ? t.sender!.displayName!
-              : '@${t.sender?.handle ?? '?'}');
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       leading: CircleAvatar(
         backgroundColor: w.withValues(alpha: 0.12),
         child: Icon(
-          t.isAnonymous ? Icons.help_outline : Icons.favorite,
+          // A group pensée reads differently AND looks different: the sentence
+          // alone is easy to skim past in a long list.
+          t.isGroup
+              ? Icons.group_outlined
+              : (t.isAnonymous ? Icons.help_outline : Icons.favorite),
           color: w.withValues(alpha: 0.8),
           size: 20,
         ),
       ),
-      title: Text('$who a pensé à toi'),
+      title: Text(thoughtLine(t)),
       subtitle: Text(
         _ago(t.createdAt),
         style: TextStyle(color: w.withValues(alpha: 0.5)),

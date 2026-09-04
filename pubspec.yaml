@@ -1,7 +1,7 @@
 name: dewdrop
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.9.20+34
+version: 0.9.21+35
 
 environment:
   sdk: ^3.11.5

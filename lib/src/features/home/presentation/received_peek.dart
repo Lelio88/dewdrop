@@ -1,5 +1,4 @@
 import 'package:dewdrop/src/common/glass.dart';
-import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/application/thought_providers.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
 import 'package:flutter/material.dart';
@@ -117,7 +116,6 @@ class ReceivedPeek extends ConsumerWidget {
   );
 
   Widget _item(Color w, ReceivedThought t, [bool isDemo = false]) {
-    final who = t.isAnonymous ? "Quelqu'un" : _name(t.sender);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -125,10 +123,14 @@ class ReceivedPeek extends ConsumerWidget {
           CircleAvatar(
             radius: 16,
             backgroundColor: w.withValues(alpha: 0.14),
-            child: Text(
-              _initial(who),
-              style: TextStyle(color: w, fontSize: 13),
-            ),
+            // A group pensée is marked by an icon as well as by its sentence —
+            // in a 3-line peek, the shape is read before the words.
+            child: t.isGroup
+                ? Icon(Icons.group_outlined, color: w, size: 16)
+                : Text(
+                    _initial(senderLabel(t)),
+                    style: TextStyle(color: w, fontSize: 13),
+                  ),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -136,7 +138,7 @@ class ReceivedPeek extends ConsumerWidget {
               children: [
                 Flexible(
                   child: Text(
-                    '$who a pensé à toi',
+                    thoughtLine(t),
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: w.withValues(alpha: 0.9)),
                   ),
@@ -173,11 +175,6 @@ class ReceivedPeek extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _name(Profile? p) {
-    if (p == null) return "Quelqu'un";
-    return p.displayName?.isNotEmpty == true ? p.displayName! : '@${p.handle}';
   }
 
   String _initial(String s) =>

@@ -137,8 +137,16 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 1. **« Envoyer une pensée »** (`send_thoughts_screen.dart`) : choisir un **ami** ou un **groupe** → `SendThoughtSheet` (anonyme seedé par `profile.default_anonymous`).
 2. Ami → `ThoughtRepository.sendThought` (POST `/rest/v1/thoughts`). Groupe → RPC **`send_to_group(p_group, p_anonymous)`** (`SECURITY DEFINER`) qui **fan-out** : une `thought` par autre membre (membership + blocages vérifiés), `group_id` posé.
 3. Pour un envoi direct, la policy `insert` vérifie `auth.uid() = sender_id AND private.are_friends(...) AND not private.is_blocked(...)`.
-4. **Webhook DB** → Edge Function `send-thought-push` : vérifie l'appelant (rôle `service_role` via le claim JWT), saute si `notifications_enabled = false`, calcule **`silent`** selon les heures calmes (fuseau IANA — plus de skip, juste silencieux), assemble le corps (style ; pour un groupe : « X a pensé au groupe Y ») et envoie un **message *data* FCM** par device.
+4. **Webhook DB** → Edge Function `send-thought-push` : vérifie l'appelant (rôle `service_role` via le claim JWT), saute si `notifications_enabled = false`, calcule **`silent`** selon les heures calmes (fuseau IANA — plus de skip, juste silencieux), assemble le corps (style ; pour un groupe : « X a pensé au groupe « Y » », **nom répété dans le corps** car le titre saute le premier quand la tiroir se replie, et le corps devient « N pensées » aux répétitions) et envoie un **message *data* FCM** par device.
 5. Côté app : le **background handler** (`thought_notifications.dart`) construit la notif **groupée** (1 « DewDrop » + 1 enfant par expéditeur/groupe, **alerte une fois**, silencieuse en heures calmes). En foreground, Realtime → `incomingThoughtPulseProvider` → **burst du décor** ; à l'ouverture, on **vide** le groupe + rejoue les bursts non vus.
+6. **Dans l'app**, une pensée de groupe est une ligne comme une autre (le fan-out en a posé une par membre) — mais elle
+   **le dit** : la phrase vient de **`thoughtLine`** (`thoughts/domain/thought.dart`, pur et testé), partagée par
+   l'aperçu d'accueil et l'écran plein, plus une icône de cercle. Trois formes seulement : « X a pensé à toi »,
+   « X a pensé au groupe « Y » », « X a pensé à un groupe ». **Le nom du groupe est résolu à l'affichage** (requête
+   `groups` groupée par lot, jamais dénormalisé sur la ligne) : un groupe renommé se lit avec son nouveau nom, et un
+   groupe **quitté depuis** ne résout plus rien (RLS « see my groups ») → troisième forme, jamais un nom périmé ni un
+   repli sur « à toi », qui ferait passer une pensée de groupe pour une pensée perso. Ces phrases sont **les mêmes**
+   que celles de l'Edge Function — les changer d'un côté oblige l'autre.
 
 ## Distribution & déploiement
 

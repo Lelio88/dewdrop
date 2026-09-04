@@ -38,6 +38,23 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+Future<void> _pumpThoughts(
+  WidgetTester tester,
+  List<ReceivedThought> thoughts,
+) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        receivedThoughtsProvider.overrideWith((ref) async => thoughts),
+      ],
+      child: MaterialApp(
+        home: Scaffold(body: ReceivedPeek(onSeeAll: () {})),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('peek shows at most 3 recent pensées', (tester) async {
     await _pump(tester, expanded: false, count: 6);
@@ -47,6 +64,39 @@ void main() {
   testWidgets('expanded shows the whole history in place', (tester) async {
     await _pump(tester, expanded: true, count: 6);
     expect(find.textContaining('a pensé à toi'), findsNWidgets(6));
+  });
+
+  testWidgets('a group pensée names its group instead of "à toi"', (
+    tester,
+  ) async {
+    await _pumpThoughts(tester, [
+      ReceivedThought(
+        id: 'g',
+        createdAt: DateTime(2026),
+        isAnonymous: true,
+        groupId: 'g1',
+        groupName: 'Famille',
+      ),
+    ]);
+    expect(
+      find.text("Quelqu'un a pensé au groupe « Famille »"),
+      findsOneWidget,
+    );
+    expect(find.textContaining('a pensé à toi'), findsNothing);
+  });
+
+  testWidgets('a group we left is still not passed off as personal', (
+    tester,
+  ) async {
+    await _pumpThoughts(tester, [
+      ReceivedThought(
+        id: 'g',
+        createdAt: DateTime(2026),
+        isAnonymous: true,
+        groupId: 'g1', // name unresolved
+      ),
+    ]);
+    expect(find.text("Quelqu'un a pensé à un groupe"), findsOneWidget);
   });
 
   testWidgets('empty peek shows the reassuring line', (tester) async {

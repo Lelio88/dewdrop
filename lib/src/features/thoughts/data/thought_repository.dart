@@ -11,10 +11,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// sender) is unit-testable without a Supabase fake. [profilesBySenderId] holds
 /// only the non-anonymous senders. A malformed/absent `created_at` falls back
 /// to epoch 0 rather than throwing (keeps the whole list from crashing).
+///
+/// [groupNamesById] carries the names of the groups these pensées came from; an
+/// id missing from it (we left the group since) yields a null `groupName`, and
+/// the line falls back to "à un groupe" instead of a stale name.
 List<ReceivedThought> mapReceivedThoughts(
   List<Map<String, dynamic>> rows,
-  Map<String, Profile> profilesBySenderId,
-) {
+  Map<String, Profile> profilesBySenderId, {
+  Map<String, String> groupNamesById = const {},
+}) {
   return [
     for (final r in rows)
       ReceivedThought(
@@ -26,6 +31,8 @@ List<ReceivedThought> mapReceivedThoughts(
         sender: r['is_anonymous'] == true
             ? null
             : profilesBySenderId[r['sender_id']],
+        groupId: r['group_id'] as String?,
+        groupName: groupNamesById[r['group_id']],
       ),
   ];
 }
@@ -61,7 +68,7 @@ class SupabaseThoughtRepository implements ThoughtRepository {
   Future<List<ReceivedThought>> receivedThoughts() async {
     final rows = await _client
         .from('thoughts')
-        .select('id, sender_id, is_anonymous, created_at')
+        .select('id, sender_id, is_anonymous, created_at, group_id')
         .eq('recipient_id', _uid)
         .order('created_at', ascending: false)
         .limit(100);
@@ -70,9 +77,18 @@ class SupabaseThoughtRepository implements ThoughtRepository {
       for (final r in rows)
         if (r['is_anonymous'] != true) r['sender_id'] as String,
     }.toList();
-    final profiles = await _profilesByIds(senderIds);
+    final groupIds = <String>{
+      for (final r in rows)
+        if (r['group_id'] != null) r['group_id'] as String,
+    }.toList();
+    // Two independent lookups — resolve them together rather than pay two
+    // round-trips in a row on a list the user is waiting for.
+    final (profiles, groupNames) = await (
+      _profilesByIds(senderIds),
+      _groupNamesByIds(groupIds),
+    ).wait;
 
-    return mapReceivedThoughts(rows, profiles);
+    return mapReceivedThoughts(rows, profiles, groupNamesById: groupNames);
   }
 
   @override
@@ -119,6 +135,19 @@ class SupabaseThoughtRepository implements ThoughtRepository {
     channel.subscribe();
     controller.onCancel = () => _client.removeChannel(channel);
     return controller.stream;
+  }
+
+  /// Names of the groups a batch of received pensées came from. RLS
+  /// ("see my groups") only returns groups the user still belongs to, so a
+  /// group they left is simply absent from the result — the UI then says
+  /// "à un groupe" rather than showing a name it can no longer verify.
+  Future<Map<String, String>> _groupNamesByIds(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    final rows = await _client
+        .from('groups')
+        .select('id, name')
+        .inFilter('id', ids);
+    return {for (final m in rows) m['id'] as String: m['name'] as String};
   }
 
   Future<Map<String, Profile>> _profilesByIds(List<String> ids) async {

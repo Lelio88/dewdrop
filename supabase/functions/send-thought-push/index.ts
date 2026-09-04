@@ -119,17 +119,32 @@ Deno.serve(async (req) => {
     const safeTail = style.tail !== undefined && ALLOWED_EMOJIS.has(style.tail)
       ? style.tail
       : "✨";
-    // A group pensée notifies each member "<X> a pensé au groupe <Y>" and groups
-    // under the GROUP (one child per group). An individual pensée uses the
-    // sender's custom phrase and groups under the sender (anonymous → "anon").
+    // A group pensée notifies each member "<X> a pensé au groupe « Y »" and
+    // groups under the GROUP (one child per group). An individual pensée uses
+    // the sender's custom phrase and groups under the sender (anonymous →
+    // "anon").
+    //
+    // The group name is repeated in the BODY even though it is already the
+    // title: the title is what a collapsed tray or a summary drops first, and
+    // on repeats the body becomes "N pensées" — so the very first line a member
+    // reads has to say WHICH group on its own. Same two sentences as the app
+    // (thoughtLine in thought.dart) — keep them in sync.
+    //
+    // The name is member-authored free text (1..60 chars, no allow-list unlike
+    // thought_style). That is not a new exposure: it is already the title today,
+    // it only reaches people who are members of that group, and the app renders
+    // it as plain text.
     let label = name;
     let senderKey = t.is_anonymous ? "anon" : t.sender_id;
     let phrase = safeBody.replace("%s", name);
     if (t.group_id) {
       const grp = (await rest(`groups?id=eq.${t.group_id}&select=name`))[0];
-      label = (grp?.name as string | undefined) ?? "un groupe";
+      const groupName = (grp?.name as string | undefined)?.trim();
+      label = groupName?.length ? groupName : "un groupe";
       senderKey = `g_${t.group_id}`;
-      phrase = `${name} a pensé au groupe`;
+      phrase = groupName?.length
+        ? `${name} a pensé au groupe « ${groupName} »`
+        : `${name} a pensé à un groupe`;
     }
     const body = [safeLead, phrase, safeTail]
       .filter((x) => x && x.length)
