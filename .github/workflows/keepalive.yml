@@ -1,0 +1,122 @@
+# Tient le projet Supabase éveillé.
+#
+# **Le plan gratuit met en pause un projet qui n'a pas reçu « suffisamment
+# d'activité base de données » pendant sept jours.** Une pause n'est pas une
+# perte — données et configuration reviennent — mais elle est *muette* côté
+# application : l'app en test fermé cesse simplement de répondre, sans qu'aucun
+# écran ne dise pourquoi. Les courriels d'authentification partant par Brevo, un
+# testeur qui demande une réinitialisation ne reçoit rien non plus.
+#
+# **Pourquoi ce réveil ne ressemble pas à celui de DeckHand.** Là-bas, trois
+# lectures anonymes suffisent : les tables sont lisibles par le rôle `anon`.
+# Ici, le durcissement (`20260619100000_security_hardening.sql`) a retiré au rôle
+# `anon` jusqu'au `GRANT SELECT` — toute lecture non authentifiée retourne un
+# 401 `42501`. Copier la recette de DeckHand produirait donc un réveil qui
+# échoue tous les jours, et un réveil qui échoue est pire que pas de réveil.
+#
+# Le workflow **se connecte** avec le compte de test, puis lit une table avec le
+# jeton obtenu. C'est plus proche encore du critère de Supabase : la connexion
+# écrit dans `auth.users` (`last_sign_in_at`) et la lecture traverse PostgREST
+# jusqu'à la base. Deux activités utilisateur réelles, pas un ping sur un proxy.
+#
+# **Tous les jours, et non toutes les semaines.** La documentation parle de
+# « quelques requêtes utilisateur par jour sur la semaine écoulée » ; un
+# battement hebdomadaire a été rapporté insuffisant.
+#
+# **La clé anon, jamais la clé de service** : c'est le moindre privilège qui
+# fasse le travail, et les lectures restent bornées par les politiques RLS.
+#
+# **L'échec est bruyant, à dessein.** Chaque étape est vérifiée sur son code
+# *et* sur son contenu : un 200 rendant un tableau vide signalerait une base
+# répondante mais vidée, ou un profil de test supprimé. Le travail échoue alors,
+# ce dont GitHub avertit par courriel.
+#
+# **Ce qui casse ce réveil sans prévenir** : une rotation du mot de passe du
+# compte de test sans mise à jour du secret `KEEPALIVE_PASSWORD`. L'échec sera
+# visible dès le lendemain — c'est voulu.
+#
+# **Le mode de défaillance connu, qu'aucune ligne d'ici ne corrige** : GitHub
+# désactive les workflows planifiés d'un dépôt resté soixante jours sans
+# activité, c'est-à-dire précisément quand le projet dort et que ce réveil sert
+# le plus. GitHub prévient par courriel ; la réactivation est manuelle.
+
+name: Réveil Supabase
+
+on:
+  schedule:
+    # 05:43 UTC : jamais au sommet d'une heure, où GitHub retarde massivement
+    # les tâches planifiées, et décalé du réveil de DeckHand (06:17).
+    - cron: '43 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  reveil:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Se connecter puis lire la base
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          EMAIL: ${{ secrets.KEEPALIVE_EMAIL }}
+          MOTDEPASSE: ${{ secrets.KEEPALIVE_PASSWORD }}
+        run: |
+          set -u
+
+          # 1. Connexion — touche auth.users en lecture et en écriture.
+          reponse=$(curl -sS -m 30 -X POST \
+            -H "apikey: $KEY" -H "Content-Type: application/json" \
+            --data "$(printf '{"email":"%s","password":"%s"}' "$EMAIL" "$MOTDEPASSE")" \
+            -w '\n%{http_code}' \
+            "$URL/auth/v1/token?grant_type=password") || {
+              echo "::error::connexion : la requete n'a pas abouti"
+              exit 1
+            }
+          code=$(printf '%s' "$reponse" | tail -n1)
+          corps=$(printf '%s' "$reponse" | sed '$d')
+
+          if [ "$code" != "200" ]; then
+            # Le corps peut contenir un indice utile, jamais le mot de passe.
+            echo "::error::connexion : HTTP $code"
+            exit 1
+          fi
+
+          jeton=$(printf '%s' "$corps" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))')
+          if [ -z "$jeton" ]; then
+            echo "::error::connexion : HTTP 200 mais aucun jeton dans la reponse"
+            exit 1
+          fi
+          # Le jeton derive d'un secret sans en etre un aux yeux d'Actions :
+          # sans ce masque, une trace de debogage l'ecrirait en clair.
+          echo "::add-mask::$jeton"
+          echo "connexion : HTTP 200, jeton obtenu"
+
+          # 2. Lecture authentifiee — traverse PostgREST jusqu'a la base.
+          #    `profiles` porte toujours au moins la ligne du compte de test ;
+          #    `thoughts` serait un mauvais temoin, il est legitimement vide.
+          reponse=$(curl -sS -m 30 \
+            -H "apikey: $KEY" -H "Authorization: Bearer $jeton" \
+            -w '\n%{http_code}' \
+            "$URL/rest/v1/profiles?select=id&limit=1") || {
+              echo "::error::lecture profiles : la requete n'a pas abouti"
+              exit 1
+            }
+          code=$(printf '%s' "$reponse" | tail -n1)
+          corps=$(printf '%s' "$reponse" | sed '$d')
+
+          if [ "$code" != "200" ]; then
+            echo "::error::lecture profiles : HTTP $code"
+            exit 1
+          fi
+          if [ "$corps" = "[]" ] || [ -z "$corps" ]; then
+            echo "::error::lecture profiles : HTTP 200 mais reponse vide"
+            exit 1
+          fi
+
+          echo "lecture profiles : HTTP 200, ${#corps} octets"
