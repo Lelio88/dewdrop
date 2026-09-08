@@ -5,6 +5,7 @@ import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/home_widget/application/widget_providers.dart';
 import 'package:dewdrop/src/features/home_widget/application/widget_sync_service.dart';
+import 'package:dewdrop/src/features/home_widget/domain/pin_order.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:flutter/material.dart';
@@ -72,12 +73,11 @@ class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
     ref.invalidate(myProfileProvider);
   }
 
-  void _reorder(List<Friend> pinned, int oldIndex, int newIndex) {
-    final ids = pinned.map((f) => f.profile.id).toList();
-    if (newIndex > oldIndex) newIndex -= 1;
-    ids.insert(newIndex, ids.removeAt(oldIndex));
-    unawaited(_savePinned(ids));
-  }
+  void _reorder(List<Friend> pinned, int oldIndex, int newIndex) => unawaited(
+    _savePinned(
+      reorderPinned([for (final f in pinned) f.profile.id], oldIndex, newIndex),
+    ),
+  );
 
   void _remove(List<Friend> pinned, String id) => unawaited(
     _savePinned([
@@ -226,7 +226,7 @@ class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 buildDefaultDragHandles: false,
                 itemCount: pinned.length,
-                onReorder: (o, n) => _reorder(pinned, o, n),
+                onReorderItem: (o, n) => _reorder(pinned, o, n),
                 itemBuilder: (ctx, i) => _pinnedRow(w, pinned, i),
               ),
       ),

@@ -136,25 +136,29 @@ class AboutScreen extends StatelessWidget {
               _section(w, 'Logiciel'),
               _card(
                 w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Licences open source',
-                    style: TextStyle(color: w),
-                  ),
-                  subtitle: Text(
-                    'Bibliothèques tierces et leurs licences',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.4),
-                  ),
-                  onTap: () => showLicensePage(
-                    context: context,
-                    applicationName: 'DewDrop',
-                    applicationVersion: _appVersion,
-                    applicationLegalese: '© 2026 DewDrop',
+                child: Material(
+                  type: MaterialType.transparency,
+                  borderRadius: BorderRadius.circular(14),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Licences open source',
+                      style: TextStyle(color: w),
+                    ),
+                    subtitle: Text(
+                      'Bibliothèques tierces et leurs licences',
+                      style: TextStyle(color: w.withValues(alpha: 0.5)),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: w.withValues(alpha: 0.4),
+                    ),
+                    onTap: () => showLicensePage(
+                      context: context,
+                      applicationName: 'DewDrop',
+                      applicationVersion: _appVersion,
+                      applicationLegalese: '© 2026 DewDrop',
+                    ),
                   ),
                 ),
               ),
@@ -162,21 +166,25 @@ class AboutScreen extends StatelessWidget {
               _section(w, 'Légal'),
               _card(
                 w,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Confidentialité & CGU',
-                    style: TextStyle(color: w),
+                child: Material(
+                  type: MaterialType.transparency,
+                  borderRadius: BorderRadius.circular(14),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Confidentialité & CGU',
+                      style: TextStyle(color: w),
+                    ),
+                    subtitle: Text(
+                      'Politique de confidentialité et conditions',
+                      style: TextStyle(color: w.withValues(alpha: 0.5)),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: w.withValues(alpha: 0.4),
+                    ),
+                    onTap: () => context.push('/legal'),
                   ),
-                  subtitle: Text(
-                    'Politique de confidentialité et conditions',
-                    style: TextStyle(color: w.withValues(alpha: 0.5)),
-                  ),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: w.withValues(alpha: 0.4),
-                  ),
-                  onTap: () => context.push('/legal'),
                 ),
               ),
             ],
