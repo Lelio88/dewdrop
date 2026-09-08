@@ -13,6 +13,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
@@ -43,6 +44,17 @@ Future<void> main() async {
     // Route both uncaught Flutter framework errors and uncaught async errors
     // (zone errors outside the widget tree) to Crashlytics so a crash on the
     // user's phone surfaces in the console instead of vanishing silently.
+    //
+    // Collection is OFF in debug. Framework assertions (`debugCheckHasMaterial`
+    // and friends) live inside `assert(...)`, so they exist only in debug
+    // builds — but routing them here filed each one as a FATAL crash on a
+    // real device, and a warning seen once on the emulator became a production
+    // incident in the console. Off in debug keeps the dashboard to what users
+    // actually hit; `recordFlutterError` still calls `FlutterError.presentError`
+    // first, so nothing stops being printed while developing.
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+      !kDebugMode,
+    );
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);

@@ -42,174 +42,182 @@ class HomeMenu extends ConsumerWidget {
             border: Border.all(color: white.withValues(alpha: 0.18)),
           ),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: white.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Centered identity header — app name, then name + handle, no avatar.
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'DewDrop',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: 2,
-                          color: white,
-                        ),
+            // The tiles paint their background and ink on the nearest Material,
+            // which would be the bottom sheet's — underneath this Container's
+            // own background, so every tap read as dead. Their own transparent
+            // Material puts the ink back on top. It wraps the whole column, not
+            // each tile, so an entry added later is covered by construction.
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: white.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      const SizedBox(height: 10),
-                      if (profile.displayName?.isNotEmpty == true) ...[
-                        Text(
-                          profile.displayName!,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '@${profile.handle}',
-                          style: TextStyle(
-                            color: white.withValues(alpha: 0.55),
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          '@${profile.handle}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: white,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Divider(color: white.withValues(alpha: 0.15), height: 1),
-                const SizedBox(height: 6),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.send_rounded,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Envoyer une pensée'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('send'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.auto_awesome_outlined,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Pensées reçues'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('thoughts'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.group_outlined,
-                    color: white.withValues(alpha: 0.85),
-                  ),
-                  title: const Text('Amis'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
-                  ),
-                  onTap: () => Navigator.of(context).pop('friends'),
-                ),
-                // Univers — locked shut while a marronnier owns the screen; the
-                // user's own world returns on its own once the window closes.
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  enabled: seasonal == null,
-                  leading: Icon(
-                    Icons.palette_outlined,
-                    color: white.withValues(
-                      alpha: seasonal == null ? 0.85 : 0.4,
                     ),
                   ),
-                  title: const Text('Univers'),
-                  subtitle: seasonal == null
-                      ? null
-                      : Text(
-                          '${seasonal.emoji} ${seasonal.label} — verrouillé pour aujourd’hui',
+                  const SizedBox(height: 14),
+                  // Centered identity header — app name, then name + handle, no avatar.
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'DewDrop',
                           style: TextStyle(
-                            color: white.withValues(alpha: 0.5),
-                            fontSize: 12,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: 2,
+                            color: white,
                           ),
                         ),
-                  trailing: Icon(
-                    seasonal == null
-                        ? Icons.chevron_right
-                        : Icons.lock_outline_rounded,
-                    color: white.withValues(alpha: 0.5),
+                        const SizedBox(height: 10),
+                        if (profile.displayName?.isNotEmpty == true) ...[
+                          Text(
+                            profile.displayName!,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '@${profile.handle}',
+                            style: TextStyle(
+                              color: white.withValues(alpha: 0.55),
+                            ),
+                          ),
+                        ] else
+                          Text(
+                            '@${profile.handle}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: white,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  onTap: seasonal == null
-                      ? () => Navigator.of(context).pop('decor')
-                      : null,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.tune_rounded,
-                    color: white.withValues(alpha: 0.85),
+                  const SizedBox(height: 16),
+                  Divider(color: white.withValues(alpha: 0.15), height: 1),
+                  const SizedBox(height: 6),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.send_rounded,
+                      color: white.withValues(alpha: 0.85),
+                    ),
+                    title: const Text('Envoyer une pensée'),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: white.withValues(alpha: 0.5),
+                    ),
+                    onTap: () => Navigator.of(context).pop('send'),
                   ),
-                  title: const Text('Réglages'),
-                  trailing: Icon(
-                    Icons.chevron_right,
-                    color: white.withValues(alpha: 0.5),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.auto_awesome_outlined,
+                      color: white.withValues(alpha: 0.85),
+                    ),
+                    title: const Text('Pensées reçues'),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: white.withValues(alpha: 0.5),
+                    ),
+                    onTap: () => Navigator.of(context).pop('thoughts'),
                   ),
-                  onTap: () => Navigator.of(context).pop('settings'),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.logout_rounded,
-                    color: white.withValues(alpha: 0.85),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.group_outlined,
+                      color: white.withValues(alpha: 0.85),
+                    ),
+                    title: const Text('Amis'),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: white.withValues(alpha: 0.5),
+                    ),
+                    onTap: () => Navigator.of(context).pop('friends'),
                   ),
-                  title: const Text('Se déconnecter'),
-                  onTap: () async {
-                    // Capture before popping — the sheet's `ref` is gone after pop.
-                    final push = ref.read(pushServiceProvider);
-                    final auth = ref.read(authRepositoryProvider);
-                    Navigator.of(context).pop();
-                    try {
-                      // Drop the device token while still authenticated (RLS),
-                      // then sign out. Best-effort: a failure must not strand the
-                      // user in a half-signed-out state silently.
-                      await push.unregister();
-                      await auth.signOut();
-                    } on Exception catch (_) {
-                      // The router redirect handles navigation on success.
-                    }
-                  },
-                ),
-              ],
+                  // Univers — locked shut while a marronnier owns the screen; the
+                  // user's own world returns on its own once the window closes.
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    enabled: seasonal == null,
+                    leading: Icon(
+                      Icons.palette_outlined,
+                      color: white.withValues(
+                        alpha: seasonal == null ? 0.85 : 0.4,
+                      ),
+                    ),
+                    title: const Text('Univers'),
+                    subtitle: seasonal == null
+                        ? null
+                        : Text(
+                            '${seasonal.emoji} ${seasonal.label} — verrouillé pour aujourd’hui',
+                            style: TextStyle(
+                              color: white.withValues(alpha: 0.5),
+                              fontSize: 12,
+                            ),
+                          ),
+                    trailing: Icon(
+                      seasonal == null
+                          ? Icons.chevron_right
+                          : Icons.lock_outline_rounded,
+                      color: white.withValues(alpha: 0.5),
+                    ),
+                    onTap: seasonal == null
+                        ? () => Navigator.of(context).pop('decor')
+                        : null,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.tune_rounded,
+                      color: white.withValues(alpha: 0.85),
+                    ),
+                    title: const Text('Réglages'),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      color: white.withValues(alpha: 0.5),
+                    ),
+                    onTap: () => Navigator.of(context).pop('settings'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.logout_rounded,
+                      color: white.withValues(alpha: 0.85),
+                    ),
+                    title: const Text('Se déconnecter'),
+                    onTap: () async {
+                      // Capture before popping — the sheet's `ref` is gone after pop.
+                      final push = ref.read(pushServiceProvider);
+                      final auth = ref.read(authRepositoryProvider);
+                      Navigator.of(context).pop();
+                      try {
+                        // Drop the device token while still authenticated (RLS),
+                        // then sign out. Best-effort: a failure must not strand the
+                        // user in a half-signed-out state silently.
+                        await push.unregister();
+                        await auth.signOut();
+                      } on Exception catch (_) {
+                        // The router redirect handles navigation on success.
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),

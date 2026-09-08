@@ -461,6 +461,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   );
 
+  /// A glass card. Its content gets its own transparent [Material] because the
+  /// tiles inside paint their background and ink on the nearest one — which
+  /// would be the Scaffold's, i.e. *under* the `color` below, swallowing every
+  /// tap's feedback. Wrapping here rather than each tile means a card added
+  /// later is covered by construction; transparency keeps the glass visible,
+  /// and the Scaffold's Material already sets the same default text style, so
+  /// nothing about the text rendering changes.
   Widget _card(Color w, {required Widget child, Key? key}) => Container(
     key: key,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -469,7 +476,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       color: w.withValues(alpha: 0.06),
       border: Border.all(color: w.withValues(alpha: 0.12)),
     ),
-    child: child,
+    child: Material(
+      type: MaterialType.transparency,
+      borderRadius: BorderRadius.circular(18),
+      child: child,
+    ),
   );
 
   Widget _hourChip(Color w, int hour, VoidCallback onTap) => GestureDetector(
