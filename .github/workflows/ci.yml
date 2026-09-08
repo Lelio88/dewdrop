@@ -29,8 +29,11 @@ jobs:
       - name: Analyse (zéro issue exigée)
         run: flutter analyze
 
+      # Goldens are excluded here and replayed in their own step below: plain
+      # `flutter test` runs them too, which failed the build before that step
+      # was ever reached — the exact opposite of "informative".
       - name: Tests
-        run: flutter test
+        run: flutter test --exclude-tags golden
 
       # Goldens are pixel comparisons: fonts and rasterisation differ between a
       # Windows dev machine and this runner, so a mismatch here does NOT mean

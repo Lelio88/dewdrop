@@ -1,3 +1,6 @@
+@Tags(['golden'])
+library;
+
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
 import 'package:dewdrop/src/features/tour/presentation/cloud_bubble.dart';
 import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';

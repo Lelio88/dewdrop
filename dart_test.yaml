@@ -1,0 +1,7 @@
+# Le tag `golden` isole les comparaisons pixel : elles dépendent des polices
+# et de la rasterisation de la machine, donc un Linux de CI et un Windows de
+# dev ne rendent pas les mêmes octets. La CI les exécute dans une étape à
+# part, non bloquante ; en local `flutter test` les joue comme le reste.
+tags:
+  golden:
+    description: Comparaisons pixel, dépendantes de la plateforme de rendu
