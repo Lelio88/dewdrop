@@ -204,9 +204,17 @@ class FakeThoughtRepository implements ThoughtRepository {
   @override
   Future<List<ReceivedThought>> receivedThoughts() async => const [];
 
+  /// Newest-first ids handed back by the two "recently contacted" reads.
+  List<String> recentRecipientIds = const [];
+  List<String> recentGroupIds = const [];
+
   @override
   Future<List<String>> recentlyContactedRecipientIds({int limit = 24}) async =>
-      const [];
+      recentRecipientIds;
+
+  @override
+  Future<List<String>> recentlyContactedGroupIds({int limit = 60}) async =>
+      recentGroupIds;
 
   @override
   Stream<int> watchIncoming() => const Stream<int>.empty();

@@ -14,12 +14,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _ok = Color(0xFF9BE8B0); // "envoyé" green
 
-/// Compact "envoyer" dock revealed by swiping UP on the home: a horizontal row
-/// of friend + group avatars, **most recently written-to first**. A single tap
-/// sends a pensée **directly** (anonymity from the global default); the avatar
-/// then shows "✓" and is disabled for a short cooldown — the
-/// accidental-double-send guard. [onSeeAll] opens the full send screen for the
-/// complete list.
+/// Height of one peek rank: a 54 avatar + its label, with slack for a
+/// scaled-up font. Shared by both ranks so they read as one block.
+const _kRankHeight = 94.0;
+
+/// Compact "envoyer" dock revealed by swiping UP on the home: two ranks of
+/// avatars — friends (round) first, groups (square) under them — **most
+/// recently written-to first**. A single tap sends a pensée **directly**
+/// (anonymity from the global default); the avatar then shows "✓" and is
+/// disabled for a short cooldown — the accidental-double-send guard.
+/// [onSeeAll] sits in the header's right-hand corner and opens the full send
+/// screen for the complete list.
+///
+/// The two families never share a rank: at peek each is its own scrolling row,
+/// expanded each is its own labelled section. Shape alone ("round or square?")
+/// used to carry the whole distinction, on a single mixed row.
 ///
 /// Invariant: the order never changes while the dock is on screen. A send makes
 /// the recipient jump to the front, so re-ordering live would move avatars under
@@ -44,9 +53,10 @@ class SendDock extends ConsumerStatefulWidget {
   /// drawer on a dead end otherwise — the way out belongs where the wall is.
   final VoidCallback? onAddFriend;
 
-  /// When false, a single horizontal row (the peek). When true — a second swipe
-  /// up — a scrollable wrapped grid of every friend + group, filling the sheet.
-  /// The expanded branch uses an [Expanded], so its parent must bound its height.
+  /// When false, two horizontal ranks (the peek). When true — a second swipe
+  /// up — the same two families as scrollable labelled grids, filling the
+  /// sheet. The expanded branch uses an [Expanded], so its parent must bound
+  /// its height.
   final bool expanded;
 
   /// Whether the sheet holding this dock is open. The widget stays mounted when
@@ -75,6 +85,7 @@ class _SendDockState extends ConsumerState<SendDock> {
     if (oldWidget.visible && !widget.visible && _orderStale) {
       _orderStale = false;
       ref.invalidate(recentContactsProvider);
+      ref.invalidate(recentGroupsProvider);
     }
   }
 
@@ -135,10 +146,13 @@ class _SendDockState extends ConsumerState<SendDock> {
     final groups = ref.watch(myGroupsProvider).value ?? const <Group>[];
     final empty = friends.isEmpty && groups.isEmpty;
 
-    // Friends ordered by who you wrote to last (groups aren't tracked by
-    // `recentContactsProvider` — a group send fans out to per-member rows — so
-    // they keep their own alphabetical order up front).
+    // Both families ordered by who you wrote to last, each off its own read:
+    // a group send fans out to per-member rows, so the two recency windows
+    // cannot share one (see `recentlyContactedGroupIds`). Whoever was never
+    // written to falls back to alphabetical order.
     final recent = ref.watch(recentContactsProvider).value ?? const <String>[];
+    final recentGroups =
+        ref.watch(recentGroupsProvider).value ?? const <String>[];
     final orderedFriends = sortByRecency(
       friends,
       idOf: (f) => f.profile.id,
@@ -149,11 +163,22 @@ class _SendDockState extends ConsumerState<SendDock> {
       groups,
       idOf: (g) => g.id,
       labelOf: (g) => g.name,
-      recentIdsNewestFirst: const [],
+      recentIdsNewestFirst: recentGroups,
     );
 
-    // Groups first, then friends — same order in both stages.
-    final avatars = <Widget>[
+    // Friends first, groups under them — same families in the same order at
+    // both stages. Each list is built on its own: a family with no member
+    // renders nothing rather than an empty rank.
+    final friendTiles = <Widget>[
+      for (final f in orderedFriends)
+        _avatar(
+          w,
+          key: 'u:${f.profile.id}',
+          label: _name(f.profile),
+          onTap: () => _send(to: f.profile),
+        ),
+    ];
+    final groupTiles = <Widget>[
       for (final g in orderedGroups)
         _avatar(
           w,
@@ -161,13 +186,6 @@ class _SendDockState extends ConsumerState<SendDock> {
           label: g.name,
           group: true,
           onTap: () => _send(group: g),
-        ),
-      for (final f in orderedFriends)
-        _avatar(
-          w,
-          key: 'u:${f.profile.id}',
-          label: _name(f.profile),
-          onTap: () => _send(to: f.profile),
         ),
     ];
 
@@ -183,37 +201,98 @@ class _SendDockState extends ConsumerState<SendDock> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Wrap(spacing: 14, runSpacing: 16, children: avatars),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (friendTiles.isNotEmpty) ...[
+                    _sectionLabel(w, 'Amis'),
+                    Wrap(spacing: 14, runSpacing: 16, children: friendTiles),
+                  ],
+                  if (groupTiles.isNotEmpty) ...[
+                    if (friendTiles.isNotEmpty) const SizedBox(height: 22),
+                    _sectionLabel(w, 'Cercles'),
+                    Wrap(spacing: 14, runSpacing: 16, children: groupTiles),
+                  ],
+                ],
+              ),
             ),
           )
-        else
-          SizedBox(
-            height: 94,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final a in avatars)
-                  Padding(padding: const EdgeInsets.only(right: 14), child: a),
-              ],
-            ),
-          ),
-        const SizedBox(height: 4),
-        Center(
-          child: TextButton(
-            onPressed: widget.onSeeAll,
-            child: Text(
-              'voir tous mes amis & cercles',
-              style: TextStyle(color: w.withValues(alpha: 0.7)),
-            ),
-          ),
-        ),
+        else ...[
+          if (friendTiles.isNotEmpty) _rank(friendTiles),
+          if (friendTiles.isNotEmpty && groupTiles.isNotEmpty)
+            const SizedBox(height: 10),
+          if (groupTiles.isNotEmpty) _rank(groupTiles),
+        ],
       ],
     );
   }
 
-  Widget _header(Color w) => Text(
-    'Envoyer une pensée',
-    style: TextStyle(color: w, fontWeight: FontWeight.w600),
+  /// One horizontally scrolling rank of avatars, at peek.
+  Widget _rank(List<Widget> tiles) => SizedBox(
+    height: _kRankHeight,
+    child: ListView(
+      scrollDirection: Axis.horizontal,
+      children: [
+        for (final t in tiles)
+          Padding(padding: const EdgeInsets.only(right: 14), child: t),
+      ],
+    ),
+  );
+
+  /// Title on the left, the way out facing it on the right. The link used to
+  /// sit centred under the avatars, where it took a whole line of a drawer
+  /// that now needs two — and where the thumb met it before the faces.
+  Widget _header(Color w) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Flexible(
+        child: Text(
+          'Envoyer une pensée',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: w, fontWeight: FontWeight.w600),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Flexible(
+        child: TextButton(
+          onPressed: widget.onSeeAll,
+          style: TextButton.styleFrom(
+            foregroundColor: w.withValues(alpha: 0.7),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            visualDensity: VisualDensity.compact,
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Mes amis & cercles',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 16),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// Heading of one family in the expanded stage — the labels the peek gets
+  /// away without, two ranks being self-evident where a scrolling grid is not.
+  Widget _sectionLabel(Color w, String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: w.withValues(alpha: 0.55),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.8,
+      ),
+    ),
   );
 
   Widget _emptyText(Color w) => Padding(

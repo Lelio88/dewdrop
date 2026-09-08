@@ -104,6 +104,7 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
       ref.invalidate(incomingRequestsProvider);
       ref.invalidate(receivedThoughtsProvider);
       ref.invalidate(recentContactsProvider);
+      ref.invalidate(recentGroupsProvider);
       if (Platform.isAndroid || Platform.isIOS) {
         unawaited(clearThoughtNotifications());
         _syncHomeWidget();

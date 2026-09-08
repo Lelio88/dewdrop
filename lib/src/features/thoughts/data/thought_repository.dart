@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dewdrop/src/common/app_exceptions.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought.dart';
+import 'package:dewdrop/src/features/thoughts/domain/send_order.dart';
 import 'package:dewdrop/src/features/thoughts/domain/thought_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -103,13 +104,24 @@ class SupabaseThoughtRepository implements ThoughtRepository {
         .order('created_at', ascending: false)
         .limit(limit);
 
-    final seen = <String>{};
-    final ids = <String>[];
-    for (final r in rows) {
-      final id = r['recipient_id'] as String?;
-      if (id != null && seen.add(id)) ids.add(id);
-    }
-    return ids;
+    return dedupeNewestFirst(rows.map((r) => r['recipient_id'] as String?));
+  }
+
+  @override
+  Future<List<String>> recentlyContactedGroupIds({int limit = 60}) async {
+    // Group rows ONLY. Without `group_id is not null` the window would be
+    // mostly personal pensées, and one fan-out to a 20-member circle would be
+    // enough to evict every other circle from it — a group send writes one row
+    // per member, all carrying the same group_id (see send_to_group).
+    final rows = await _client
+        .from('thoughts')
+        .select('group_id, created_at')
+        .eq('sender_id', _uid)
+        .not('group_id', 'is', null)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    return dedupeNewestFirst(rows.map((r) => r['group_id'] as String?));
   }
 
   @override

@@ -42,3 +42,14 @@ final recentContactsProvider = FutureProvider<List<String>>((ref) {
   }
   return ref.watch(thoughtRepositoryProvider).recentlyContactedRecipientIds();
 });
+
+/// Group ids the signed-in user has most recently sent a pensée to (newest
+/// first, deduped). Orders the send dock's circles. Empty when signed out, and
+/// refetched on the same occasions as [recentContactsProvider].
+final recentGroupsProvider = FutureProvider<List<String>>((ref) {
+  ref.watch(authStateChangesProvider); // refetch on sign in/out
+  if (ref.watch(authRepositoryProvider).currentSession == null) {
+    return <String>[];
+  }
+  return ref.watch(thoughtRepositoryProvider).recentlyContactedGroupIds();
+});

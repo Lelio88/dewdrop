@@ -12,6 +12,15 @@ abstract interface class ThoughtRepository {
   /// first, deduped). Orders the home-screen widget's "auto" friend slots.
   Future<List<String>> recentlyContactedRecipientIds({int limit = 24});
 
+  /// The group ids this user has most recently sent a pensée to (newest first,
+  /// deduped). Orders the send dock's circles.
+  ///
+  /// Deliberately a **second** read rather than a second column of the one
+  /// above: a group send writes one row per member, so a window wide enough to
+  /// hold a few circles would be filled by a single fan-out. The default
+  /// [limit] is larger for the same reason.
+  Future<List<String>> recentlyContactedGroupIds({int limit = 60});
+
   /// Emits an incrementing tick for every pensée received **live** (a new row
   /// addressed to the current user). Drives the decor's reception burst and a
   /// refresh of the received-thoughts list while the app is open. The value is

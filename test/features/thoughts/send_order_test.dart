@@ -66,4 +66,23 @@ void main() {
       expect(input.map((t) => t.id), ['c', 'a']);
     });
   });
+
+  group('dedupeNewestFirst', () {
+    test('keeps the first occurrence of each id, in order', () {
+      expect(dedupeNewestFirst(['c', 'a', 'c', 'b', 'a']), ['c', 'a', 'b']);
+    });
+
+    test('drops nulls — a personal pensée carries no group_id', () {
+      expect(dedupeNewestFirst([null, 'g1', null, 'g2', 'g1']), ['g1', 'g2']);
+    });
+
+    test('collapses one group fan-out to a single id', () {
+      // send_to_group writes one row PER MEMBER, all with the same group_id.
+      expect(dedupeNewestFirst(List.filled(20, 'g1') + ['g2']), ['g1', 'g2']);
+    });
+
+    test('returns an empty list for an empty column', () {
+      expect(dedupeNewestFirst(const <String?>[]), isEmpty);
+    });
+  });
 }

@@ -45,3 +45,23 @@ List<T> sortByRecency<T>(
   });
   return sorted;
 }
+
+/// Collapses a newest-first column of ids — as read from the `thoughts` rows —
+/// into the distinct ids in the order they were last written to. Nulls are
+/// dropped: a personal pensée carries no `group_id`.
+///
+/// Non-obvious: one group send writes one row **per member**, all bearing the
+/// same `group_id`, so a raw column is mostly repetition. Deduping is what
+/// turns it back into "the circles you wrote to, latest first".
+///
+/// Lives here rather than in the repository because it is the other half of
+/// [sortByRecency]'s rule, and because a loop buried in `data/` cannot be
+/// reached from a unit test.
+List<String> dedupeNewestFirst(Iterable<String?> ids) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final id in ids) {
+    if (id != null && seen.add(id)) out.add(id);
+  }
+  return out;
+}
