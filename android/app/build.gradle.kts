@@ -59,9 +59,20 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName(
-                if (hasReleaseKeystore) "release" else "debug",
-            )
+            // Le repli sur la clé de débogage sert `flutter run --release`, qui
+            // exige une signature quelconque. Mais il se dit : un AAB signé en
+            // débogage est accepté sans un mot par Gradle et refusé par Play,
+            // une demi-heure plus tard, sans indice sur la cause.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "ATTENTION : android/key.properties absent — la version " +
+                        "release est signée avec la clé de DÉBOGAGE. Play " +
+                        "refusera cet AAB. Voir ../android-signing-guide.md.",
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
