@@ -61,61 +61,40 @@ Topologie rapide :
 supabase start                         # backend local (Docker ; Studio :54323, Mailpit :54324)
 flutter run -d windows                 # desktop (itération rapide ; mobile = gyroscope + FCM réels)
 flutter analyze && flutter test        # doivent être verts
-flutter build apk --release \          # build testeurs — signé via android/key.properties
-  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<clé publishable>
+flutter build apk --release \          # APK testeurs (appbundle = AAB Play, mêmes options) — signé via
+  --dart-define=SUPABASE_URL=https://<ref>.supabase.co \    # android/key.properties ; sans les --dart-define,
+  --dart-define=SUPABASE_ANON_KEY=<clé publishable>         # l'app compile et ne joint QUE le Supabase local
 supabase migration new <slug>          # nouvelle migration (prod : supabase db push)
-supabase config push                   # config auth (SMTP, gabarits, redirects). CLI >= 2.114 OBLIGATOIRE :
-                                       # avant, seuls les SUJETS partent, les corps restent en anglais sans alerte.
-                                       # Env : BREVO_SMTP_KEY + SUPABASE_ACCESS_TOKEN (coffres hors dépôt).
-                                       # Vérifier le résultat côté serveur, pas la sortie du CLI (docs/architecture.md).
-flutter build appbundle --release \     # AAB pour le Play Store (mêmes --dart-define que l'APK)
-  --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…
-python tools/release/ship.py --notes-file <notes.txt> --push   # RELEASE : arbre propre → version non déjà
-                                       # expédiée → analyze → test → build → contrôle du binaire → publication →
-                                       # tag `v<version>` sur le commit publié → vérif prod → push (main ET tag)
+supabase config push                   # config auth (SMTP, gabarits, redirects). CLI >= 2.114 OBLIGATOIRE — avant,
+                                       # seuls les SUJETS partent, corps en anglais sans alerte. Env : BREVO_SMTP_KEY +
+                                       # SUPABASE_ACCESS_TOKEN. Vérifier le SERVEUR, pas la sortie du CLI (voir docs).
+python tools/release/ship.py --notes-file <notes.txt> --push   # RELEASE, 9 étapes : arbre propre → version non
+                                       # déjà expédiée → analyze → test → build → contrôle du binaire → publication →
+                                       # tag `v<version>` → vérif prod → push (main ET tag)
 python tools/release/verify_prod.py    # ce que le SERVEUR sert vraiment (gabarits, RPC) — après un push Supabase
 python tools/release/publish_play.py --list-tracks          # tracks Play + versionCodes en place
 python tools/release/publish_play.py --track alpha --dry-run  # valide sans rien publier
 flutter test --update-goldens test/features/tour/cloud_tour_golden_test.dart  # puis REGARDER les images
-# décors photo : Base.png → tools/depth_split/_src/<décor>/<v>/ → warp_batch.py
-#   → assets/photo/<décor>/<v>/{full.webp,depth.webp} ; dessin = illustrate_all.py → assets/illustrated/
 ```
 
 ## VII. Maintenance documentaire
 
 **Règle d'or** : le diff du code et celui de la doc associée sont dans **le même commit**.
 
+**Carte complète des déclencheurs** (décors, son, tutos, widget, notifications, backend) : [`docs/maintenance-map.md`](./docs/maintenance-map.md). Les entrées les plus faciles à oublier :
+
 | Modification | Fichier(s) à mettre à jour |
 |---|---|
+| **Changement visible par un testeur** | une puce sous « Non publié » de [`CHANGELOG.md`](./CHANGELOG.md), **dans le commit qui le produit** — sinon le journal décroche |
 | Table / colonne / RLS / Realtime | nouvelle migration `supabase/migrations/` (**+ GRANT**) + `docs/architecture.md` |
-| Nouveau décor / variante | `lib/decor/environment.dart` (enum + `buildDecor`) + `lib/decor/<décor>_decor.dart` + source `tools/depth_split/_src/…/Base.png` → `warp_batch.py`/`illustrate_all.py` + **chaque** variante dans `pubspec.yaml` (pas de wildcard) + `docs/architecture.md` |
-| Réglage parallaxe d'une scène | `_warpShift`/`_strengthByEnv` dans `lib/decor/decor_backdrop.dart` ; régénérer via `warp_batch.py` |
-| Nouveau deep link | `lib/src/common/deep_links.dart` + `additional_redirect_urls` (`config.toml`) + manifeste Android / `Info.plist` |
-| Nouveau flux d'auth par email (magic link, changement d'adresse…) | **un gabarit FR de plus** dans `supabase/templates/` + sa section `[auth.email.template.<flux>]` (`config.toml`) + la liste `_mustBeOverridden` (`test/supabase/email_templates_test.dart`) — un gabarit manquant = mail **anglais** silencieux. Puis `supabase config push`. |
-| Étape / texte d’un tuto | `features/tour/domain/tour_step.dart` (scripts purs `kHomeTour` / `kFriendsTour` / `kDecorsTour` / `kSettingsTour` + `stepsFor`) ; nouvelle **cible** = valeur `TourAnchor` + `GlobalKey` sur le widget réel + entrée dans `anchors` ; nouveau **geste** = valeur `TourGesture` + cas dans `_performTourGesture` (le tuto reconnaît, l’accueil exécute) ; nouvelle **scène** = valeur `TourScene` + cas dans `_applyTourScene` (`home_screen.dart`) ; une étape dont la scène remplit l’écran doit fixer son `TourPlacement` |
-| Nouvel écran à documenter par des bulles | valeur dans `TourId` + script dans `tour_step.dart` (+ `stepsFor`) + `Stack` autour du body de l'écran avec `CloudTour` gardé par `showTourProvider(TourId.x)` et `complete(...)` en `onFinish` |
-| Règles de découvrabilité (recherche de handle) | migration modifiant `search_profiles` **et** le paragraphe « Découvrabilité » de `docs/architecture.md` — les 5 garde-fous (≥3 car., ≥0.45, ≤3 résultats, handle seul, exclusions) se décident ensemble |
-| Envoi « pensée » par lien / voix | deep link `dewdrop://send?to=<handle>` (`DeepLinks.sendTo`), `DeepLinkListener` (`common/deep_link_listener.dart` : invite **et** send), résolveur pur `matchFriend` (`features/friends/domain/friend_match.dart`), capability headless `QuickSendService` (`features/thoughts/application/`), confirmation 1-tap dans `app.dart` `_onSend`. *Service natif Kotlin AppFunctions = déféré (API en preview).* |
-| Décors favoris / swipe accueil | snapshot `"<env>:<variant>:<mode>"` = `encodeFavorite`/`parseFavorite` (`lib/src/common/decor_choice.dart`) + `decorFavoritesProvider` (`features/settings/application/`) + ⭐ dans `decor_stories.dart` + swipe dans `home/presentation/home_screen.dart` + colonne `profiles.decor_favorites` (migration) |
-| Gestes à deux crans (aperçus accueil) | machine à états pure `nextSheetState`/`SheetState` (`features/home/domain/home_sheet.dart`, testée) + `home_screen.dart` `_onDragEnd` + `received_peek.dart`/`send_dock.dart` (`expanded:`) |
-| Univers marronnier (verrou par date) | `SeasonalEvent`/`activeSeasonalEvent`/`kSeasonalEvents` (`lib/src/common/seasonal.dart`, testé) + `seasonalOverrideProvider` (`features/settings/application/`) + `home_screen.dart` (override display-only) + `Environment` `christmas`/`halloween`/`april` (flag `seasonal`) + `{env}_decor.dart` + assets `depth_split` + audio `build_seasonal.sh` + `kDecorAudio` + `CREDITS.md` (+ `about_screen.dart` si CC-BY) |
-| Widget écran d'accueil | `features/home_widget/` (`widget_sync_service.dart`, `widget_providers.dart`, `widget_settings_screen.dart`, `domain/pin_order.dart` réordonnancement pur testé, `widget_background.dart` isolate) + `android/.../DewDropWidgetProvider.kt` + `res/{layout,xml,drawable}` + 2 receivers manifest. **Contrat de clés** (`signed_in`/`slot{i}_*`/`sent_id`/`sent_at`…) partagé Dart ↔ Kotlin ↔ isolate — changer un côté = changer les trois. Source = `profiles.widget_source`+`widget_friends`. |
-| Phrase d'une pensée reçue (perso / groupe) | `thoughtLine` / `senderLabel` (`thoughts/domain/thought.dart`, purs et testés) — **et** la phrase jumelle dans `send-thought-push/index.ts`. L'app et la notif disent la même chose ; un groupe non résolu (quitté depuis) dit « à un groupe », **jamais** « à toi ». Le nom est lu à l'affichage (`groups`), jamais figé sur la ligne |
-| Style/texte des notifs envoyées | listes émojis/phrases dans `thought_style.dart` + assemblage `send-thought-push` (les deux côtés) |
-| Affichage/groupement des notifs reçues | `notifications/application/thought_notifications.dart` + payload `data` de `send-thought-push` |
-| Logique de groupe (RLS, fan-out) | nouvelle migration (helpers `private`) + `features/groups/` + RPC `send_to_group` |
-| Nouveau son / piste audio | `tools/sounds/build_audio.sh` (ou `build_seasonal.sh`) + attribution `CREDITS.md` |
-| Focus audio (interruption des autres apps) | `features/ambient/application/audio_focus.dart` **et** `MainActivity.kt` (canal `app.dewdrop/audio_focus`) + prise/rendu dans `SoundscapeNotifier` (`_applyInner`, `pauseAll`, `_teardown`) |
-| Dock d'envoi (ordre + disposition) | `send_dock.dart` : les deux familles ne partagent jamais une rangée — au 1er cran deux rangées défilant à part (amis ronds, puis cercles carrés), au 2e des sections libellées, une famille vide ne rendant rien ; le lien vers l'écran complet vit dans le **header à droite**. Tri par `sortByRecency` + `dedupeNewestFirst` (`thoughts/domain/send_order.dart`, testés) sur **deux** lectures de récence — `recentContactsProvider` (amis) et `recentGroupsProvider` (cercles) : un envoi de groupe écrit **une ligne par membre**, une fenêtre commune serait remplie par un seul fan-out. Tri **gelé tant que le dock est visible** (`SendDock.visible` → invalidation différée des deux) |
-| Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
-| Procédure de publication Play | `tools/release/publish_play.py` (API Android Publisher v3) + `../play-store-publication-guide.md`. Service account JSON dans `../.dewdrop-secrets/play-sa.json` — **hors dépôt** (repo public) |
-| Apparence du tuto (nuage, placement, halo) | régénérer `test/features/tour/goldens/` puis **regarder** les images avant de committer — un golden mis à jour sans être vu enregistre le bug comme vérité |
+| Nouveau flux d'auth par email | **un gabarit FR de plus** (`supabase/templates/`) + `[auth.email.template.<flux>]` + `_mustBeOverridden` — un gabarit manquant = mail **anglais** silencieux |
+| Phrase d'une pensée reçue | `thoughtLine`/`senderLabel` (`thoughts/domain/thought.dart`) **et** la phrase jumelle de `send-thought-push` — l'app et la notif disent la même chose |
+| Contrat de clés du widget | Dart ↔ Kotlin ↔ isolate : changer un côté = changer les trois |
+| Nouveau décor / variante | `environment.dart` + `<décor>_decor.dart` + pipeline `depth_split` + **chaque** variante dans `pubspec.yaml` (pas de wildcard) |
 | Nouvel anti-pattern découvert | section « Anti-patterns à éviter » de `docs/architecture.md` |
 | Changement de dépendance critique | Section III « Pile » + `pubspec.yaml` |
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : **l'encre des tuiles rendue visible** — un `ListTile` peint son fond et son encre sur le `Material` le plus proche, et nos cartes en verre passaient par-dessus : le menu ☰ (6 tuiles) et les réglages (10) n'avaient aucun retour tactile. Un `Material` transparent par carte le remet au-dessus ; le rendu statique est prouvé inchangé (captures identiques au md5 près), seule l'onde d'appui apparaît. Au passage **Crashlytics ne collecte plus en debug** : `FlutterError.onError` promouvait chaque diagnostic du framework — celui-ci ne lève pourtant rien — en crash « fatal » imputé à un appareil réel. Avant : tiroir d'envoi relu (deux rangées, les deux familles triées par récence).
-- **Focus immédiat** : le **tri des cercles par récence** est désormais constaté sur appareil. Restent sans preuve le **bouton « ajouter en ami » dans un groupe**, jamais essayé sur un téléphone, et le branchement UI de la **suggestion de handle** (son versant serveur, lui, est vérifié par `verify_prod.py`).
-- **Restes hors lot** : appui long widget → « Reconfigurer » (dépend du launcher) ; durcissement sécu `HomeWidgetBackgroundReceiver` ; **iOS** WidgetKit (bloqué compte Apple Developer 99 $/an).
+- **Dernier focus** : **journal et traçabilité des versions**. `CHANGELOG.md` couvre de nouveau tout l'historique et porte une section « Non publié » à tenir au fil de l'eau — c'est le seul journal, la page Releases de GitHub n'existe plus. `ship.py` marque d'un tag annoté `v<version>` le commit de chaque publication, et refuse en tête de course une version déjà expédiée.
+- **Focus immédiat** : deux ajouts livrés attendent une preuve **sur appareil** — l'**ajout en ami depuis un cercle** et le branchement UI de la **suggestion de handle** (son versant serveur est couvert par `verify_prod.py`). En attente par ailleurs : tags absents pour les versions `+14` à `+37` ; appui long widget → « Reconfigurer » (dépend du launcher) ; durcissement `HomeWidgetBackgroundReceiver` ; **iOS** WidgetKit (bloqué compte Apple Developer 99 $/an).

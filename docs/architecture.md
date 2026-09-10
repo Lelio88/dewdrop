@@ -8,6 +8,13 @@ DewDrop est une app Flutter dont l'expérience repose sur deux piliers :
 
 L'app est un **client** : elle n'expose pas d'API HTTP ; elle parle à Supabase via `supabase_flutter` (PostgREST + GoTrue + Realtime). Le backend tourne **en cloud** pour les builds de prod/testeurs (sélectionné via `--dart-define`) et **en local** (Docker, via la CLI) en dev. Le décor choisi devient le **fond vivant** de toute l'app.
 
+**Annexes** — ce fichier est le point d'entrée ; le détail qui l'alourdirait vit à côté :
+
+| Annexe | Contenu |
+|---|---|
+| [`maintenance-map.md`](./maintenance-map.md) | Carte complète « je touche à ceci → qu'est-ce qui doit bouger avec ? ». Version longue de la section VII du `CLAUDE.md`. |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | Le journal des versions — le seul. Section « Non publié » à tenir au fil de l'eau. |
+
 ## Couches
 
 ```
