@@ -3,6 +3,219 @@
 Évolutions notables de DewDrop. Format inspiré de
 [Keep a Changelog](https://keepachangelog.com/fr/).
 
+## [Non publié]
+
+### Note interne
+
+- CI : `actions/checkout` passe de v4 à v7 — la v4 déclarait Node 20, que les
+  runners forçaient déjà sur Node 24 en l'annonçant à chaque exécution.
+- 🔑 **Le repli sur la clé de débogage s'annonce** : sans `android/key.properties`,
+  une build release retombait en silence sur la clé de debug. Gradle l'accepte
+  sans un mot ; c'est Play qui refuse l'AAB une demi-heure plus tard, sans dire
+  pourquoi. Le repli reste (il sert à `flutter run --release`), mais il se dit.
+- Les notes des versions `0.8.0+11` à `0.9.0+13`, qui ne vivaient que sur la page
+  Releases de GitHub, sont rapatriées ici ; cette page est supprimée. Le Play
+  Store est le seul canal de distribution, et ce journal le seul journal.
+
+## [0.9.23+37] — 2026-09-08
+
+### Corrigé
+
+- ✋ **Le retour tactile des tuiles est de nouveau visible** : dans le menu ☰ (6
+  tuiles) et les Réglages (10), l'onde d'appui était peinte *sous* le fond de la
+  carte en verre, donc invisible — on ne savait pas si le doigt avait porté. Le
+  rendu au repos, lui, n'a pas bougé d'un pixel.
+
+### Note interne
+
+- Crashlytics ne collecte plus en debug. Un rapport annonçait un « crash fatal »
+  sur Android 13 alors que rien n'avait planté : un diagnostic du framework
+  (`ListTile._debugCheckBackgroundIsHidden`, qui ne lève pas) était promu en
+  incident fatal, et l'émulateur se déclarant constructeur « Google », l'indice
+  « uniquement sur appareils Google » désignait la machine de dev.
+
+## [0.9.22+36] — 2026-09-08
+
+### Amélioré
+
+- 👆 **Tiroir d'envoi lisible** : amis et cercles ne partagent plus jamais une
+  rangée. Au premier cran, les deux familles défilent chacune de leur côté (amis
+  ronds, puis cercles carrés) ; au second, chacune a sa section libellée. Une
+  famille sans membre ne laisse pas de trou. Le lien vers la liste complète
+  remonte dans l'en-tête, à droite — il n'est plus sous le pouce avant les
+  visages.
+- 🔵 **Les cercles se trient par derniers échanges**, comme les amis.
+
+### Corrigé
+
+- 🔔 **La notification redonne son nom au cercle** : le titre disait « un groupe »
+  quel que soit le cercle, donc un membre de plusieurs cercles ne pouvait pas
+  savoir auquel on avait pensé. La fonction serveur n'avait pas le droit de lire
+  la table des cercles — un refus qui se lisait comme une liste vide, sans
+  erreur.
+- ↕️ **Réordonner les amis du widget** écrit le bon ordre à l'écran comme en base,
+  et n'écrit plus rien quand le glissement ne change rien.
+- ✋ L'encre d'appui des deux entrées d'« À propos », invisible pour la même
+  raison que les tuiles ci-dessus.
+
+### Note interne
+
+- Machine de dev alignée sur Flutter 3.47 (la CI prenait déjà `stable`), ce qui
+  a fait remonter les deux défauts ci-dessus. Réveil quotidien du projet
+  Supabase : le plan gratuit met en pause après sept jours sans activité, et la
+  pause est muette côté app. Goldens sortis de l'étape de CI qui bloque le build.
+
+## [0.9.21+35] — 2026-09-04
+
+### Corrigé
+
+- 🔵 **Une pensée envoyée à un cercle dit enfin qu'elle en est une.** Elle
+  n'était pas perdue, elle était déguisée : la liste l'affichait « X a pensé à
+  toi », rigoureusement identique à une pensée perso. Trois formes désormais
+  (« à toi », « au groupe *Y* », « à un groupe »), écrites par une seule
+  fonction partagée entre l'app et la notification — c'est la duplication de
+  cette phrase qui avait laissé le cas passer. Le nom est résolu à l'affichage,
+  donc un cercle renommé se lit avec son nouveau nom. Une icône de cercle double
+  la phrase : dans une liste, la forme se lit avant les mots.
+
+## [0.9.20+34] — 2026-08-18
+
+### Amélioré
+
+- ⚡ **Le décor est gelé pendant un tuto** : ses effets tournaient en continu et
+  sa parallaxe reconstruisait un maillage à chaque échantillon du gyroscope,
+  le tout derrière un voile opaque — au moment précis de la première impression.
+
+### Note interne
+
+- Filet de sécurité posé après six publications pour des défauts qu'aucun test
+  ne pouvait voir : cinq tests visuels sur le tuto, `verify_prod.py` (qui
+  interroge le serveur au lieu du dépôt — la panne des courriels avait duré deux
+  mois parce que tout était juste côté dépôt), `ship.py` (les sept étapes d'une
+  publication en une commande) et une CI qui rejoue analyse + tests à chaque
+  push. `home_screen.dart` retombe de 1188 à 713 lignes, sans changement de
+  comportement.
+
+## [0.9.19+33] — 2026-08-18
+
+### Amélioré
+
+- ⚡ **Tuto plus fluide et plus posé** : chaque frame où la cible bougeait
+  repeignait tout le nuage et ses trois passes floutées ; la silhouette est
+  désormais mémoïsée et le voile ne se redessine plus quand la bulle se déplace.
+  Le nuage ne se téléporte plus entre deux étapes qui partagent une ancre, et le
+  rythme ralentit (battue après un geste : 1,6 → 2,1 s).
+
+## [0.9.18+32] — 2026-08-18
+
+### Corrigé
+
+- 🗨️ **Chaque bulle dit comment en sortir** — « Glisse vers le haut pour
+  continuer », « Appuie n'importe où pour continuer », avec l'icône du geste.
+  Une étape qui n'attendait aucun geste ignorait les glissements *en silence* :
+  rien ne bougeait, rien ne disait pourquoi, et il fallait deviner que le bouton
+  était la seule issue.
+
+## [0.9.17+31] — 2026-08-18
+
+### Corrigé
+
+- 💨 **Plus de petites bouffées quand elles ne relient rien.** Elles servent à
+  porter le regard de la bulle vers ce dont elle parle ; quand la cible était à
+  un demi-écran, elles partaient dans la bonne direction puis s'arrêtaient
+  trente pixels plus loin, et se lisaient comme des miettes collées au nuage.
+
+## [0.9.16+30] — 2026-08-18
+
+### Corrigé
+
+- 🗨️ **La bulle du tiroir plein écran ne couvre plus les visages.** Elle visait
+  le panneau entier — 90 % de l'écran — donc le placement automatique ne
+  trouvait aucune place à côté et retombait en haut, pile sur les avatars que
+  l'étape précédente venait d'apprendre à toucher. Elle vise maintenant la bande
+  du chevron, et une étape peut imposer le bord où va sa bulle.
+
+## [0.9.15+29] — 2026-08-18
+
+### Modifié
+
+- 🎓 **Pendant un tuto, le tuto possède l'écran.** Une bulle décrit l'écran ;
+  laisser le modifier en pleine phrase fait diverger les mots et les pixels. Le
+  voile redevient opaque et n'offre que trois issues : faire le geste demandé,
+  taper pour avancer, « Passer le tuto ». Un geste non demandé est refusé
+  *visiblement* — le nuage frissonne, avec un retour haptique — parce qu'un
+  refus silencieux se lit comme une app figée.
+
+## [0.9.14+28] — 2026-08-17
+
+### Corrigé
+
+- ☁️ **Le nuage accompagne le tiroir** au lieu de rester figé pendant qu'il monte
+  (ou de rester en haut pendant qu'il descend dessous). Il emprunte l'ancre de
+  l'étape suivante dès que le geste atterrit, et suit le panneau sur tout son
+  trajet.
+
+## [0.9.13+27] — 2026-08-17
+
+### Ajouté
+
+- 🎓 **Un tuto par écran, quand l'explication va servir.** Tout expliquer au
+  premier lancement demandait quatorze bulles — lues par personne, et oubliées
+  avant d'être utiles. L'accueil garde les gestes (huit étapes) ; Amis, Univers
+  et Réglages portent chacun deux bulles, à leur première ouverture. Les
+  Réglages les réarment tous.
+- 🎬 **Le tuto met la scène** : l'étape qui explique le tiroir en plein écran
+  l'ouvre vraiment, que tu y sois arrivé par le geste ou par « Suivant ». Sans
+  ça, la moitié du script décrivait ce qui n'était pas affiché.
+- Pendant le tuto, les tiroirs vides montrent deux pensées d'exemple (étiquetées
+  comme telles, jamais écrites en base) et un raccourci « Ajoute ton premier
+  ami » là où le dock ouvrait sur un cul-de-sac.
+
+### Corrigé
+
+- 👆 **Le geste latéral ne ment plus** : sans aucun favori — donc sur un compte
+  neuf, exactement celui qui découvre le geste — le glissement était mort
+  pendant que le tuto le vantait. Il parcourt maintenant tous les univers ;
+  l'étoile est un raccourci, plus un prérequis.
+
+## [0.9.12+26] — 2026-08-17
+
+### Amélioré
+
+- 👆 **Les gestes du tuto se font pour de vrai** : le voile ne capte plus que le
+  tap et laisse passer les glissements, donc une étape qui dit « glisse vers le
+  haut » se valide quand le doigt le fait — pas quand on tape « Suivant ». Le
+  tuto reste affiché tiroir ouvert le temps de voir le résultat.
+- ☁️ **Nuage plus cotonneux** (le duvet vient de haloes flous dessinés sous le
+  remplissage, et le trait de contour disparaît — le moindre liseré ramenait
+  l'aspect autocollant), et **bulle qui dérive** d'une étape à l'autre au lieu
+  de se téléporter.
+
+## [0.9.11+25] — 2026-08-17
+
+### Ajouté
+
+- ☁️ **Tuto d'accueil en bulles-nuage.** L'accueil est presque entièrement
+  gestuel, et un geste ne laisse aucune trace à l'écran ; le message qui passait
+  en 3,5 s disait tout à la fois et disparaissait avant d'être lu. Cinq bulles
+  ancrées sur les vrais éléments le remplacent. Les Réglages le rejouent.
+- 🔤 **Repêchage de faute de frappe** : un pseudo mal tapé menait à un
+  cul-de-sac. Jusqu'à trois pseudos proches sont proposés **après** un échec
+  exact — jamais pendant la frappe, et jamais assez large pour devenir un
+  annuaire parcourable.
+- 🤝 **Ajouter en ami depuis un cercle**, sans passer par la recherche.
+- Renvoi vers « Amis » en pied de l'écran d'envoi — donc en tête quand la liste
+  est vide.
+
+### Corrigé
+
+- ✉️ **Les courriels d'authentification sont en français pour tous les flux.**
+  Confirmation et réinitialisation l'étaient depuis juin, mais le serveur
+  retombe *silencieusement* sur son gabarit anglais pour tout flux non
+  surchargé : changement d'adresse, lien magique, ré-authentification et
+  invitation partaient donc en anglais. Un test échoue désormais si un flux perd
+  son gabarit, son fichier, son français ou sa substitution.
+
 ## [0.9.10+24] — 2026-08-11
 
 ### Corrigé
