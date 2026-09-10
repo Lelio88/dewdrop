@@ -173,7 +173,7 @@ Tables : `profiles` (1:1 `auth.users`, trigger `handle_new_user`, `sound_prefs` 
 
 | Outil | Rôle |
 |---|---|
-| `tools/release/ship.py` | **La** commande de release. Tout ce qui peut refuser passe AVANT les 4 min de Gradle (arbre git propre, `analyze`, `test`) ; ce qui ne se vérifie qu'après passe avant l'upload (le bundle contient-il l'hôte Supabase **cloud** — un build sans `--dart-define` compile parfaitement et ne joint rien). |
+| `tools/release/ship.py` | **La** commande de release. Tout ce qui peut refuser passe AVANT les 4 min de Gradle (arbre git propre, **version pas déjà expédiée**, `analyze`, `test`) ; ce qui ne se vérifie qu'après passe avant l'upload (le bundle contient-il l'hôte Supabase **cloud** — un build sans `--dart-define` compile parfaitement et ne joint rien). Une publication réussie **marque son commit** d'un tag annoté `v<version>` (poussé avec `--push`) : sans lui, un versionCode remonté par Crashlytics ne désigne aucun code. Un tag déjà présent = bump oublié, et c'est un refus immédiat plutôt qu'un rejet de Play après le build. |
 | `tools/release/verify_prod.py` | Interroge l'API de gestion Supabase : gabarits d'e-mail réellement servis, expéditeur SMTP, présence de `search_profiles` **avec ses garde-fous**. Né d'une panne de 2 mois où le dépôt était juste et la prod fausse. |
 | `tools/release/publish_play.py` | Upload Play (API Android Publisher v3). Appelé par `ship.py`. |
 | `.github/workflows/ci.yml` | `analyze` + `test` sur chaque push. Pas de build : le keystore et les clés vivent hors dépôt (public). Les goldens y sont informatifs — la rastérisation diffère d'une machine à l'autre. |

@@ -1,15 +1,22 @@
 """One command to ship a release, with the checks in front of the build.
 
-Shipping DewDrop is seven steps — bump, commit, build with the right
---dart-define, confirm the bundle is the one you think, upload, verify, push.
-Done by hand, the step that gets skipped is never the same one, and two of them
-fail silently: a build without --dart-define points at the LOCAL Supabase and
-compiles perfectly, and a stale AAB uploads perfectly.
+Shipping DewDrop is eight steps — bump, commit, build with the right
+--dart-define, confirm the bundle is the one you think, upload, tag, verify,
+push. Done by hand, the step that gets skipped is never the same one, and two of
+them fail silently: a build without --dart-define points at the LOCAL Supabase
+and compiles perfectly, and a stale AAB uploads perfectly.
 
 So the order is deliberate. Everything that can say "no" runs BEFORE the four
-minutes of Gradle: a dirty tree, a failing analyze, a failing test. Everything
-that can only be checked afterwards — does this bundle really target the cloud —
-runs before the upload, not after.
+minutes of Gradle: a dirty tree, a version already shipped, a failing analyze, a
+failing test. Everything that can only be checked afterwards — does this bundle
+really target the cloud — runs before the upload, not after.
+
+The tag is the one thing here that outlives the run. A published versionCode is
+otherwise untraceable to the code that produced it: Crashlytics reports a stack
+against build 31 and nothing in the repo says which commit that was. So a
+successful publish marks its commit, and re-running on an already-tagged version
+is refused up front — that means the bump was forgotten, and Play would reject
+the upload four minutes of Gradle later.
 
 Nothing here is clever; it just refuses to skip.
 
@@ -70,6 +77,39 @@ def read_version(repo: Path) -> str:
             return line.split(":", 1)[1].strip()
     fail("Version absente de pubspec.yaml.")
     return ""
+
+
+def tag_for(version: str) -> str:
+    """`0.9.23+37` → `v0.9.23+37`, the convention the existing tags already use.
+
+    The `+` is kept: git accepts it in a ref name, and a tag that drops it would
+    no longer read as the pubspec version it stands for.
+    """
+    return f"v{version}"
+
+
+def tag_exists(repo: Path, tag: str) -> bool:
+    """Is this version already marked as shipped, locally?
+
+    Local only, on purpose: the keystore lives on one machine, so releases come
+    from one machine. Should a tag exist only on the remote, `git push` says so
+    at the end of the run rather than here — later, but never silently.
+    """
+    probe = ["git", "rev-parse", "-q", "--verify", f"refs/tags/{tag}"]
+    return run(probe, repo, capture=True).returncode == 0
+
+
+def create_tag(repo: Path, tag: str, track: str) -> None:
+    """Mark HEAD as the commit behind a published build.
+
+    Annotated rather than lightweight — the three tags predating this script are
+    lightweight, and that is exactly what they lack: an annotated tag carries its
+    own date and message, so it records WHEN the build went out and on which
+    track. Neither is in the commit, which may predate the publication by days.
+    """
+    message = f"DewDrop {tag.removeprefix('v')} publié sur la track « {track} »"
+    if run(["git", "tag", "-a", tag, "-m", message], repo).returncode != 0:
+        fail(f"Marquage impossible : le tag {tag} n'a pas pu être créé.")
 
 
 def supabase_defines(repo: Path) -> list[str]:
@@ -134,7 +174,8 @@ def main() -> int:
 
     repo = root()
     version = read_version(repo)
-    total = 7
+    tag = tag_for(version)
+    total = 9
     print(f"\n  DewDrop {version} → track « {args.track} »")
 
     step(1, total, "Arbre git propre ?")
@@ -146,12 +187,21 @@ def main() -> int:
         )
     print("      OK")
 
-    step(2, total, "flutter analyze")
+    step(2, total, "Cette version a-t-elle déjà été expédiée ?")
+    if tag_exists(repo, tag):
+        fail(
+            f"Le tag {tag} existe déjà : cette version est publiée, et le bump a "
+            "été oublié. Play refuserait ce versionCode — mais seulement après le "
+            "build. Modifiez `version:` dans pubspec.yaml, puis recommencez."
+        )
+    print("      OK")
+
+    step(3, total, "flutter analyze")
     if run(["flutter", "analyze"], repo).returncode != 0:
         fail("Analyse en échec.")
     print("      OK")
 
-    step(3, total, "flutter test")
+    step(4, total, "flutter test")
     if args.skip_tests:
         print("      IGNORÉ (--skip-tests)")
     elif run(["flutter", "test"], repo).returncode != 0:
@@ -159,13 +209,13 @@ def main() -> int:
     else:
         print("      OK")
 
-    step(4, total, "Build de l'AAB signé")
+    step(5, total, "Build de l'AAB signé")
     defines = supabase_defines(repo)
     if run(["flutter", "build", "appbundle", "--release", *defines], repo).returncode != 0:
         fail("Build en échec.")
     print("      OK")
 
-    step(5, total, "Le bundle vise-t-il bien Supabase cloud ?")
+    step(6, total, "Le bundle vise-t-il bien Supabase cloud ?")
     url = next(d for d in defines if d.startswith("--dart-define=SUPABASE_URL=")).split("=", 2)[2]
     if not bundle_targets_cloud(repo, url):
         fail(
@@ -174,7 +224,7 @@ def main() -> int:
         )
     print("      OK")
 
-    step(6, total, "Publication Play")
+    step(7, total, "Publication Play")
     publish = [sys.executable, "tools/release/publish_play.py", "--track", args.track]
     if args.notes_file:
         publish += ["--notes-file", args.notes_file]
@@ -183,7 +233,18 @@ def main() -> int:
     if run(publish, repo).returncode != 0:
         fail("Publication en échec.")
 
-    step(7, total, "Vérification de la production Supabase")
+    # Le marquage suit immédiatement la publication, et non la vérification qui
+    # vient après : dès que Play a accepté le bundle, « ce commit est publié »
+    # est vrai — que la production Supabase soit à jour ou non est une autre
+    # question, à laquelle le tag ne répond pas.
+    step(8, total, "Marquage du commit publié")
+    if args.dry_run:
+        print("      IGNORÉ (--dry-run)")
+    else:
+        create_tag(repo, tag, args.track)
+        print(f"      OK — {tag}")
+
+    step(9, total, "Vérification de la production Supabase")
     if run([sys.executable, "tools/release/verify_prod.py"], repo).returncode != 0:
         print("      ⚠ La production ne correspond pas au dépôt (voir ci-dessus).")
         print("      L'app est publiée ; il reste un `supabase db push` / `config push`.")
@@ -194,8 +255,15 @@ def main() -> int:
         print("\n  Push de main…")
         if run(["git", "push", "origin", "main"], repo).returncode != 0:
             fail("git push en échec.")
+        # Le tag part dans sa propre commande : `git push` ne l'emporte pas, et
+        # un tag qui ne reste que sur cette machine ne trace rien pour personne.
+        if run(["git", "push", "origin", tag], repo).returncode != 0:
+            fail(f"Push du tag {tag} en échec.")
 
-    print(f"\n  ✓ {version} expédié.\n")
+    print(f"\n  ✓ {version} expédié.")
+    if not args.dry_run and not args.push:
+        print(f"    Le tag {tag} est posé en local : `git push origin main {tag}`.")
+    print()
     return 0
 
 
