@@ -16,6 +16,12 @@
 - Les notes des versions `0.8.0+11` à `0.9.0+13`, qui ne vivaient que sur la page
   Releases de GitHub, sont rapatriées ici ; cette page est supprimée. Le Play
   Store est le seul canal de distribution, et ce journal le seul journal.
+- 🏷️ **Une publication marque son commit** : `ship.py` pose un tag `v<version>`
+  après un envoi accepté par Play, et le pousse avec `--push`. Sans lui, une pile
+  remontée par Crashlytics contre le build 31 ne désignait aucun code. Le même
+  tag sert de garde-fou en tête de course : s'il existe déjà, c'est que le bump a
+  été oublié — refusé tout de suite, au lieu d'un rejet de Play quatre minutes de
+  Gradle plus tard.
 
 ## [0.9.23+37] — 2026-09-08
 

@@ -71,8 +71,9 @@ supabase config push                   # config auth (SMTP, gabarits, redirects)
                                        # Vérifier le résultat côté serveur, pas la sortie du CLI (docs/architecture.md).
 flutter build appbundle --release \     # AAB pour le Play Store (mêmes --dart-define que l'APK)
   --dart-define=SUPABASE_URL=… --dart-define=SUPABASE_ANON_KEY=…
-python tools/release/ship.py --notes-file <notes.txt> --push   # RELEASE : arbre propre → analyze →
-                                       # test → build → contrôle du binaire → publication → vérif prod → push
+python tools/release/ship.py --notes-file <notes.txt> --push   # RELEASE : arbre propre → version non déjà
+                                       # expédiée → analyze → test → build → contrôle du binaire → publication →
+                                       # tag `v<version>` sur le commit publié → vérif prod → push (main ET tag)
 python tools/release/verify_prod.py    # ce que le SERVEUR sert vraiment (gabarits, RPC) — après un push Supabase
 python tools/release/publish_play.py --list-tracks          # tracks Play + versionCodes en place
 python tools/release/publish_play.py --track alpha --dry-run  # valide sans rien publier
