@@ -183,3 +183,60 @@
 - **Ambiance sonore dédiée** au décor : le blé qui bruisse au vent et une
   abeille qui passe, sur une musique douce.
 - ☕ Bouton **« Soutenir DewDrop »** (Ko-fi) dans les réglages.
+
+## [0.9.0+13] — 2026-06-22
+
+### Modifié
+
+- 👆 **Accueil par gestes** : glisse vers le **haut** pour envoyer une pensée en
+  un seul geste (touche un ami, c'est parti — fini la confirmation), vers le
+  **bas** pour voir les pensées reçues. Le menu garde les deux accès.
+- ⚡ **Envoi direct** : un tap envoie ; la tuile passe « Envoyé » quelques
+  secondes (anti-double-envoi). Un message dédié apparaît si tu envoies trop
+  vite.
+- 🎛️ **Réglages** : notifications et heures calmes regroupés en une seule section
+  « Notifications ».
+
+### Note interne
+
+- Correction de la doc du pipeline d'assets décors (depth-warp).
+
+## [0.8.1+12] — 2026-06-21
+
+### Amélioré
+
+- 🎉 **Les célébrations s'intensifient** : quand l'app rattrape plusieurs pensées
+  d'un coup, l'animation du décor devient plus dense **et** plus longue (courbe
+  √n, plafonnée à ×2,5). Avant, toutes les célébrations étaient identiques quel
+  que soit le nombre de pensées.
+
+### Corrigé
+
+- 💧 **Écran de chargement** : la goutte ne réapparaît plus quelques frames à la
+  fin — l'animation joue une seule fois puis se fige sur le mot « DewDrop ».
+- 🏔️ **Décor Montagne · Aube** : suppression des points multicolores parasites en
+  bas de l'écran.
+- 🌌 **Décor Aurores boréales** : plus d'averse de neige à l'arrivée d'une pensée
+  — seul le ciel s'illumine (la neige d'ambiance de fond est conservée).
+- 🔗 **Partage par QR code** : le lien « Copier mon lien » n'est plus masqué par
+  la barre de navigation Android à 3 boutons.
+
+## [0.8.0+11] — 2026-06-21
+
+### Ajouté
+
+- 💧 **Écran de chargement animé « goutte de rosée »** : au lancement (et pendant
+  le chargement du profil), une goutte tombe sur une feuille, y glisse en
+  douceur, se détache et tombe dans l'eau pendant que le nom **DewDrop**
+  apparaît, avec un « ploc » d'eau pile au contact et un jingle 8-bit. Tap sur
+  l'écran pour la passer. *(Inspiré de la scène « paix intérieure » de Kung Fu
+  Panda 2.)* Son libre de droits (CC0) ; l'animation est 100 % Flutter, donc
+  identique sur Android et iOS.
+- 🌑 **Splash natif sombre** (Android + iOS) : fini le flash blanc au lancement à
+  froid — l'écran natif raccorde sans couture à l'animation.
+- 🍏 **Icône iOS** : la goutte DewDrop remplace le logo Flutter par défaut.
+
+### Corrigé
+
+- 🎨 Plus de **flash d'ancien décor** (style « généré ») pendant une fraction de
+  seconde au changement d'univers.
