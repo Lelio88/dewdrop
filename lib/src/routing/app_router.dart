@@ -83,10 +83,20 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// Bridges a [Stream] to a [Listenable] so GoRouter re-evaluates redirects when
 /// the auth state changes.
+///
+/// Stream errors are swallowed on purpose: gotrue pushes a failed background
+/// token refresh (`AuthRetryableFetchException` while offline) into
+/// `onAuthStateChange` on every retry tick. Without an `onError`, each one
+/// escaped as an uncaught zone error and Crashlytics filed it as a FATAL crash.
+/// An error is not an auth transition — gotrue keeps retrying, and a truly
+/// dead session arrives as a `signedOut` event, which does notify.
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
-    _sub = stream.asBroadcastStream().listen((_) => notifyListeners());
+    _sub = stream.asBroadcastStream().listen(
+      (_) => notifyListeners(),
+      onError: (Object _) {},
+    );
   }
 
   late final StreamSubscription<dynamic> _sub;

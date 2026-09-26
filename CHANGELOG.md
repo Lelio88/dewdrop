@@ -5,6 +5,13 @@
 
 ## [Non publié]
 
+### Corrigé
+
+- 📶 **Une coupure réseau ne remonte plus comme un plantage** : hors ligne, le
+  renouvellement de session en arrière-plan échoue et réessaie toutes les 10 s.
+  Chaque échec était signalé à Crashlytics comme un plantage fatal (35 pour un
+  seul testeur sur `0.9.21+35`), sans que l'app se ferme pour autant.
+
 ### Note interne
 
 - CI : `actions/checkout` passe de v4 à v7 — la v4 déclarait Node 20, que les
