@@ -14,6 +14,11 @@
 
 ### Note interne
 
+- Crashlytics ne reçoit plus une erreur non fatale toutes les 10 s par téléphone
+  hors ligne. Le filtre ne vise que l'échec réseau du renouvellement de session
+  sur le flux d'auth ; une panne serveur (5xx), une erreur TLS ou tout autre
+  provider restent signalés.
+
 - CI : `actions/checkout` passe de v4 à v7 — la v4 déclarait Node 20, que les
   runners forçaient déjà sur Node 24 en l'annonçant à chaque exécution.
 - 🔑 **Le repli sur la clé de débogage s'annonce** : sans `android/key.properties`,

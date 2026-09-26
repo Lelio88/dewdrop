@@ -5,6 +5,7 @@ import 'package:dewdrop/src/app.dart';
 import 'package:dewdrop/src/common/provider_error_logger.dart';
 import 'package:dewdrop/src/common/system_ui.dart';
 import 'package:dewdrop/src/features/ambient/application/ambient_providers.dart';
+import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/home_widget/widget_background.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
 import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
@@ -105,7 +106,9 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
-      observers: const [ProviderErrorLogger()],
+      observers: const [
+        ProviderErrorLogger(skipReport: isOfflineAuthRefreshNoise),
+      ],
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: const DewDropApp(),
     ),

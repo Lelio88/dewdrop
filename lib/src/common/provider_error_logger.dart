@@ -14,8 +14,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// load-bearing — Crashlytics has no desktop backend and `Firebase` is only
 /// initialised on Android/iOS (see `main.dart`), so calling it elsewhere would
 /// itself throw. `ProviderObserver` is an `abstract base class`, hence `final`.
+///
+/// [skipReport] lets the composition root mute a known-benign failure from the
+/// Crashlytics sink only (it is still printed). Injected rather than imported
+/// so `common/` stays free of feature code; keep any predicate here narrow —
+/// whatever it matches becomes invisible in production.
 final class ProviderErrorLogger extends ProviderObserver {
-  const ProviderErrorLogger();
+  const ProviderErrorLogger({this.skipReport});
+
+  final bool Function(Object provider, Object error)? skipReport;
 
   @override
   void providerDidFail(
@@ -24,6 +31,7 @@ final class ProviderErrorLogger extends ProviderObserver {
     StackTrace stackTrace,
   ) {
     debugPrint('[provider error] ${context.provider}: $error');
+    if (skipReport?.call(context.provider, error) ?? false) return;
     if (Platform.isAndroid || Platform.isIOS) {
       FirebaseCrashlytics.instance.recordError(
         error,
