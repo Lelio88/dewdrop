@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Aucun script ni style inline : tout vient de ce site, et seul le serveur
+       Supabase de DewDrop est joignable. frame-ancestors est ignoré en <meta> :
+       le script refuse lui-même de tourner dans un cadre. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://jjbmtheuhiijwqdgcvgr.supabase.co; form-action 'none'; base-uri 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>DewDrop — Supprimer mon compte</title>
+  <meta name="description" content="Supprimer son compte DewDrop et toutes les données associées, sans l'application." />
+  <link rel="stylesheet" href="legal.css" />
+  <script src="suppression-compte.js" defer></script>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <p class="logo">DewDrop</p>
+      <h1 class="title">Supprimer mon compte</h1>
+    </header>
+
+    <section class="card" aria-labelledby="effets">
+      <h2 id="effets">Ce qui est effacé</h2>
+      <p>
+        Tout, immédiatement et définitivement : ton compte et ton adresse e-mail, ton profil (@handle,
+        pseudo, réglages), tes amis et demandes d'ami, tes blocages, les cercles que tu as créés (pour
+        tous leurs membres) et ta place dans les autres, toutes les pensées envoyées et reçues, tes
+        signalements et tes jetons de notification. Rien n'est récupérable ensuite.
+      </p>
+      <p>
+        Tu as encore l'app&nbsp;? C'est plus simple : <em>Réglages → Supprimer mon compte</em>.
+        Tu n'as plus accès à ton compte&nbsp;? Écris à
+        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a> depuis son
+        adresse, objet «&nbsp;Suppression de compte&nbsp;» : c'est fait sous 30 jours.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="etape">
+      <noscript>
+        <p class="status error">
+          Cette page a besoin de JavaScript. Sans lui, supprime ton compte depuis l'app ou par e-mail
+          (voir ci-dessus).
+        </p>
+      </noscript>
+
+      <form id="connexion" hidden novalidate>
+        <h2 id="etape">1. Connecte-toi</h2>
+        <p>Avec l'e-mail et le mot de passe de ton compte DewDrop. Ils ne servent qu'à prouver que c'est bien toi.</p>
+        <label for="email">Adresse e-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" required />
+        <label for="password">Mot de passe</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <button type="submit">Se connecter</button>
+      </form>
+
+      <form id="confirmation" hidden novalidate>
+        <h2>2. Confirme la suppression</h2>
+        <p>Connecté·e en tant que <strong id="compte"></strong>.</p>
+        <label for="mot">Pour confirmer, écris <strong>SUPPRIMER</strong></label>
+        <input id="mot" name="mot" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required />
+        <button type="submit" class="danger">Supprimer définitivement mon compte</button>
+        <button type="button" id="annuler" class="secondary">Annuler</button>
+      </form>
+
+      <div id="termine" hidden>
+        <h2>Compte supprimé</h2>
+        <p>Ton compte et toutes ses données sont effacés. Tu peux désinstaller l'app. Merci d'avoir essayé DewDrop.</p>
+      </div>
+
+      <p id="statut" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <nav class="legal-nav" aria-label="Pages légales">
+      <a href="./">Confidentialité</a>
+      <a href="cgu.html">Conditions d'utilisation</a>
+      <a href="mentions-legales.html">Mentions légales</a>
+      <a href="suppression-compte.html">Supprimer mon compte</a>
+    </nav>
+    <footer>DewDrop · <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a></footer>
+  </main>
+</body>
+</html>

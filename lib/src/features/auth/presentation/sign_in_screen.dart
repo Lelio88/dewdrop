@@ -146,7 +146,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       const SizedBox(height: 10),
                       Text(
                         'On a envoyé un lien de confirmation à $_pendingEmail. '
-                        'Clique dessus, puis reviens te connecter.',
+                        'Clique dessus, puis reviens te connecter.\n\n'
+                        'Tu as déjà un compte avec cette adresse ? '
+                        'Connecte-toi, ou passe par « Mot de passe oublié ».',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: white.withValues(alpha: 0.7),

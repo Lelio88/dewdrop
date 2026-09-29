@@ -35,19 +35,18 @@ String authErrorMessage(Object error, {bool isSignUp = false}) {
     return 'Confirme ton adresse email avant de te connecter.';
   }
 
-  // Sign-up: account already exists.
-  if (has('already registered') ||
-      has('already been registered') ||
-      has('user_already_exists') ||
-      has('user already registered')) {
-    return 'Un compte existe déjà avec cet email.';
-  }
+  // No "account already exists" branch, on purpose: sign-up must never confirm
+  // that an email is taken (guide C2). The repository answers a duplicate like
+  // a new account (`blindSignUp`); a stray one falls to the generic message.
 
-  // Sign-up: weak / too-short password.
+  // Sign-up / reset: weak password. Mirrors the server rule
+  // (`minimum_password_length` + `password_requirements` in config.toml).
   if (has('password should be at least') ||
+      has('password should contain') ||
       has('weak_password') ||
       has('weak password')) {
-    return 'Mot de passe trop court (6 caractères minimum).';
+    return 'Mot de passe trop faible : 8 caractères minimum, '
+        'avec des lettres et des chiffres.';
   }
 
   // Malformed email.

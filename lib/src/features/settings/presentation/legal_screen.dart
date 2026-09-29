@@ -1,30 +1,62 @@
+import 'package:dewdrop/src/common/legal_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// "Confidentialité & CGU" — the privacy policy and terms, surfaced in-app and
-/// reachable from « À propos & crédits ». The text describes DewDrop's actual
-/// data practices (email + handle, friends, thoughts as a contentless signal,
-/// FCM token; Supabase + Firebase as processors; no ads/tracking/resale).
+/// « Informations légales » — reachable from « À propos & crédits ».
 ///
-/// IMPORTANT (not user-facing): this is a sound starting draft, not legal
-/// advice — have it reviewed before a public store release. A public copy is
-/// hosted via GitHub Pages (`docs/index.html`) for the store listing; keep the
-/// two in sync (same `_updated`, same `_contact`, same text).
-class LegalScreen extends StatelessWidget {
+/// A short, plain-words summary, then links that open the hosted pages
+/// (privacy policy, terms, legal notice) in the browser. The full texts live
+/// only in `docs/` (see [LegalLinks]): the app never carries a second copy
+/// that could drift from the page Google Play links to. The summary must stay
+/// true to those pages — change it in the same commit as they do.
+class LegalScreen extends ConsumerWidget {
   const LegalScreen({super.key});
 
-  /// Update when the text changes. Keep in sync with the hosted copy.
-  static const String _updated = 'juin 2026';
-
-  static const String _contact = 'heianenterpriseyt@gmail.com';
+  static const String _summary =
+      'DewDrop garde le minimum pour fonctionner : ton email, ton @handle et '
+      'ton pseudo, tes amis, tes cercles, les pensées échangées et tes '
+      'réglages. Ni publicité, ni revente, ni pistage.\n\n'
+      'Les données sont hébergées dans l\'Union européenne (Supabase, Irlande). '
+      'Les notifications et les rapports de plantage passent par Google '
+      'Firebase ; tu peux couper ces rapports dans Réglages.\n\n'
+      'Supprimer ton compte efface tout, tout de suite : Réglages → Supprimer '
+      'mon compte.';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final w = Colors.white;
+    Future<void> open(Uri uri) async {
+      final ok = await ref.read(externalLinkOpenerProvider)(uri);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Impossible d'ouvrir le lien.")),
+        );
+      }
+    }
+
+    Widget link(String title, String subtitle, Uri uri) => Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(title, style: TextStyle(color: w)),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: w.withValues(alpha: 0.5)),
+        ),
+        trailing: Icon(
+          Icons.open_in_new,
+          color: w.withValues(alpha: 0.4),
+          semanticLabel: 'Ouvre le navigateur',
+        ),
+        onTap: () => open(uri),
+      ),
+    );
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Confidentialité & CGU'),
+        title: const Text('Informations légales'),
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -39,143 +71,40 @@ class LegalScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               Text(
-                'Dernière mise à jour : $_updated',
+                'En bref',
                 style: TextStyle(
-                  color: w.withValues(alpha: 0.45),
-                  fontSize: 12,
+                  color: w,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 20),
-
-              _h(w, 'Politique de confidentialité'),
-              _p(
-                w,
-                'DewDrop te permet d\'envoyer un signal « j\'ai pensé à toi » à '
-                'tes amis. On collecte le minimum pour faire fonctionner ce '
-                'service, rien de plus.',
+              const SizedBox(height: 10),
+              Text(
+                _summary,
+                style: TextStyle(color: w.withValues(alpha: 0.72), height: 1.5),
               ),
-              _sub(w, 'Données que l\'on traite'),
-              _p(
-                w,
-                '• Compte : ton adresse email et ton mot de passe (chiffré).\n'
-                '• Profil : ton @handle, ton pseudo, et tes préférences '
-                '(décor, sons, heures calmes + fuseau horaire).\n'
-                '• Social : tes amitiés (demandes, amis), tes blocages.\n'
-                '• Pensées : qui a pensé à qui et quand, et si c\'était '
-                'anonyme. Une pensée ne contient AUCUN texte — c\'est un '
-                'simple signal.\n'
-                '• Notifications : un identifiant d\'appareil (jeton FCM) pour '
-                't\'envoyer les notifications push.',
+              const SizedBox(height: 24),
+              link(
+                'Politique de confidentialité',
+                'Données, durées, sous-traitants, tes droits',
+                LegalLinks.privacy,
               ),
-              _sub(w, 'Pourquoi'),
-              _p(
-                w,
-                'Uniquement pour faire marcher l\'app : créer ton compte, '
-                'gérer tes amis, transmettre les pensées et t\'avertir quand '
-                'on pense à toi. Pas de publicité, pas de revente de données, '
-                'pas de pistage publicitaire tiers.',
+              Divider(color: w.withValues(alpha: 0.08), height: 1),
+              link(
+                "Conditions d'utilisation",
+                'Les règles du service',
+                LegalLinks.terms,
               ),
-              _sub(w, 'Sous-traitants'),
-              _p(
-                w,
-                '• Supabase — hébergement de la base de données et '
-                'authentification (serveurs en Union européenne).\n'
-                '• Google Firebase Cloud Messaging — livraison des '
-                'notifications push.\n'
-                'Ils traitent ces données pour notre compte, selon leurs '
-                'propres engagements de sécurité.',
+              Divider(color: w.withValues(alpha: 0.08), height: 1),
+              link(
+                'Mentions légales',
+                'Éditeur et hébergeur',
+                LegalLinks.legalNotice,
               ),
-              _sub(w, 'Anonymat'),
-              _p(
-                w,
-                'Si tu envoies une pensée en mode anonyme, le destinataire '
-                'voit « Quelqu\'un a pensé à toi » sans ton nom. Ton identité '
-                'reste néanmoins enregistrée côté serveur (pour la sécurité et '
-                'la modération) et n\'est jamais montrée au destinataire.',
-              ),
-              _sub(w, 'Conservation & suppression'),
-              _p(
-                w,
-                'On garde tes données tant que ton compte existe. Tu peux '
-                'supprimer ton compte à tout moment (Réglages → Supprimer mon '
-                'compte) : ton compte, tes amis et toutes tes pensées sont '
-                'alors effacés définitivement.',
-              ),
-              _sub(w, 'Tes droits (RGPD)'),
-              _p(
-                w,
-                'Tu peux demander l\'accès, la rectification, l\'effacement ou '
-                'la portabilité de tes données en écrivant à $_contact.',
-              ),
-              _sub(w, 'Âge'),
-              _p(
-                w,
-                'DewDrop n\'est pas destiné aux enfants de moins de 13 ans (ou '
-                'l\'âge minimum légal dans ton pays).',
-              ),
-
-              const SizedBox(height: 28),
-              _h(w, 'Conditions d\'utilisation'),
-              _sub(w, 'Le service'),
-              _p(
-                w,
-                'DewDrop sert à envoyer de douces « pensées » à des amis qui '
-                't\'ont accepté. C\'est un signal bienveillant, sans contenu.',
-              ),
-              _sub(w, 'Ton compte'),
-              _p(
-                w,
-                'Tu es responsable de la confidentialité de ton mot de passe '
-                'et de l\'activité sur ton compte. Donne des informations '
-                'exactes à l\'inscription.',
-              ),
-              _sub(w, 'Bon usage'),
-              _p(
-                w,
-                'Pas de harcèlement ni d\'usage abusif — y compris via le mode '
-                'anonyme. Tu peux bloquer ou signaler quelqu\'un à tout moment '
-                '(appui long sur un ami). On peut suspendre un compte qui '
-                'enfreint ces règles.',
-              ),
-              _sub(w, 'Disponibilité'),
-              _p(
-                w,
-                'Le service est fourni « tel quel », sans garantie de '
-                'disponibilité continue. On fait de notre mieux pour qu\'il '
-                'marche bien.',
-              ),
-              _sub(w, 'Résiliation'),
-              _p(
-                w,
-                'Tu peux arrêter et supprimer ton compte quand tu veux. On '
-                'peut faire évoluer ces conditions ; les changements importants '
-                'seront signalés dans l\'app.',
-              ),
-              _sub(w, 'Contact'),
-              _p(w, 'Une question ? Écris-nous à $_contact.'),
             ],
           ),
         ),
       ),
     );
   }
-
-  Widget _h(Color w, String t) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Text(
-      t,
-      style: TextStyle(color: w, fontSize: 22, fontWeight: FontWeight.w500),
-    ),
-  );
-
-  Widget _sub(Color w, String t) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 6),
-    child: Text(
-      t,
-      style: TextStyle(color: w, fontSize: 15, fontWeight: FontWeight.w600),
-    ),
-  );
-
-  Widget _p(Color w, String t) =>
-      Text(t, style: TextStyle(color: w.withValues(alpha: 0.72), height: 1.5));
 }

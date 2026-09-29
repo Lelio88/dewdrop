@@ -3,192 +3,227 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DewDrop — Confidentialité &amp; CGU</title>
-  <meta name="description" content="Politique de confidentialité et conditions d'utilisation de DewDrop." />
-  <style>
-    :root {
-      --bg-top: #12162a;
-      --bg-bottom: #06070e;
-      --text: #ffffff;
-      --muted: rgba(255, 255, 255, 0.72);
-      --faint: rgba(255, 255, 255, 0.45);
-      --accent: #8fb7ff;
-      --card: rgba(255, 255, 255, 0.04);
-      --border: rgba(255, 255, 255, 0.08);
-    }
-    * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: var(--text);
-      background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom)) fixed;
-      line-height: 1.55;
-    }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 56px 22px 80px; }
-    header { margin-bottom: 8px; }
-    .logo {
-      font-size: 30px; font-weight: 300; letter-spacing: 2px; margin: 0;
-    }
-    .updated { color: var(--faint); font-size: 13px; margin-top: 6px; }
-    h2 {
-      font-size: 24px; font-weight: 500; margin: 44px 0 14px;
-      padding-top: 10px;
-    }
-    h3 {
-      font-size: 16px; font-weight: 600; margin: 26px 0 8px;
-      color: var(--text);
-    }
-    p { color: var(--muted); margin: 0 0 12px; }
-    ul { color: var(--muted); margin: 0 0 12px; padding-left: 20px; }
-    li { margin: 6px 0; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 16px; padding: 4px 22px 18px;
-    }
-    footer {
-      margin-top: 48px; color: var(--faint); font-size: 13px; text-align: center;
-    }
-    @media (max-width: 520px) {
-      .wrap { padding: 40px 18px 64px; }
-      h2 { font-size: 21px; }
-    }
-  </style>
+  <title>DewDrop — Politique de confidentialité</title>
+  <meta name="description" content="Politique de confidentialité de DewDrop : données traitées, finalités, bases légales, durées de conservation, sous-traitants et droits." />
+  <link rel="stylesheet" href="legal.css" />
 </head>
 <body>
   <main class="wrap">
     <header>
-      <h1 class="logo">DewDrop</h1>
-      <p class="updated">Dernière mise à jour : juin 2026</p>
+      <p class="logo">DewDrop</p>
+      <h1 class="title">Politique de confidentialité</h1>
+      <p class="updated">Dernière mise à jour : 30 septembre 2026</p>
     </header>
 
-    <section class="card">
-      <h2>Politique de confidentialité</h2>
+    <section class="card" aria-labelledby="bref">
+      <h2 id="bref">En bref</h2>
       <p>
-        DewDrop te permet d'envoyer un signal «&nbsp;j'ai pensé à toi&nbsp;» à
-        tes amis. On collecte le minimum pour faire fonctionner ce service, rien
-        de plus.
-      </p>
-
-      <h3>Données que l'on traite</h3>
-      <ul>
-        <li><strong>Compte&nbsp;:</strong> ton adresse email et ton mot de passe (chiffré).</li>
-        <li><strong>Profil&nbsp;:</strong> ton @handle, ton pseudo, et tes préférences (décor, sons, heures calmes&nbsp;+ fuseau horaire).</li>
-        <li><strong>Social&nbsp;:</strong> tes amitiés (demandes, amis), tes blocages.</li>
-        <li><strong>Pensées&nbsp;:</strong> qui a pensé à qui et quand, et si c'était anonyme. Une pensée ne contient <strong>aucun texte</strong> — c'est un simple signal.</li>
-        <li><strong>Notifications&nbsp;:</strong> un identifiant d'appareil (jeton FCM) pour t'envoyer les notifications push.</li>
-      </ul>
-
-      <h3>Pourquoi</h3>
-      <p>
-        Uniquement pour faire marcher l'app&nbsp;: créer ton compte, gérer tes
-        amis, transmettre les pensées et t'avertir quand on pense à toi. Pas de
-        publicité, pas de revente de données, pas de pistage publicitaire tiers.
-      </p>
-
-      <h3>Sous-traitants</h3>
-      <ul>
-        <li><strong>Supabase</strong> — hébergement de la base de données et authentification (serveurs en Union européenne).</li>
-        <li><strong>Google Firebase Cloud Messaging</strong> — livraison des notifications push.</li>
-      </ul>
-      <p>
-        Ils traitent ces données pour notre compte, selon leurs propres
-        engagements de sécurité.
-      </p>
-
-      <h3>Anonymat</h3>
-      <p>
-        Si tu envoies une pensée en mode anonyme, le destinataire voit
-        «&nbsp;Quelqu'un a pensé à toi&nbsp;» sans ton nom. Ton identité reste
-        néanmoins enregistrée côté serveur (pour la sécurité et la modération)
-        et n'est jamais montrée au destinataire.
-      </p>
-
-      <h3 id="suppression">Suppression du compte et des données</h3>
-      <p>On garde tes données tant que ton compte existe.</p>
-      <p>
-        <strong>Depuis l'application</strong>&nbsp;: va dans
-        <em>Réglages → Supprimer mon compte</em>. Ton compte, ton profil, tes
-        amis, tes groupes et toutes tes pensées sont alors effacés
-        <strong>définitivement</strong>.
+        DewDrop te permet d'envoyer un signal «&nbsp;j'ai pensé à toi&nbsp;» à tes amis.
+        L'app garde le minimum pour fonctionner. Ni publicité, ni revente de données,
+        ni pistage publicitaire. Les données de ton compte sont hébergées dans l'Union
+        européenne (Irlande).
       </p>
       <p>
-        <strong>Sans l'application</strong> (si tu l'as désinstallée)&nbsp;:
-        écris à
+        DewDrop est un projet personnel, non professionnel. Le responsable du traitement
+        est son éditeur, que tu peux joindre à
         <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>
-        depuis l'adresse email de ton compte, avec pour objet
-        «&nbsp;Suppression de compte&nbsp;». On supprime ton compte et toutes
-        les données associées sous 30&nbsp;jours.
-      </p>
-      <p>
-        Données supprimées&nbsp;: email, profil (@handle, pseudo, avatar),
-        amitiés, groupes, pensées envoyées et reçues, préférences et jetons de
-        notification. Rien n'est conservé après suppression, sauf obligation
-        légale.
-      </p>
-
-      <h3>Tes droits (RGPD)</h3>
-      <p>
-        Tu peux demander l'accès, la rectification, l'effacement ou la
-        portabilité de tes données en écrivant à
-        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>.
-      </p>
-
-      <h3>Âge</h3>
-      <p>
-        DewDrop n'est pas destiné aux enfants de moins de 13 ans (ou l'âge
-        minimum légal dans ton pays).
+        (voir les <a href="mentions-legales.html">mentions légales</a>).
       </p>
     </section>
 
-    <section class="card">
-      <h2>Conditions d'utilisation</h2>
-
-      <h3>Le service</h3>
+    <section class="card" aria-labelledby="traitements">
+      <h2 id="traitements">Ce que l'on traite, pourquoi, et combien de temps</h2>
+      <div class="table-scroll">
+        <table>
+          <caption>Chaque ligne est un traitement, avec sa base légale au sens du RGPD (article 6).</caption>
+          <thead>
+            <tr><th scope="col">Données</th><th scope="col">Pourquoi</th><th scope="col">Base légale</th><th scope="col">Durée</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Compte</strong> : adresse e-mail, mot de passe (stocké haché, jamais lisible)</td>
+              <td>Créer ton compte, te connecter, sécuriser l'accès</td>
+              <td>Exécution du contrat (les <a href="cgu.html">conditions d'utilisation</a>)</td>
+              <td>Tant que ton compte existe</td>
+            </tr>
+            <tr>
+              <td><strong>Profil</strong> : @handle, pseudo, décor, décors favoris, réglages (sons, heures calmes et fuseau horaire, style de notification, anonymat par défaut, notifications activées)</td>
+              <td>Te retrouver entre amis, personnaliser l'app, respecter tes heures calmes</td>
+              <td>Exécution du contrat</td>
+              <td>Tant que ton compte existe</td>
+            </tr>
+            <tr>
+              <td><strong>Relations</strong> : demandes d'ami, amis, cercles (nom et membres), blocages</td>
+              <td>Faire fonctionner les amis et les cercles</td>
+              <td>Exécution du contrat</td>
+              <td>Tant que ton compte existe ; un cercle disparaît avec le compte de son créateur</td>
+            </tr>
+            <tr>
+              <td><strong>Pensées</strong> : qui a pensé à qui (ami ou cercle), quand, et si c'était anonyme. Aucun texte.</td>
+              <td>Transmettre les pensées et les afficher</td>
+              <td>Exécution du contrat</td>
+              <td>Jusqu'à la suppression du compte de l'expéditeur ou du destinataire</td>
+            </tr>
+            <tr>
+              <td><strong>Notifications</strong> : jeton de l'appareil (Firebase Cloud Messaging) et type d'appareil</td>
+              <td>T'envoyer les notifications push</td>
+              <td>Exécution du contrat</td>
+              <td>Jusqu'à ta déconnexion, l'expiration du jeton ou la suppression du compte</td>
+            </tr>
+            <tr>
+              <td><strong>E-mails de service</strong> : ton adresse, pour la confirmation du compte, la réinitialisation du mot de passe, le changement d'adresse et les codes de confirmation</td>
+              <td>Sécuriser ton compte</td>
+              <td>Exécution du contrat</td>
+              <td>Brevo garde un journal des envois (adresse, date, aperçu du message) sans limite de durée</td>
+            </tr>
+            <tr>
+              <td><strong>Signalements</strong> : qui signale qui, et le motif si tu en écris un</td>
+              <td>Modérer, protéger les utilisateurs du harcèlement</td>
+              <td>Intérêt légitime (la sécurité des utilisateurs)</td>
+              <td>Jusqu'à la suppression du compte de l'un des deux</td>
+            </tr>
+            <tr>
+              <td><strong>Rapports de plantage</strong> : modèle et système du téléphone, version de l'app, trace technique de l'erreur, identifiant d'installation</td>
+              <td>Trouver et corriger les bugs</td>
+              <td>Intérêt légitime (la stabilité de l'app). Tu peux les couper : <em>Réglages → Vie privée → Rapports de plantage</em></td>
+              <td>90 jours chez Google (Firebase Crashlytics)</td>
+            </tr>
+            <tr>
+              <td><strong>Journaux techniques</strong> : adresse IP, date et nature des requêtes au serveur</td>
+              <td>Sécurité, limitation des tentatives de connexion</td>
+              <td>Intérêt légitime (protéger le service et les comptes)</td>
+              <td>7 jours au plus chez Supabase</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p>
-        DewDrop sert à envoyer de douces «&nbsp;pensées&nbsp;» à des amis qui
-        t'ont accepté. C'est un signal bienveillant, sans contenu.
+        <strong>Sur ton téléphone</strong>, l'app garde ta session de connexion et tes réglages
+        d'appareil (son, parallaxe, rapports de plantage). Ils sont nécessaires au fonctionnement
+        et ne quittent pas l'appareil, sauf ce que décrit le tableau.
       </p>
-
-      <h3>Ton compte</h3>
       <p>
-        Tu es responsable de la confidentialité de ton mot de passe et de
-        l'activité sur ton compte. Donne des informations exactes à
-        l'inscription.
+        <strong>Ce qui est visible par les autres</strong> : ton @handle et ton pseudo (recherche d'amis,
+        invitations), tes pensées pour leurs destinataires, et ton appartenance à un cercle pour
+        ses membres. Une pensée anonyme affiche «&nbsp;Quelqu'un a pensé à toi&nbsp;» : ton identité
+        reste enregistrée sur le serveur (sécurité et modération), mais n'est jamais montrée au
+        destinataire.
       </p>
-
-      <h3>Bon usage</h3>
       <p>
-        Pas de harcèlement ni d'usage abusif — y compris via le mode anonyme.
-        Tu peux bloquer ou signaler quelqu'un à tout moment (appui long sur un
-        ami). On peut suspendre un compte qui enfreint ces règles.
-      </p>
-
-      <h3>Disponibilité</h3>
-      <p>
-        Le service est fourni «&nbsp;tel quel&nbsp;», sans garantie de
-        disponibilité continue. On fait de notre mieux pour qu'il marche bien.
-      </p>
-
-      <h3>Résiliation</h3>
-      <p>
-        Tu peux arrêter et supprimer ton compte quand tu veux. On peut faire
-        évoluer ces conditions&nbsp;; les changements importants seront signalés
-        dans l'app.
-      </p>
-
-      <h3>Contact</h3>
-      <p>
-        Une question&nbsp;? Écris-nous à
-        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>.
+        <strong>Soutien</strong> : le lien «&nbsp;Soutenir DewDrop&nbsp;» ouvre Ko-fi dans ton navigateur.
+        DewDrop ne transmet rien à Ko-fi ; ce que tu y fais relève de sa propre politique.
       </p>
     </section>
 
-    <footer>
-      DewDrop · <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a>
-    </footer>
+    <section class="card" aria-labelledby="destinataires">
+      <h2 id="destinataires">Qui y a accès</h2>
+      <p>
+        L'éditeur, pour faire fonctionner et modérer le service. Et les sous-traitants suivants,
+        qui traitent les données pour son compte et selon ses instructions :
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th scope="col">Service</th><th scope="col">Rôle</th><th scope="col">Où</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Supabase</td>
+              <td>Base de données, authentification, fonctions serveur</td>
+              <td>Serveurs en Irlande (UE). Société américaine : un accès depuis l'extérieur de l'UE est encadré par les clauses contractuelles types de la Commission européenne.</td>
+            </tr>
+            <tr>
+              <td>Google Firebase (Cloud Messaging, Crashlytics)</td>
+              <td>Livraison des notifications, rapports de plantage</td>
+              <td>Peut traiter aux États-Unis : Google LLC est certifiée au Data Privacy Framework UE–États-Unis, complété par les clauses contractuelles types.</td>
+            </tr>
+            <tr>
+              <td>Brevo</td>
+              <td>Envoi des e-mails de service</td>
+              <td>France (UE)</td>
+            </tr>
+            <tr>
+              <td>GitHub (GitHub Pages)</td>
+              <td>Hébergement de ces pages web ; voit l'adresse IP de leurs visiteurs</td>
+              <td>États-Unis : GitHub est certifiée au Data Privacy Framework.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Aucune donnée n'est vendue ni partagée à des fins publicitaires.</p>
+    </section>
+
+    <section class="card" aria-labelledby="suppression">
+      <h2 id="suppression">Supprimer ton compte</h2>
+      <p>
+        La suppression efface <strong>immédiatement et définitivement</strong> ton compte, ton profil,
+        tes amis et demandes d'ami, tes blocages, tes cercles (ceux que tu as créés disparaissent pour
+        tous leurs membres), toutes les pensées envoyées et reçues, tes signalements, tes préférences et
+        tes jetons de notification.
+      </p>
+      <ul>
+        <li><strong>Dans l'app</strong> : <em>Réglages → Supprimer mon compte</em>.</li>
+        <li><strong>Sur le web</strong>, sans l'app : <a href="suppression-compte.html">page de suppression de compte</a> (connexion avec ton e-mail et ton mot de passe).</li>
+        <li><strong>Si tu n'as plus accès à ton compte</strong> : écris à
+          <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a> depuis l'adresse
+          du compte, objet «&nbsp;Suppression de compte&nbsp;». La suppression est faite sous 30 jours.</li>
+      </ul>
+      <p>
+        Les rapports de plantage déjà envoyés s'effacent d'eux-mêmes au bout de 90 jours, et les journaux
+        techniques au bout de 7 jours.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="droits">
+      <h2 id="droits">Tes droits</h2>
+      <p>
+        Tu peux demander l'accès à tes données, leur rectification, leur effacement, leur portabilité,
+        la limitation d'un traitement, et t'opposer à ceux fondés sur l'intérêt légitime. Pour les
+        rapports de plantage, l'interrupteur des Réglages suffit. Écris à
+        <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a> : réponse sous un mois.
+        Ton @handle, ton pseudo et tes réglages se modifient aussi directement dans l'app.
+      </p>
+      <p>
+        Si tu estimes que tes droits ne sont pas respectés, tu peux adresser une réclamation à la
+        <a href="https://www.cnil.fr/fr/plaintes">CNIL</a> (3 place de Fontenoy, TSA 80715,
+        75334 Paris Cedex 07).
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="securite">
+      <h2 id="securite">Sécurité</h2>
+      <p>
+        Tous les échanges sont chiffrés (HTTPS). Les mots de passe sont hachés par le service
+        d'authentification. Chaque table de la base n'est lisible que par les personnes concernées
+        (règles d'accès par utilisateur). Les tentatives de connexion sont limitées. En cas de fuite
+        de données présentant un risque, la CNIL est prévenue sous 72 heures, et les personnes
+        concernées si le risque est élevé.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="age">
+      <h2 id="age">Âge</h2>
+      <p>
+        DewDrop n'est pas destiné aux enfants de moins de 13 ans (ou de l'âge minimum légal dans ton
+        pays). Voir aussi nos <a href="child-safety.html">normes de protection des enfants</a>.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="changements">
+      <h2 id="changements">Modifications</h2>
+      <p>
+        Cette politique peut évoluer avec l'app. Les changements importants sont signalés dans l'app,
+        et la date en haut de page est mise à jour.
+      </p>
+    </section>
+
+    <nav class="legal-nav" aria-label="Pages légales">
+      <a href="./">Confidentialité</a>
+      <a href="cgu.html">Conditions d'utilisation</a>
+      <a href="mentions-legales.html">Mentions légales</a>
+      <a href="suppression-compte.html">Supprimer mon compte</a>
+    </nav>
+    <footer>DewDrop · <a href="mailto:heianenterpriseyt@gmail.com">heianenterpriseyt@gmail.com</a></footer>
   </main>
 </body>
 </html>

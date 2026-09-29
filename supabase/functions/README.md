@@ -29,6 +29,11 @@ depuis son **propre JWT** (jamais depuis le body), puis supprime le `auth.users`
 via l'API admin (`service_role`) → cascade sur profil, amitiés, pensées, groupes
 et appareils.
 
+Deux appelants : l'app, et la page web `docs/suppression-compte.html` (URL de
+suppression exigée par Google Play). Pour cette dernière, la fonction répond au
+preflight CORS et n'autorise que l'origine `https://lelio88.github.io`
+(`WEB_ORIGIN`) ; la sécurité reste le jeton Bearer, pas le CORS.
+
 ## Déployer
 
 ```bash

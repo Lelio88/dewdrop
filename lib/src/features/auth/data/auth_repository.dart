@@ -1,5 +1,6 @@
 import 'package:dewdrop/src/common/deep_links.dart';
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Thin wrapper over Supabase auth.
@@ -18,27 +19,16 @@ class SupabaseAuthRepository implements AuthRepository {
   Stream<AuthState> authStateChanges() => _client.auth.onAuthStateChange;
 
   @override
-  Future<bool> signUp(String email, String password) async {
-    final res = await _client.auth.signUp(
+  Future<bool> signUp(String email, String password) => blindSignUp(
+    () => _client.auth.signUp(
       email: email,
       password: password,
       // When confirmation is on, the email's link redirects here; the custom
       // scheme reopens the app and supabase_flutter exchanges the PKCE code,
       // signing the user in. Must be allow-listed in Supabase auth config.
       emailRedirectTo: DeepLinks.loginCallback,
-    );
-    // Supabase enforces unique emails, so a duplicate account is impossible.
-    // But with confirmation on, signing up an already-registered (confirmed)
-    // email doesn't error — to avoid leaking which emails exist, it returns an
-    // obfuscated user with an empty `identities` list. Detect that and raise
-    // the "already registered" error (mapped to a friendly message) instead of
-    // wrongly showing the "check your inbox" screen.
-    if (res.user?.identities?.isEmpty ?? false) {
-      throw const AuthException('User already registered');
-    }
-    // No session means email confirmation is required before signing in.
-    return res.session == null;
-  }
+    ),
+  );
 
   @override
   Future<void> signIn(String email, String password) =>
@@ -68,5 +58,29 @@ class SupabaseAuthRepository implements AuthRepository {
     // invoke() forwards the current session's JWT so it deletes only the caller.
     await _client.functions.invoke('delete-account');
     await _client.auth.signOut();
+  }
+}
+
+/// Runs a sign-up and answers whether it now awaits the confirmation email,
+/// **without ever revealing that the address was already registered**
+/// (conformity guide C2 — otherwise the form tells anyone which emails have an
+/// account).
+///
+/// With confirmation on, GoTrue answers a confirmed duplicate with an
+/// obfuscated user (no identity, no session) and sends no email; an
+/// unconfirmed one gets its confirmation email again. Both read here as a new
+/// account: no session, so « Vérifie tes emails ». That screen also points an
+/// existing holder to sign-in and « Mot de passe oublié », so nobody is stuck.
+/// A server that reports the duplicate outright (`user_already_exists`, only
+/// when confirmation is off) is answered the same way. Never re-add an
+/// `identities.isEmpty` check that turns the duplicate into an error.
+@visibleForTesting
+Future<bool> blindSignUp(Future<AuthResponse> Function() signUp) async {
+  try {
+    // No session means email confirmation is required before signing in.
+    return (await signUp()).session == null;
+  } on AuthException catch (e) {
+    if (e.code == 'user_already_exists') return true;
+    rethrow;
   }
 }

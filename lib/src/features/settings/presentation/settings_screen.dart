@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
+import 'package:dewdrop/src/features/settings/application/crash_reports_provider.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
 import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
@@ -284,6 +285,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _section(w, 'Vie privée'),
+                  _card(
+                    w,
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: ref.watch(crashReportsProvider),
+                      onChanged: (v) =>
+                          ref.read(crashReportsProvider.notifier).set(v),
+                      title: const Text('Rapports de plantage'),
+                      subtitle: Text(
+                        "Si l'app plante, un rapport technique part chez "
+                        'Google (Firebase Crashlytics) pour corriger le bug.',
+                        style: TextStyle(color: w.withValues(alpha: 0.5)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

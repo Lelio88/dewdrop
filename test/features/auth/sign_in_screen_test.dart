@@ -78,4 +78,26 @@ void main() {
     expect(auth.signInCount, 0); // never reached the repository
     expect(find.textContaining('Renseigne ton email'), findsOneWidget);
   });
+  // Guide C2: the confirmation screen is the only answer a sign-up gets, so it
+  // must also serve whoever already owns the address — without saying so.
+  testWidgets(
+    'the confirmation screen also guides an existing account holder',
+    (tester) async {
+      final auth = FakeAuthRepository()..signUpNeedsConfirm = true;
+      await _pumpSignIn(tester, auth);
+      await tester.tap(find.text("Pas de compte ? S'inscrire"));
+      await tester.pump();
+      final fields = find.byType(EditableText);
+      await tester.enterText(fields.at(0), 'someone@example.com');
+      await tester.enterText(fields.at(1), 'hunter22');
+      await tester.enterText(fields.at(2), 'hunter22');
+      await tester.tap(find.text('Créer mon compte'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(find.text('Vérifie tes emails'), findsOneWidget);
+      expect(find.textContaining('Mot de passe oublié'), findsOneWidget);
+      expect(find.textContaining('existe déjà'), findsNothing);
+    },
+  );
 }

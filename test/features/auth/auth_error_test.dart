@@ -35,19 +35,32 @@ void main() {
       );
     });
 
-    test('maps an already-registered account (sign up)', () {
-      expect(
-        authErrorMessage(Exception('User already registered'), isSignUp: true),
-        contains('existe déjà'),
-      );
+    // Guide C2: sign-up must never confirm that an email is taken. The
+    // repository answers a duplicate like a new account; should the raw error
+    // ever reach the screen anyway, it gets the generic sign-up message.
+    test('never reveals an already-registered account (sign up)', () {
+      for (final e in ['User already registered', 'user_already_exists']) {
+        final message = authErrorMessage(Exception(e), isSignUp: true);
+        expect(message, 'Impossible de créer le compte. Réessaie.');
+        expect(message, isNot(contains('existe')));
+      }
     });
 
-    test('maps a too-short password', () {
-      expect(
-        authErrorMessage(Exception('Password should be at least 6 characters')),
-        contains('trop court'),
-      );
-    });
+    test(
+      'states the server password rule (8 characters, letters + digits)',
+      () {
+        expect(
+          authErrorMessage(
+            Exception('Password should be at least 8 characters'),
+          ),
+          allOf(
+            contains('8 caractères'),
+            contains('lettres'),
+            contains('chiffres'),
+          ),
+        );
+      },
+    );
 
     test('maps a malformed email', () {
       expect(
@@ -98,12 +111,8 @@ void main() {
 
     test('handles the supabase error-code forms', () {
       expect(
-        authErrorMessage(Exception('user_already_exists'), isSignUp: true),
-        contains('existe déjà'),
-      );
-      expect(
         authErrorMessage(Exception('weak_password')),
-        contains('trop court'),
+        contains('8 caractères'),
       );
       expect(
         authErrorMessage(Exception('email_not_confirmed')),

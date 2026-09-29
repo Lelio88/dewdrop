@@ -15,6 +15,7 @@ réglé les bloquants de sécurité (voir l'audit). Build à uploader :
 | Catégorie | Social *(ou « Style de vie »)* |
 | Email de contact | heianenterpriseyt@gmail.com |
 | Confidentialité (URL) | https://lelio88.github.io/dewdrop/ |
+| Suppression de compte (URL) | https://lelio88.github.io/dewdrop/suppression-compte.html |
 | Site web (optionnel) | https://lelio88.github.io/dewdrop/ |
 | Tarif | Gratuit · sans achats intégrés · sans pub |
 
@@ -80,27 +81,27 @@ Réponses attendues pour DewDrop :
 - Partage de localisation : **Non**.
 - Résultat attendu : **PEGI 3 / Tout public**.
 
-## 6. Data safety (Sécurité des données) — brouillon
+## 6. Data safety (Sécurité des données)
 
-Doit être **cohérent avec la page de confidentialité**.
+**Doit dire la même chose que la politique** (`docs/index.html`, tableau des traitements).
+Envoyée par l'API (`applications.dataSafety`, CSV du modèle Google) — le formulaire de la
+console affiche ensuite ces réponses.
 
-**Données collectées :**
-| Donnée | Collectée | Partagée | Raison | Optionnel |
-|---|---|---|---|---|
-| Adresse email | Oui | Non | Création de compte, connexion | Non (requis) |
-| Nom / pseudo (@handle) | Oui | Non* | Identité affichée aux amis | Non |
-| Contacts in-app (liste d'amis) | Oui | Non | Fonctionnement de l'app | Non |
-| Identifiant d'appareil (token FCM) | Oui | Non | Notifications push | Non |
-| Diagnostics / crashs | Oui | Avec Google (Crashlytics) | Stabilité | Oui |
+| Donnée (catégorie Google) | Pourquoi | Facultative |
+|---|---|---|
+| Adresse e-mail | Fonctionnement, gestion du compte | Non |
+| Nom (pseudo) | Fonctionnement | Non |
+| ID utilisateur (@handle, id de compte) | Fonctionnement, gestion du compte | Non |
+| Autres actions (pensées, amis, cercles, blocages) | Fonctionnement | Non |
+| Autre contenu généré (nom de cercle, motif de signalement) | Fonctionnement, sécurité | Oui |
+| ID d'appareil (jeton FCM, id d'installation Crashlytics) | Fonctionnement, analyse | Non |
+| Journaux de plantage, diagnostics (Crashlytics) | Analyse | **Oui** (Réglages → Vie privée) |
 
-\* Le pseudo et le nom sont visibles par les autres utilisateurs **dans l'app** (recherche
-d'amis), ce n'est pas un « partage avec des tiers » au sens du formulaire.
-
-**Pratiques de sécurité à déclarer :**
-- ✅ Données chiffrées en transit (HTTPS / TLS — Supabase).
-- ✅ L'utilisateur peut **demander la suppression** de ses données (suppression de compte
-  en cascade, déjà implémentée).
-- ✅ Pas de vente de données. Pas de pub.
+- **Rien n'est « partagé »** au sens de Google : Supabase, Firebase et Brevo sont des
+  prestataires qui traitent pour notre compte.
+- Chiffré en transit ; création de compte par **e-mail + mot de passe**.
+- **Suppression** : URL de suppression de compte **et** de données =
+  `https://lelio88.github.io/dewdrop/suppression-compte.html`.
 
 ## 7. Parcours de publication
 

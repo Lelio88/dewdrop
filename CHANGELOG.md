@@ -5,7 +5,32 @@
 
 ## [Non publié]
 
+### Ajouté
+
+- 🛡️ **Rapports de plantage désactivables** : *Réglages → Vie privée → Rapports
+  de plantage*. Activés par défaut ; coupés, plus rien ne part chez Google, et les
+  rapports en attente sur le téléphone sont effacés.
+- 🌐 **Suppression de compte depuis le web**, sans l'app :
+  `lelio88.github.io/dewdrop/suppression-compte.html` (connexion, puis
+  confirmation). C'est l'URL que Google Play demande.
+
+### Modifié
+
+- 📄 **Informations légales** (ex-« Confidentialité & CGU ») : un résumé en clair,
+  puis des liens vers la politique de confidentialité, les conditions
+  d'utilisation et les nouvelles mentions légales, sur le web. La politique est
+  réécrite : chaque donnée avec sa raison, sa base légale et sa durée, les
+  sous-traitants (Supabase, Firebase, Brevo, GitHub), tes droits et la CNIL.
+- ✉️ **S'inscrire avec une adresse déjà utilisée** mène au même écran « Vérifie
+  tes emails » qu'une nouvelle inscription, qui rappelle « Mot de passe oublié ».
+  L'app ne dit plus « Un compte existe déjà » : ça révélait à n'importe qui quelles
+  adresses ont un compte.
+
 ### Corrigé
+
+- 🔒 Un mot de passe refusé affichait « 6 caractères minimum », alors que le
+  serveur en exige 8, avec des lettres et des chiffres. Le message le dit
+  désormais.
 
 - 📶 **Une coupure réseau ne remonte plus comme un plantage** : hors ligne, le
   renouvellement de session en arrière-plan échoue et réessaie toutes les 10 s.

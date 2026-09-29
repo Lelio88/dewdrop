@@ -69,6 +69,8 @@ permet de décider quand un cas nouveau relève de la même règle.
 
 | Modification | Fichier(s) à mettre à jour |
 |---|---|
-| Texte légal | `lib/.../legal_screen.dart` **et** `docs/index.html` (garder synchro) |
+| Texte légal | la page concernée dans `docs/` (`index.html`, `cgu.html`, `mentions-legales.html`) + sa date « Dernière mise à jour ». L'app n'en a pas de copie : seul le résumé de `legal_screen.dart` est à relire |
+| Donnée collectée ajoutée ou retirée (table, colonne, SDK, service) | ligne du tableau de `docs/index.html` **et** de « Données personnelles » d'`architecture.md` **et** la déclaration « Sécurité des données » de Play (`../../conformite-securite-guide.md` §A7) — les trois disent la même chose |
+| Clé publishable Supabase changée, ou pages déplacées | `docs/suppression-compte.js` (`SUPABASE_KEY`/`SUPABASE_URL`) + CSP de `suppression-compte.html` + `WEB_ORIGIN` de `delete-account` (puis `supabase functions deploy delete-account`) + `LegalLinks` |
 | Nouvel anti-pattern découvert | section « Anti-patterns à éviter » d'[`architecture.md`](./architecture.md) |
 | Changement de dépendance critique | `CLAUDE.md` § III « Pile » + `pubspec.yaml` |

@@ -172,11 +172,11 @@ class AboutScreen extends StatelessWidget {
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      'Confidentialité & CGU',
+                      'Informations légales',
                       style: TextStyle(color: w),
                     ),
                     subtitle: Text(
-                      'Politique de confidentialité et conditions',
+                      'Confidentialité, conditions, mentions légales',
                       style: TextStyle(color: w.withValues(alpha: 0.5)),
                     ),
                     trailing: Icon(

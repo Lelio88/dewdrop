@@ -9,6 +9,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/home_widget/widget_background.dart';
 import 'package:dewdrop/src/features/notifications/application/notification_channels.dart';
 import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
+import 'package:dewdrop/src/features/settings/application/crash_reports_provider.dart';
 import 'package:dewdrop/src/supabase/supabase_config.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
   SystemUi.edgeToEdge();
   // Firebase/FCM is mobile-only here; desktop (decor dev) skips it so it never
   // fails to init without a native Firebase config.
+  final prefs = await SharedPreferences.getInstance();
   if (Platform.isAndroid || Platform.isIOS) {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
@@ -53,8 +55,11 @@ Future<void> main() async {
     // incident in the console. Off in debug keeps the dashboard to what users
     // actually hit; `recordFlutterError` still calls `FlutterError.presentError`
     // first, so nothing stops being printed while developing.
+    //
+    // Release builds also honour the user's opt-out (Réglages → Rapports de
+    // plantage), read here before anything can crash.
     await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
-      !kDebugMode,
+      !kDebugMode && crashReportsEnabled(prefs),
     );
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -103,7 +108,6 @@ Future<void> main() async {
       // WidgetKit extension is configured).
     }
   }
-  final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
       observers: const [

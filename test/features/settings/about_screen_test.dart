@@ -67,7 +67,7 @@ void main() {
     testWidgets('tapping the licenses entry does not throw', (tester) async {
       await pump(tester);
       // Target the licenses tile by its label (the screen has a second
-      // ListTile, « Confidentialité & CGU »).
+      // ListTile, « Informations légales »).
       final tile = find.widgetWithText(ListTile, 'Licences open source');
       await tester.ensureVisible(tile);
       await tester.tap(tile);
