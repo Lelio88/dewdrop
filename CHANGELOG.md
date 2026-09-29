@@ -5,6 +5,8 @@
 
 ## [Non publié]
 
+## [0.9.24+38] — 2026-09-30
+
 ### Ajouté
 
 - 🛡️ **Rapports de plantage désactivables** : *Réglages → Vie privée → Rapports
