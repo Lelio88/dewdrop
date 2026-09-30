@@ -5,6 +5,8 @@
 
 ## [Non publié]
 
+## [0.9.25+39] — 2026-09-30
+
 ### Ajouté
 
 - 🔑 **Continuer avec Google** : sur l'écran de connexion, un compte Google suffit,
