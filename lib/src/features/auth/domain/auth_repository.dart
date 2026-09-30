@@ -51,8 +51,9 @@ abstract interface class AuthRepository {
   GoogleLink? get linkedGoogle;
 
   /// Links the Google account the user picks to the signed-in user, whatever
-  /// its email (manual linking). Resolves `false` when dismissed. Fails with
-  /// `identity_already_exists` if that Google account belongs to another user.
+  /// its email (manual linking), and leaves [linkedGoogle] up to date. Resolves
+  /// `false` when dismissed. Fails with `identity_already_exists` if that
+  /// Google account belongs to another user; already this user's is a success.
   Future<bool> linkGoogle();
 
   /// Unlinks Google. Refused (`single_identity_not_deletable`) when it is the

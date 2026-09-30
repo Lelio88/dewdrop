@@ -35,9 +35,17 @@ String authErrorMessage(Object error, {bool isSignUp = false}) {
     return 'Confirme ton adresse email avant de te connecter.';
   }
 
-  // Google: the account is someone else's, or it's the last way in.
-  if (has('identity_already_exists') ||
-      has('identity is already linked to another user')) {
+  // Google: the account is someone else's, or it's the last way in. GoTrue
+  // gives the same code when the account is already the caller's own — only
+  // « to another user » tells them apart (the repository absorbs that case;
+  // this is the safety net against claiming it belongs to someone else).
+  if (has('identity is already linked to another user')) {
+    return 'Ce compte Google est déjà lié à un autre compte DewDrop.';
+  }
+  if (has('identity is already linked')) {
+    return 'Ce compte Google est déjà lié à ton compte.';
+  }
+  if (has('identity_already_exists')) {
     return 'Ce compte Google est déjà lié à un autre compte DewDrop.';
   }
   if (has('single_identity_not_deletable')) {

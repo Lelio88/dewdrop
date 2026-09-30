@@ -65,6 +65,21 @@ void main() {
       );
     });
 
+    testWidgets('a linked account shows its address and an unlink button', (
+      tester,
+    ) async {
+      final auth = FakeAuthRepository()
+        ..linkedGoogle = const GoogleLink(
+          email: 'moi@gmail.com',
+          canUnlink: true,
+        );
+      await _pump(tester, auth);
+
+      expect(find.text('Compte Google lié'), findsOneWidget);
+      expect(find.text('moi@gmail.com'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Délier'), findsOneWidget);
+    });
+
     testWidgets('unlinks after confirmation when another sign-in remains', (
       tester,
     ) async {
@@ -75,9 +90,14 @@ void main() {
         );
       await _pump(tester, auth);
 
-      await tester.tap(find.text('Délier'));
-      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Délier'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(TextButton, 'Délier'),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(auth.googleUnlinkCount, 1);

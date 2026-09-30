@@ -1,5 +1,6 @@
 import 'package:dewdrop/src/features/auth/application/auth_error.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 void main() {
   group('authErrorMessage', () {
@@ -53,6 +54,26 @@ void main() {
       );
       expect(
         authErrorMessage(Exception('identity_already_exists')),
+        contains('déjà lié à un autre compte DewDrop'),
+      );
+      // GoTrue uses the same code when the Google account is already the
+      // caller's own: only the message tells them apart.
+      expect(
+        authErrorMessage(
+          const AuthException(
+            'Identity is already linked',
+            code: 'identity_already_exists',
+          ),
+        ),
+        'Ce compte Google est déjà lié à ton compte.',
+      );
+      expect(
+        authErrorMessage(
+          const AuthException(
+            'Identity is already linked to another user',
+            code: 'identity_already_exists',
+          ),
+        ),
         contains('déjà lié à un autre compte DewDrop'),
       );
       expect(

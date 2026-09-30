@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// « Compte Google » row of Réglages → Compte.
 ///
 /// Links a Google account whatever its address (manual linking: the same
-/// address is already joined automatically at sign-in), shows which one is
-/// linked, and unlinks it — but only while another way to sign in remains:
-/// unlinking the last one would lock the user out, so the row never offers it.
+/// address is already joined automatically at sign-in). Once linked, the row
+/// shows that account's address with a « Délier » button on the right — but
+/// only while another way to sign in remains: unlinking the last one would
+/// lock the user out, so the row never offers it.
 ///
 /// Renders nothing where the account picker doesn't exist. Lives inside a
 /// settings card, which provides the transparent `Material` a `ListTile` needs.
@@ -105,9 +106,14 @@ class _GoogleLinkTileState extends ConsumerState<GoogleLinkTile> {
       trailing: _busy
           ? spinner
           : link.canUnlink
-          ? Text('Délier', style: TextStyle(color: w.withValues(alpha: 0.7)))
+          ? TextButton(
+              onPressed: _confirmUnlink,
+              style: TextButton.styleFrom(
+                foregroundColor: w.withValues(alpha: 0.85),
+              ),
+              child: const Text('Délier'),
+            )
           : null,
-      onTap: link.canUnlink && !_busy ? _confirmUnlink : null,
     );
   }
 }

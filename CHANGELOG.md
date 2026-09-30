@@ -5,6 +5,13 @@
 
 ## [Non publié]
 
+### Corrigé
+
+- 🔗 **Lier son compte Google fonctionne du premier coup** : une fois lié, *Réglages →
+  Compte* affiche l'adresse Google avec un bouton « Délier » à droite, au lieu de
+  proposer de le lier encore. Refaire la liaison d'un compte déjà lié à soi ne
+  prétend plus qu'il appartient à « un autre compte DewDrop ».
+
 ## [0.9.25+39] — 2026-09-30
 
 ### Ajouté

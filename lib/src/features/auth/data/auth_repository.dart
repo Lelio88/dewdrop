@@ -91,10 +91,12 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<bool> linkGoogle() async {
     final idToken = await _pickGoogleAccount();
     if (idToken == null) return false;
-    // Updates the stored session's user (identities) itself.
-    await _client.auth.linkIdentityWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
+    await linkThenRefresh(
+      link: () => _client.auth.linkIdentityWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+      ),
+      refresh: _client.auth.refreshSession,
     );
     return true;
   }
@@ -142,6 +144,35 @@ GoogleLink? googleLinkOf(User? user) {
     canUnlink: identities.length > 1,
   );
 }
+
+/// Links an identity, then refreshes the session so the new identity shows.
+///
+/// GoTrue answers a link with the user as it was loaded **before** the link
+/// (the identity is inserted, never added to the returned user), and that
+/// stale user is what the client saves: without the refresh, [googleLinkOf]
+/// still sees no Google and the row keeps offering to link. The refresh
+/// reloads the user from the database.
+///
+/// An identity already linked to the caller (`identity_already_exists` with
+/// « Identity is already linked », not « … to another user ») means a stale
+/// session hid it: nothing to link, the refresh brings it to light. Any other
+/// failure is rethrown, without a refresh.
+@visibleForTesting
+Future<void> linkThenRefresh({
+  required Future<void> Function() link,
+  required Future<void> Function() refresh,
+}) async {
+  try {
+    await link();
+  } on AuthException catch (e) {
+    if (!_isAlreadyLinkedToCaller(e)) rethrow;
+  }
+  await refresh();
+}
+
+bool _isAlreadyLinkedToCaller(AuthException e) =>
+    e.code == 'identity_already_exists' &&
+    !e.message.toLowerCase().contains('another user');
 
 /// Runs a sign-up and answers whether it now awaits the confirmation email,
 /// **without ever revealing that the address was already registered**

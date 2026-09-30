@@ -49,4 +49,52 @@ void main() {
       expect(link?.canUnlink, isFalse);
     });
   });
+
+  group('linkThenRefresh', () {
+    const ownIdentity = AuthException(
+      'Identity is already linked',
+      statusCode: '422',
+      code: 'identity_already_exists',
+    );
+    const someoneElses = AuthException(
+      'Identity is already linked to another user',
+      statusCode: '422',
+      code: 'identity_already_exists',
+    );
+
+    test('refreshes the session once the link is made', () async {
+      final calls = <String>[];
+      await linkThenRefresh(
+        link: () async => calls.add('link'),
+        refresh: () async => calls.add('refresh'),
+      );
+      // GoTrue answers the link with the user as it was before: only the
+      // refresh brings the new identity into the session.
+      expect(calls, ['link', 'refresh']);
+    });
+
+    test(
+      'a Google account already linked to this user is not an error',
+      () async {
+        var refreshed = false;
+        await linkThenRefresh(
+          link: () async => throw ownIdentity,
+          refresh: () async => refreshed = true,
+        );
+        expect(refreshed, isTrue);
+      },
+    );
+
+    test('a Google account linked to someone else still fails', () async {
+      var refreshed = false;
+      await expectLater(
+        linkThenRefresh(
+          link: () async => throw someoneElses,
+          refresh: () async => refreshed = true,
+        ),
+        throwsA(same(someoneElses)),
+      );
+      expect(refreshed, isFalse);
+    });
+  });
 }
