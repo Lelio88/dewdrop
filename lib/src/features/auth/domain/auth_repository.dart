@@ -32,4 +32,41 @@ abstract interface class AuthRepository {
   /// friendships, thoughts, devices via FK cascade), then signs out. Backed by
   /// the `delete-account` Edge Function (only the service role can do this).
   Future<void> deleteAccount();
+
+  // ── Google ──────────────────────────────────────────────────────────────
+
+  /// Whether this device can show Google's native account picker (Android and
+  /// iOS builds carrying the Google client id). The UI hides every Google
+  /// action when it can't.
+  bool get supportsGoogle;
+
+  /// Signs in with the Google account the user picks. The first time, this
+  /// creates the DewDrop account (then onboarding asks for a @handle, as for
+  /// an email sign-up); if an account already uses the same **verified**
+  /// email, Supabase joins them instead (automatic identity linking).
+  /// Resolves `false` when the user dismisses the picker — not an error.
+  Future<bool> signInWithGoogle();
+
+  /// The Google account linked to the signed-in user, or `null`.
+  GoogleLink? get linkedGoogle;
+
+  /// Links the Google account the user picks to the signed-in user, whatever
+  /// its email (manual linking). Resolves `false` when dismissed. Fails with
+  /// `identity_already_exists` if that Google account belongs to another user.
+  Future<bool> linkGoogle();
+
+  /// Unlinks Google. Refused (`single_identity_not_deletable`) when it is the
+  /// account's only way to sign in — the UI never offers it then.
+  Future<void> unlinkGoogle();
+}
+
+/// A Google account linked to the signed-in user.
+class GoogleLink {
+  const GoogleLink({required this.email, required this.canUnlink});
+
+  /// The Google account's address (may differ from the DewDrop email).
+  final String? email;
+
+  /// Whether another way to sign in remains once Google is unlinked.
+  final bool canUnlink;
 }

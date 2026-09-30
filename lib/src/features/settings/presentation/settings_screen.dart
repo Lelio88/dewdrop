@@ -4,6 +4,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/settings/application/crash_reports_provider.dart';
 import 'package:dewdrop/src/features/settings/application/display_providers.dart';
+import 'package:dewdrop/src/features/settings/presentation/google_link_tile.dart';
 import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
 import 'package:dewdrop/src/features/tour/presentation/cloud_tour.dart';
@@ -387,6 +388,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: () => context.push('/edit-profile'),
                     ),
                   ),
+                  if (ref.watch(authRepositoryProvider).supportsGoogle) ...[
+                    const SizedBox(height: 10),
+                    _card(w, child: const GoogleLinkTile()),
+                  ],
                   const SizedBox(height: 10),
                   _card(
                     w,

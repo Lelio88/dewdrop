@@ -14,15 +14,17 @@ void main() {
         LegalLinks.accountDeletion,
       ]) {
         expect(uri.scheme, 'https');
-        expect(uri.host, 'lelio88.github.io');
-        expect(uri.path, startsWith('/dewdrop/'));
+        expect(uri.host, 'dewdrop.heianenterprise.com');
+        expect(uri.path, startsWith('/'));
       }
     });
 
-    test('the privacy policy keeps the URL declared on Google Play', () {
+    test('the privacy policy has its own page, apart from the home page', () {
+      // Google requires distinct home-page and policy URLs (brand check), and
+      // this is the URL declared on the Play listing.
       expect(
         LegalLinks.privacy.toString(),
-        'https://lelio88.github.io/dewdrop/',
+        'https://dewdrop.heianenterprise.com/confidentialite.html',
       );
     });
   });

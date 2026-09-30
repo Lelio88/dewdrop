@@ -35,6 +35,18 @@ String authErrorMessage(Object error, {bool isSignUp = false}) {
     return 'Confirme ton adresse email avant de te connecter.';
   }
 
+  // Google: the account is someone else's, or it's the last way in.
+  if (has('identity_already_exists') ||
+      has('identity is already linked to another user')) {
+    return 'Ce compte Google est déjà lié à un autre compte DewDrop.';
+  }
+  if (has('single_identity_not_deletable')) {
+    return "Impossible : c'est ton seul moyen de connexion.";
+  }
+  if (has('google_sign_in_failed') || has('manual_linking_disabled')) {
+    return "La connexion avec Google n'a pas abouti. Réessaie.";
+  }
+
   // No "account already exists" branch, on purpose: sign-up must never confirm
   // that an email is taken (guide C2). The repository answers a duplicate like
   // a new account (`blindSignUp`); a stray one falls to the generic message.

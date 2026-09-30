@@ -5,6 +5,24 @@
 
 ## [Non publié]
 
+### Ajouté
+
+- 🔑 **Continuer avec Google** : sur l'écran de connexion, un compte Google suffit,
+  sans mot de passe. La première fois, le compte DewDrop est créé (puis on choisit
+  son @handle) ; si un compte existe déjà avec la même adresse, c'est lui qu'on
+  retrouve.
+- 🔗 **Lier mon compte Google** (*Réglages → Compte*) : pour se connecter aussi avec
+  un compte Google d'une autre adresse. Il se délie au même endroit, tant qu'il
+  reste un autre moyen de connexion.
+- 🌐 La page web de suppression de compte accepte aussi la connexion avec Google.
+
+### Modifié
+
+- 🏠 **Les pages web de DewDrop ont leur propre adresse** :
+  `dewdrop.heianenterprise.com` (politique, conditions, suppression de compte,
+  invitations). Les anciens liens `lelio88.github.io/dewdrop/…`, invitations et
+  QR codes compris, mènent toujours au bon endroit.
+
 ## [0.9.24+38] — 2026-09-30
 
 ### Ajouté

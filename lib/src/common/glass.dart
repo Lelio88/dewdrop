@@ -108,11 +108,15 @@ class GlassButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.loading = false,
+    this.leading,
   });
 
   final String label;
   final VoidCallback? onTap;
   final bool loading;
+
+  /// Optional mark before the label (e.g. the Google « G »).
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -136,14 +140,22 @@ class GlassButton extends StatelessWidget {
                   color: Colors.white,
                 ),
               )
-            : Text(
-                label,
-                style: TextStyle(
-                  color: w,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (leading != null) ...[leading!, const SizedBox(width: 12)],
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: w,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );

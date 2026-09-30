@@ -6,7 +6,7 @@ void main() {
     test('builds an HTTPS, clickable invite link for a handle', () {
       expect(
         DeepLinks.invite('alice'),
-        'https://lelio88.github.io/dewdrop/invite.html?handle=alice',
+        'https://dewdrop.heianenterprise.com/invite.html?handle=alice',
       );
     });
 
@@ -45,6 +45,20 @@ void main() {
         DeepLinks.inviteHandle(Uri.parse(DeepLinks.resetPassword)),
         isNull,
       );
+    });
+
+    test('still reads invite links and QR codes shared before the move', () {
+      final uri = Uri.parse(
+        'https://lelio88.github.io/dewdrop/invite.html?handle=dave',
+      );
+      expect(DeepLinks.inviteHandle(uri), 'dave');
+    });
+
+    test('ignores another site on the old shared GitHub host', () {
+      final uri = Uri.parse(
+        'https://lelio88.github.io/GTG/invite.html?handle=alice',
+      );
+      expect(DeepLinks.inviteHandle(uri), isNull);
     });
 
     test('returns null for an HTTPS link on a foreign host', () {

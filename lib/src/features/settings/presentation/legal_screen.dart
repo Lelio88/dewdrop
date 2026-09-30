@@ -13,7 +13,8 @@ class LegalScreen extends ConsumerWidget {
   const LegalScreen({super.key});
 
   static const String _summary =
-      'DewDrop garde le minimum pour fonctionner : ton email, ton @handle et '
+      'DewDrop garde le minimum pour fonctionner : ton email (ou ton compte '
+      'Google, si tu te connectes avec), ton @handle et '
       'ton pseudo, tes amis, tes cercles, les pensées échangées et tes '
       'réglages. Ni publicité, ni revente, ni pistage.\n\n'
       'Les données sont hébergées dans l\'Union européenne (Supabase, Irlande). '

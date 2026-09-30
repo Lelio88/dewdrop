@@ -1,13 +1,17 @@
 import 'package:dewdrop/src/common/deep_links.dart';
+import 'package:dewdrop/src/features/auth/data/google_id_token_source.dart';
 import 'package:dewdrop/src/features/auth/domain/auth_repository.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Thin wrapper over Supabase auth.
+/// Thin wrapper over Supabase auth, plus Google sign-in through [_google]
+/// (native account picker → ID token → `signInWithIdToken`).
 class SupabaseAuthRepository implements AuthRepository {
-  SupabaseAuthRepository(this._client);
+  SupabaseAuthRepository(this._client, {GoogleIdTokenSource? google})
+    : _google = google;
 
   final SupabaseClient _client;
+  final GoogleIdTokenSource? _google;
 
   @override
   Session? get currentSession => _client.auth.currentSession;
@@ -35,7 +39,12 @@ class SupabaseAuthRepository implements AuthRepository {
       _client.auth.signInWithPassword(email: email, password: password);
 
   @override
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    // Forget the Google account first, so the next person on this phone gets
+    // the picker instead of being signed straight back into this account.
+    await _google?.forget();
+    await _client.auth.signOut();
+  }
 
   @override
   Future<void> resendConfirmation(String email) => _client.auth.resend(
@@ -57,8 +66,81 @@ class SupabaseAuthRepository implements AuthRepository {
     // The Edge Function deletes the auth user (cascades to all their data);
     // invoke() forwards the current session's JWT so it deletes only the caller.
     await _client.functions.invoke('delete-account');
+    await _google?.forget(revoke: true); // withdraw the app's Google grant too
     await _client.auth.signOut();
   }
+
+  @override
+  bool get supportsGoogle => _google?.isAvailable ?? false;
+
+  @override
+  Future<bool> signInWithGoogle() async {
+    final idToken = await _pickGoogleAccount();
+    if (idToken == null) return false;
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+    );
+    return true;
+  }
+
+  @override
+  GoogleLink? get linkedGoogle => googleLinkOf(_client.auth.currentUser);
+
+  @override
+  Future<bool> linkGoogle() async {
+    final idToken = await _pickGoogleAccount();
+    if (idToken == null) return false;
+    // Updates the stored session's user (identities) itself.
+    await _client.auth.linkIdentityWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+    );
+    return true;
+  }
+
+  @override
+  Future<void> unlinkGoogle() async {
+    final identities = await _client.auth.getUserIdentities();
+    final google = identities.where((i) => i.provider == 'google').firstOrNull;
+    if (google == null) return;
+    if (identities.length < 2) {
+      // GoTrue refuses it too; failing here spares a round trip.
+      throw const AuthException(
+        'Google is the only identity',
+        code: 'single_identity_not_deletable',
+      );
+    }
+    await _client.auth.unlinkIdentity(google);
+    // unlinkIdentity leaves the cached user stale: refresh so [linkedGoogle]
+    // reads the new identities.
+    await _client.auth.refreshSession();
+    await _google?.forget();
+  }
+
+  Future<String?> _pickGoogleAccount() {
+    final google = _google;
+    if (google == null || !google.isAvailable) {
+      throw const AuthException(
+        'Google sign-in is not available here',
+        code: 'google_sign_in_failed',
+      );
+    }
+    return google.pickAccount();
+  }
+}
+
+/// The Google account linked to [user], or `null` — read from the identities
+/// Supabase returns with the session (no network).
+@visibleForTesting
+GoogleLink? googleLinkOf(User? user) {
+  final identities = user?.identities ?? const <UserIdentity>[];
+  final google = identities.where((i) => i.provider == 'google').firstOrNull;
+  if (google == null) return null;
+  return GoogleLink(
+    email: google.identityData?['email'] as String?,
+    canUnlink: identities.length > 1,
+  );
 }
 
 /// Runs a sign-up and answers whether it now awaits the confirmation email,

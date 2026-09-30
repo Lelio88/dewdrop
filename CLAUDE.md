@@ -26,7 +26,7 @@ Topologie rapide :
 - **Langage** : Dart (SDK ^3.11) / Flutter (stable).
 - **État / nav** : `flutter_riverpod ^3.3` (**sans codegen**), `go_router`.
 - **Modèles** : `freezed ^3` ou classes immuables manuelles.
-- **Backend** : `supabase_flutter ^2.14` (cloud en prod/testeurs ; local Docker en dev).
+- **Backend** : `supabase_flutter ^2.14` (cloud en prod/testeurs ; local Docker en dev). **Connexion Google** : `google_sign_in ^7` (Android).
 - **Push / crash** : `firebase_core` / `firebase_messaging` / `firebase_crashlytics`, `flutter_local_notifications`, `flutter_timezone`.
 - **Deep links** : scheme `dewdrop://` via `app_links` (+ handling auth natif de supabase_flutter).
 - **Amis** : `qr_flutter` (afficher un QR), `mobile_scanner` (scanner un QR).
@@ -96,5 +96,5 @@ flutter test --update-goldens test/features/tour/cloud_tour_golden_test.dart  # 
 
 ## VIII. Contexte de Session
 
-- **Dernier focus** : **mise en conformité** (guide du conteneur) — inscription neutre (`blindSignUp` : un e-mail déjà pris n'est jamais révélé), rapports de plantage désactivables (*Réglages → Vie privée*), politique réécrite qui vit **seulement** dans `docs/` (l'app résume et renvoie via `LegalLinks`), CGU et mentions légales séparées, page web de suppression de compte (CORS de `delete-account` limité à `lelio88.github.io`), déclaration « Sécurité des données » alignée. Version `0.9.24+38` en test fermé.
-- **Focus immédiat** : preuve **sur appareil** de l'interrupteur des rapports de plantage et des liens légaux, puis des deux ajouts précédents (ajout en ami depuis un cercle, suggestion de handle). En attente : tags absents pour `+14` à `+37` ; appui long widget → « Reconfigurer » ; durcissement `HomeWidgetBackgroundReceiver` ; **iOS** WidgetKit (compte Apple Developer 99 $/an).
+- **Dernier focus** : **connexion avec Google** (native via `google_sign_in`, liaison automatique à même adresse + « Lier mon compte Google » dans *Réglages → Compte*) et **pages web sur `dewdrop.heianenterprise.com`** (accueil distinct de la politique `confidentialite.html`, exigence du Branding Google ; anciennes adresses redirigées). La page de suppression accepte Google via le bouton officiel, chargé au clic : aucun secret ni domaine Supabase côté Google.
+- **Focus immédiat** : **validation du branding** Google ; essai **sur appareil** de la connexion Google, de la liaison et de la page web ; URL de politique de la fiche Play → `confidentialite.html`. Toujours en attente : preuves appareil précédentes (rapports de plantage, ajout depuis un cercle, suggestion de handle), tags `+14` à `+37`, iOS WidgetKit.

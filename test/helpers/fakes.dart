@@ -69,6 +69,45 @@ class FakeAuthRepository implements AuthRepository {
     if (resendError != null) throw resendError!;
     lastResendEmail = email;
   }
+
+  // ── Google ──
+  @override
+  bool supportsGoogle = true;
+
+  /// What the account picker answers: `true` = an account was picked,
+  /// `false` = the user dismissed it.
+  bool googlePicked = true;
+  Object? googleError;
+  int googleSignInCount = 0;
+  int googleLinkCount = 0;
+  int googleUnlinkCount = 0;
+
+  @override
+  GoogleLink? linkedGoogle;
+
+  @override
+  Future<bool> signInWithGoogle() async {
+    googleSignInCount++;
+    if (googleError != null) throw googleError!;
+    return googlePicked;
+  }
+
+  @override
+  Future<bool> linkGoogle() async {
+    googleLinkCount++;
+    if (googleError != null) throw googleError!;
+    if (googlePicked) {
+      linkedGoogle = const GoogleLink(email: 'moi@gmail.com', canUnlink: true);
+    }
+    return googlePicked;
+  }
+
+  @override
+  Future<void> unlinkGoogle() async {
+    googleUnlinkCount++;
+    if (googleError != null) throw googleError!;
+    linkedGoogle = null;
+  }
 }
 
 class FakeProfileRepository implements ProfileRepository {

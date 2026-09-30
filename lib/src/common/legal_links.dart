@@ -8,13 +8,16 @@ import 'package:url_launcher/url_launcher.dart';
 /// policy exists in one place and never drifts from what Google Play links to.
 ///
 /// Invariants:
-/// - [privacy] is the privacy policy URL declared on the Play listing: moving
-///   it means changing the listing the same day.
+/// - [privacy] is the privacy policy URL declared on the Play listing and in
+///   Google's branding (which wants it apart from the home page, `/`): moving
+///   it means changing both the same day.
 /// - [accountDeletion] is the web deletion URL Google Play requires for apps
 ///   with accounts (declared in the « Data safety » form).
 /// - Each URL has its page in `docs/`; renaming one breaks the other.
 abstract final class LegalLinks {
-  static final Uri privacy = Uri.parse('${DeepLinks.webBase}/');
+  static final Uri privacy = Uri.parse(
+    '${DeepLinks.webBase}/confidentialite.html',
+  );
   static final Uri terms = Uri.parse('${DeepLinks.webBase}/cgu.html');
   static final Uri legalNotice = Uri.parse(
     '${DeepLinks.webBase}/mentions-legales.html',

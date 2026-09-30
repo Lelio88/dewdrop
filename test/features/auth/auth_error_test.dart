@@ -46,6 +46,21 @@ void main() {
       }
     });
 
+    test('maps the Google sign-in failures', () {
+      expect(
+        authErrorMessage(Exception('google_sign_in_failed')),
+        "La connexion avec Google n'a pas abouti. Réessaie.",
+      );
+      expect(
+        authErrorMessage(Exception('identity_already_exists')),
+        contains('déjà lié à un autre compte DewDrop'),
+      );
+      expect(
+        authErrorMessage(Exception('single_identity_not_deletable')),
+        contains('seul moyen de connexion'),
+      );
+    });
+
     test(
       'states the server password rule (8 characters, letters + digits)',
       () {

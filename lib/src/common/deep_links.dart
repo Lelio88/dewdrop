@@ -1,10 +1,10 @@
 /// Single source of truth for DewDrop's invite & auth deep links.
 ///
-/// Invite links are **HTTPS** (`https://lelio88.github.io/dewdrop/invite.html?handle=…`)
+/// Invite links are **HTTPS** (`https://dewdrop.heianenterprise.com/invite.html?handle=…`)
 /// so they are CLICKABLE in any messenger (SMS, WhatsApp, Instagram…) — a
 /// custom-scheme `dewdrop://` link is rendered there as plain, un-tappable text,
 /// and resolves only if the app is already installed. The HTTPS link opens a tiny
-/// landing page (hosted on our GitHub Pages, `docs/invite.html`) offering
+/// landing page (GitHub Pages under our own domain, `docs/invite.html`) offering
 /// « Ouvrir dans DewDrop » (→ the [inviteScheme] custom link, which the app's
 /// `app_links` listener turns into a friend request) and « Installer » (Play
 /// Store) — so it works whether or not the app is already installed.
@@ -22,11 +22,18 @@ class DeepLinks {
 
   static const String scheme = 'dewdrop';
 
-  /// Host serving our GitHub Pages site (the invite landing page lives there).
-  static const String webHost = 'lelio88.github.io';
+  /// Host serving our web pages: GitHub Pages under our own domain
+  /// (`docs/CNAME`, DNS in Cloudflare). The invite landing page and the legal
+  /// pages live there.
+  static const String webHost = 'dewdrop.heianenterprise.com';
 
-  /// Base URL of the hosted site (GitHub Pages serves `docs/` at this path).
-  static const String webBase = 'https://$webHost/dewdrop';
+  /// Where the pages lived before the move (`lelio88.github.io/dewdrop/`).
+  /// GitHub redirects it, and invite links and QR codes shared back then still
+  /// carry it — [inviteHandle] keeps accepting them.
+  static const String legacyWebHost = 'lelio88.github.io';
+
+  /// Base URL of the hosted site (GitHub Pages serves `docs/` at its root).
+  static const String webBase = 'https://$webHost';
 
   /// Redirect for sign-up confirmation emails → opens the app signed-in.
   static const String loginCallback = '$scheme://login-callback';
@@ -70,10 +77,11 @@ class DeepLinks {
   /// (e.g. an auth callback, which is supabase_flutter's job, not ours).
   static String? inviteHandle(Uri uri) {
     final isScheme = uri.scheme == scheme && uri.host == inviteHost;
+    final onOurSite =
+        uri.host == webHost ||
+        (uri.host == legacyWebHost && uri.path.startsWith('/dewdrop/'));
     final isWeb =
-        uri.scheme == 'https' &&
-        uri.host == webHost &&
-        uri.path.endsWith('/invite.html');
+        uri.scheme == 'https' && onOurSite && uri.path.endsWith('/invite.html');
     if (!isScheme && !isWeb) return null;
     final h = uri.queryParameters['handle']?.trim().replaceAll('@', '');
     return (h == null || h.isEmpty) ? null : h;

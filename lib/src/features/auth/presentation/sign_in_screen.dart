@@ -20,6 +20,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _confirm = TextEditingController();
   final _passwordFocus = FocusNode();
   bool _isSignUp = false;
+  bool _googleLoading = false;
   bool _loading = false;
   bool _showPassword = false;
   String? _error;
@@ -74,6 +75,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Google: no email or password to check — the account picker answers.
+  /// A dismissed picker is silence, not an error. The router redirect takes
+  /// over on the auth-state change; a first sign-in lands on onboarding
+  /// (@handle), exactly like an email sign-up.
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+    } on Exception catch (e) {
+      if (mounted) setState(() => _error = authErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
@@ -273,8 +292,31 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       GlassButton(
                         label: _isSignUp ? 'Créer mon compte' : 'Se connecter',
                         loading: _loading,
-                        onTap: _submit,
+                        onTap: _googleLoading ? null : _submit,
                       ),
+                      if (ref.watch(authRepositoryProvider).supportsGoogle) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          'ou',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: white.withValues(alpha: 0.55),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GlassButton(
+                          label: 'Continuer avec Google',
+                          leading: Image.asset(
+                            'assets/brand/google_g.png',
+                            width: 20,
+                            height: 20,
+                            excludeFromSemantics: true,
+                          ),
+                          loading: _googleLoading,
+                          onTap: _loading ? null : _signInWithGoogle,
+                        ),
+                      ],
                       if (!_isSignUp) ...[
                         const SizedBox(height: 12),
                         GestureDetector(
