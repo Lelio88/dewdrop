@@ -5,6 +5,8 @@
 
 ## [Non publié]
 
+## [0.9.26+40] — 2026-09-30
+
 ### Corrigé
 
 - 🔗 **Lier son compte Google fonctionne du premier coup** : une fois lié, *Réglages →
