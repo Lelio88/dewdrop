@@ -8,7 +8,7 @@
 // themselves — the id comes from their token, never from the request body.
 //
 // Browsers may call it from ONE origin only: the web deletion page
-// (docs/suppression-compte.html, served by GitHub Pages), which Google Play
+// (docs/suppression-compte.html, GitHub Pages under dewdrop.heianenterprise.com), which Google Play
 // requires for apps with accounts. CORS is no protection here — the Bearer
 // token is — so allowing an origin grants nothing by itself; it only lets that
 // page read the answer. The mobile app sends no Origin and is unaffected.
@@ -17,7 +17,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Moving the web page to another host means changing this origin AND the page.
-const WEB_ORIGIN = "https://lelio88.github.io";
+const WEB_ORIGIN = "https://dewdrop.heianenterprise.com";
 
 Deno.serve(async (req) => {
   const cors = corsHeaders(req);

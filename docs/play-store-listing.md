@@ -14,9 +14,9 @@ réglé les bloquants de sécurité (voir l'audit). Build à uploader :
 | Package | `app.dewdrop` |
 | Catégorie | Social *(ou « Style de vie »)* |
 | Email de contact | heianenterpriseyt@gmail.com |
-| Confidentialité (URL) | https://lelio88.github.io/dewdrop/ |
-| Suppression de compte (URL) | https://lelio88.github.io/dewdrop/suppression-compte.html |
-| Site web (optionnel) | https://lelio88.github.io/dewdrop/ |
+| Confidentialité (URL) | https://dewdrop.heianenterprise.com/confidentialite.html |
+| Suppression de compte (URL) | https://dewdrop.heianenterprise.com/suppression-compte.html |
+| Site web (optionnel) | https://dewdrop.heianenterprise.com/ |
 | Tarif | Gratuit · sans achats intégrés · sans pub |
 
 ## 2. Description courte (≤ 80 caractères)
@@ -83,7 +83,7 @@ Réponses attendues pour DewDrop :
 
 ## 6. Data safety (Sécurité des données)
 
-**Doit dire la même chose que la politique** (`docs/index.html`, tableau des traitements).
+**Doit dire la même chose que la politique** (`docs/confidentialite.html`, tableau des traitements).
 Envoyée par l'API (`applications.dataSafety`, CSV du modèle Google) — le formulaire de la
 console affiche ensuite ces réponses.
 
@@ -99,9 +99,9 @@ console affiche ensuite ces réponses.
 
 - **Rien n'est « partagé »** au sens de Google : Supabase, Firebase et Brevo sont des
   prestataires qui traitent pour notre compte.
-- Chiffré en transit ; création de compte par **e-mail + mot de passe**.
+- Chiffré en transit ; création de compte par **e-mail + mot de passe** ou **connexion Google** (OAuth).
 - **Suppression** : URL de suppression de compte **et** de données =
-  `https://lelio88.github.io/dewdrop/suppression-compte.html`.
+  `https://dewdrop.heianenterprise.com/suppression-compte.html`.
 
 ## 7. Parcours de publication
 

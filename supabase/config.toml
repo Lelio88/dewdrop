@@ -181,7 +181,10 @@ enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
-enable_manual_linking = false
+# ON: « Lier mon compte Google » (Réglages → Compte) links a Google account whatever
+# its address (linkIdentityWithIdToken). Same-address accounts are joined
+# automatically at sign-in anyway, verified emails only.
+enable_manual_linking = true
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
 minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
@@ -359,6 +362,22 @@ max_frequency = "5s"
 # [auth.mfa.web_authn]
 # enroll_enabled = true
 # verify_enabled = true
+
+# Google — ID tokens only, never a redirect: the app's native sign-in
+# (google_sign_in) and the official Google button of docs/suppression-compte.html
+# both hand Supabase an ID token (signInWithIdToken / grant `id_token`). Its
+# audience is this Web client id, which must equal `kGoogleWebClientId`
+# (lib/src/features/auth/data/google_id_token_source.dart) and GOOGLE_CLIENT_ID
+# (docs/suppression-compte.js). Public by nature. No redirect flow, hence no
+# secret and no supabase.co domain to declare to Google. No nonce either.
+[auth.external.google]
+enabled = true
+client_id = "515627278707-lppcora09kmh4c9hljbbhku309o4utfe.apps.googleusercontent.com"
+secret = ""
+redirect_uri = ""
+url = ""
+skip_nonce_check = false
+email_optional = false
 
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,

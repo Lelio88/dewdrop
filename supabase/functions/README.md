@@ -31,7 +31,7 @@ et appareils.
 
 Deux appelants : l'app, et la page web `docs/suppression-compte.html` (URL de
 suppression exigée par Google Play). Pour cette dernière, la fonction répond au
-preflight CORS et n'autorise que l'origine `https://lelio88.github.io`
+preflight CORS et n'autorise que l'origine `https://dewdrop.heianenterprise.com`
 (`WEB_ORIGIN`) ; la sécurité reste le jeton Bearer, pas le CORS.
 
 ## Déployer
