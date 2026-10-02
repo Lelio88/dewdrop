@@ -69,7 +69,7 @@ android {
                 logger.warn(
                     "ATTENTION : android/key.properties absent — la version " +
                         "release est signée avec la clé de DÉBOGAGE. Play " +
-                        "refusera cet AAB. Voir ../android-signing-guide.md.",
+                        "refusera cet AAB. Voir ../docs/android-signing-guide.md.",
                 )
                 signingConfigs.getByName("debug")
             }

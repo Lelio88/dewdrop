@@ -62,7 +62,7 @@ permet de décider quand un cas nouveau relève de la même règle.
 |---|---|
 | **Changement visible par un testeur** | une puce sous « Non publié » de [`../CHANGELOG.md`](../CHANGELOG.md), **dans le commit qui le produit**. Écrire au fil de l'eau est ce qui empêche le journal de décrocher : tenu seulement au moment d'un `ship.py`, il ne recueille que les releases et perd tout le reste. |
 | Version expédiée | renommer « Non publié » en `## [<version>] — <date>` et rouvrir une section « Non publié » vide. Le tag `v<version>` est posé par `ship.py`, pas à la main. |
-| Procédure de publication Play | `tools/release/publish_play.py` (API Android Publisher v3) + [`../../play-store-publication-guide.md`](../../play-store-publication-guide.md). Service account JSON dans `../.dewdrop-secrets/play-sa.json` — **hors dépôt** (repo public) |
+| Procédure de publication Play | `tools/release/publish_play.py` (API Android Publisher v3) + [`../../docs/play-store-publication-guide.md`](../../docs/play-store-publication-guide.md). Service account JSON dans `../.dewdrop-secrets/play-sa.json` — **hors dépôt** (repo public) |
 | Étape ajoutée / retirée de la release | `tools/release/ship.py` (le compteur `total` **et** la numérotation des étapes) + `architecture.md` § outils de release + `CLAUDE.md` § VI |
 
 ## Divers
