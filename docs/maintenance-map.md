@@ -70,7 +70,7 @@ permet de décider quand un cas nouveau relève de la même règle.
 | Modification | Fichier(s) à mettre à jour |
 |---|---|
 | Texte légal | la page concernée dans `docs/` (`confidentialite.html`, `cgu.html`, `mentions-legales.html`) + sa date « Dernière mise à jour ». L'app n'en a pas de copie : seul le résumé de `legal_screen.dart` est à relire |
-| Donnée collectée ajoutée ou retirée (table, colonne, SDK, service) | ligne du tableau de `docs/confidentialite.html` **et** de « Données personnelles » d'`architecture.md` **et** la déclaration « Sécurité des données » de Play (`../../conformite-securite-guide.md` §A7) — les trois disent la même chose |
+| Donnée collectée ajoutée ou retirée (table, colonne, SDK, service) | ligne du tableau de `docs/confidentialite.html` **et** de « Données personnelles » d'`architecture.md` **et** la déclaration « Sécurité des données » de Play (`../../docs/bonnes-pratiques.md` §A7) — les trois disent la même chose |
 | Client OAuth Google (Web) changé | `kGoogleWebClientId` (`auth/data/google_id_token_source.dart`) **et** `client_id` de `[auth.external.google]` (`config.toml`) **et** `GOOGLE_CLIENT_ID` (`docs/suppression-compte.js`), puis `supabase config push` |
 | Nouvelle clé de signature Android (upload, Play, debug) | un **client OAuth Android** de plus dans Google Cloud (package + SHA-1) — sinon « Continuer avec Google » échoue sur ces installs — et la restriction de la clé API Firebase |
 | Clé publishable Supabase changée | `docs/suppression-compte.js` (`SUPABASE_KEY`/`SUPABASE_URL`) + CSP de `suppression-compte.html` |
