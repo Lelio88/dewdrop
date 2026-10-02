@@ -13,7 +13,10 @@
  *   un autre serveur. La clé publishable est publique par nature (elle est déjà
  *   dans l'APK) ; la sécurité repose sur la RLS et la fonction.
  * - Jetons en mémoire seulement (ni localStorage ni cookie) ; « Annuler » et la
- *   fermeture de la page révoquent la session côté serveur.
+ *   fermeture de la page révoquent la session côté serveur — **celle de la page
+ *   seule** (`/logout?scope=local`). Sans paramètre, GoTrue révoque toutes les
+ *   sessions du compte : se connecter ici puis renoncer déconnectait aussi le
+ *   téléphone.
  * - Google : le script officiel (Google Identity Services) n'est chargé qu'au
  *   clic sur « Continuer avec Google », jamais pour un simple visiteur. Il
  *   remplace notre bouton par le sien, qui rend un jeton d'identité échangé
@@ -117,7 +120,7 @@
     const jeton = session.accessToken;
     session = null;
     try {
-      await appeler('/auth/v1/logout', { headers: { Authorization: 'Bearer ' + jeton }, keepalive: true });
+      await appeler('/auth/v1/logout?scope=local', { headers: { Authorization: 'Bearer ' + jeton }, keepalive: true });
     } catch (_) {
       // Le jeton d'accès expire seul au bout d'une heure ; rien d'autre à faire.
     }
