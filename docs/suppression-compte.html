@@ -9,7 +9,11 @@
        frame-ancestors est ignoré en <meta> : le script refuse lui-même de
        tourner dans un cadre. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; img-src 'self'; connect-src https://jjbmtheuhiijwqdgcvgr.supabase.co https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; form-action 'none'; base-uri 'none'" />
-  <meta name="referrer" content="no-referrer" />
+  <!-- strict-origin et non no-referrer : le bouton de Google vérifie l'origine
+       de la page ; sans elle, il refuse son cadre et se rabat sur un bouton de
+       secours que la CSP défigure (logo géant). Seule l'origine part, jamais
+       l'adresse complète ni ses paramètres. -->
+  <meta name="referrer" content="strict-origin" />
   <title>DewDrop — Supprimer mon compte</title>
   <meta name="description" content="Supprimer son compte DewDrop et toutes les données associées, sans l'application." />
   <link rel="icon" type="image/png" href="icone.png" />
