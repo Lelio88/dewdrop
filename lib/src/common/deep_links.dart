@@ -17,6 +17,11 @@
 /// [inviteHandle] accepts BOTH the HTTPS link and the custom scheme, so a handle
 /// resolves whether it arrives via the landing-page hand-off or (future) an
 /// Android App Link. Mirror any change to the link shape in `docs/invite.html`.
+///
+/// Les liens entre apps du conteneur ([twinPage], [joinPage]) sont, eux, de
+/// vrais App Links vérifiés : HTTPS seulement, paramètres dans le fragment.
+/// Leur forme suit `docs/liens-inter-apps.md` du dépôt méta et les pages
+/// `docs/jumeler.html` / `docs/rejoindre.html`.
 class DeepLinks {
   const DeepLinks._();
 
@@ -70,6 +75,42 @@ class DeepLinks {
     if (uri.scheme != scheme || uri.host != sendHost) return null;
     final h = uri.queryParameters['to']?.trim().replaceAll('@', '');
     return (h == null || h.isEmpty) ? null : h;
+  }
+
+  /// Page de jumelage avec un groupe d'une autre app du conteneur (Agora,
+  /// Arpente) : `jumeler.html#de=…&code=…&etat=…` (protocole commun,
+  /// `docs/liens-inter-apps.md` du dépôt méta). Ouverte par un App Link
+  /// vérifié (`docs/.well-known/assetlinks.json`) ; sans l'app, la page de
+  /// `docs/` explique quoi faire.
+  static final Uri twinPage = Uri.parse('$webBase/jumeler.html');
+
+  /// Page qui fait demander à entrer dans un cercle par le code d'un jumeau :
+  /// `rejoindre.html#code=CODE`. Mêmes règles que [twinPage].
+  static final Uri joinPage = Uri.parse('$webBase/rejoindre.html');
+
+  /// Même format que `dewdropCodePattern` (feature groups) : 8 caractères,
+  /// alphabet sans 0/O ni 1/I.
+  static final _joinCode = RegExp(r'^[A-HJ-NP-Z2-9]{8}$');
+
+  static bool _isOurPage(Uri uri, Uri page) =>
+      uri.scheme == 'https' && uri.host == webHost && uri.path == page.path;
+
+  /// Les paramètres d'un lien [twinPage], lus dans le **fragment** seulement
+  /// (un code n'y voyage jamais en requête : elle finirait dans les journaux
+  /// de l'hébergeur) ; `null` si [uri] n'est pas cette page. Leur validation
+  /// est l'affaire de `parseTwinLink`.
+  static Map<String, String>? twinParams(Uri uri) {
+    if (!_isOurPage(uri, twinPage)) return null;
+    return uri.fragment.isEmpty ? const {} : Uri.splitQueryString(uri.fragment);
+  }
+
+  /// Le code (en majuscules, format vérifié) d'un lien [joinPage], ou `null`.
+  static String? joinCode(Uri uri) {
+    if (!_isOurPage(uri, joinPage) || uri.fragment.isEmpty) return null;
+    final code = Uri.splitQueryString(
+      uri.fragment,
+    )['code']?.trim().toUpperCase();
+    return (code != null && _joinCode.hasMatch(code)) ? code : null;
   }
 
   /// Extracts the handle from an invite deep link — accepting BOTH the HTTPS web

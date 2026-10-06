@@ -42,6 +42,23 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="dewdrop"/>
             </intent-filter>
+            <!-- App Links des autres apps du conteneur (Agora, Arpente) :
+                 jumeler.html#… et rejoindre.html#code=… ouvrent l'app plutôt que
+                 le navigateur. Vérifiés par docs/.well-known/assetlinks.json
+                 (empreintes de la clé de signature Play ET de la clé d'envoi).
+                 Les paramètres sont dans le fragment, qu'Android ne filtre pas. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="dewdrop.heianenterprise.com" android:path="/jumeler.html"/>
+                <data android:scheme="https" android:host="dewdrop.heianenterprise.com" android:path="/rejoindre.html"/>
+            </intent-filter>
+            <!-- app_links (DeepLinkListener + supabase_flutter) lit seul les liens
+                 entrants. Le deep linking de Flutter, actif par défaut, pousserait
+                 aussi leur chemin (/jumeler.html…) dans GoRouter, qui n'a pas cette
+                 route. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Reconfigure trampoline: long-press the widget → "Reconfigure"
              (Android 12+ launchers) lands here; it bounces into the app on the

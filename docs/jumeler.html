@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
+<title>Jumelage — DewDrop</title>
+<!--
+  Page de repli du jumelage (protocole commun : docs/liens-inter-apps.md du
+  dépôt méta Projets). Agora ou Arpente ouvrent jumeler.html#de=…&code=…&etat=… ;
+  avec DewDrop installé, l'App Link (.well-known/assetlinks.json) ouvre l'app,
+  qui lit le fragment. Cette page ne s'affiche donc que sans l'app : elle ne
+  lit rien du lien (aucun script) et dit seulement quoi faire.
+-->
+<style>
+  :root {
+    --accent: #8ab4ff;
+    --txt: rgba(255, 255, 255, 0.95);
+    --txt-2: rgba(255, 255, 255, 0.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    color: var(--txt);
+    background:
+      radial-gradient(90% 60% at 30% 12%, #2a2150 0%, transparent 60%),
+      radial-gradient(80% 70% at 82% 95%, #16315e 0%, transparent 55%),
+      linear-gradient(170deg, #12162a 0%, #06070e 100%);
+    min-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px;
+  }
+  .card {
+    width: 100%; max-width: 380px; text-align: center;
+    padding: 40px 28px 32px; border-radius: 28px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+  }
+  .drop { font-size: 46px; line-height: 1; margin-bottom: 18px; }
+  h1 { font-weight: 400; font-size: 22px; letter-spacing: 0.3px; line-height: 1.35; }
+  .sub { color: var(--txt-2); font-size: 14.5px; line-height: 1.5; margin: 14px 0 22px; }
+  .btn {
+    display: block; width: 100%; padding: 15px 18px; margin-top: 12px;
+    border-radius: 99px; font-size: 15px; font-weight: 600; letter-spacing: 0.2px;
+    text-decoration: none;
+    background: linear-gradient(180deg, #9cc0ff, #6f9bff);
+    color: #0a0e1c;
+    box-shadow: 0 10px 30px rgba(120, 160, 255, 0.35);
+  }
+  .hint { color: var(--txt-2); font-size: 12.5px; line-height: 1.5; margin-top: 22px; }
+  .wordmark { margin-top: 26px; font-size: 12px; letter-spacing: 3px; color: rgba(255,255,255,0.4); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="drop">💧</div>
+    <h1>Jumelage avec DewDrop</h1>
+    <p class="sub">Ce lien relie un groupe d’Agora ou d’Arpente à un cercle DewDrop. Il s’ouvre
+      dans l’app DewDrop, qui ne semble pas installée sur cet appareil.</p>
+    <a class="btn" href="https://play.google.com/store/apps/details?id=app.dewdrop">Installer sur Google&nbsp;Play</a>
+    <p class="hint">Installe DewDrop sur ton téléphone Android, puis relance le jumelage depuis
+      l’autre app : le lien ouvrira directement DewDrop.</p>
+    <div class="wordmark">DEWDROP</div>
+  </main>
+</body>
+</html>

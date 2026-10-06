@@ -5,6 +5,8 @@ import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/friends/domain/friend_repository.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/groups/domain/group_repository.dart';
+import 'package:dewdrop/src/features/groups/domain/twin.dart';
+import 'package:dewdrop/src/features/groups/domain/twin_repository.dart';
 import 'package:dewdrop/src/features/notifications/domain/push_repository.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/profile/domain/profile_repository.dart';
@@ -337,4 +339,97 @@ class FakeGroupRepository implements GroupRepository {
     sent.add((groupId, anonymous));
     return 0;
   }
+}
+
+/// Jumeaux et demandes d'adhésion en mémoire. Les codes rendus par
+/// [twinGroup] sont stables par (cercle, app), comme côté serveur.
+class FakeTwinRepository implements TwinRepository {
+  final _changes = StreamController<int>.broadcast();
+  int _tick = 0;
+  int pendingCalls = 0;
+
+  /// (cercle, app) → code distant (`null` = en attente).
+  final Map<(String, TwinApp), String?> twinsByGroup = {};
+  final List<(String groupId, TwinApp app, String? remoteCode)> twinCalls = [];
+  final List<(String groupId, TwinApp app)> untwinCalls = [];
+  final List<(String groupId, String userId, bool accept)> answers = [];
+  List<JoinRequest> requests = [];
+  Map<String, JoinCodePreview> previews = {};
+  JoinRequestOutcome outcome = JoinRequestOutcome.requested;
+  final List<String> requestedCodes = [];
+
+  void emitChange() => _changes.add(++_tick);
+
+  /// Le code que le faux serveur donne à chaque jumeau (cercle, app) :
+  /// WXYZ2222, WXYZ3333… (format DewDrop valide).
+  final Map<(String, TwinApp), String> codes = {};
+
+  String codeFor(String groupId, TwinApp app) => codes.putIfAbsent((
+    groupId,
+    app,
+  ), () => 'WXYZ${(codes.length + 2) * 1111}');
+
+  @override
+  Future<List<GroupTwin>> twins(String groupId) async => [
+    for (final MapEntry(:key, :value) in twinsByGroup.entries)
+      if (key.$1 == groupId) GroupTwin(app: key.$2, remoteCode: value),
+  ];
+
+  @override
+  Future<String> twinGroup(
+    String groupId,
+    TwinApp app, {
+    String? remoteCode,
+  }) async {
+    twinCalls.add((groupId, app, remoteCode));
+    final key = (groupId, app);
+    final current = twinsByGroup[key];
+    if (current != null && remoteCode != null && current != remoteCode) {
+      throw const TwinException('twin_exists');
+    }
+    twinsByGroup[key] = remoteCode ?? current;
+    return codeFor(groupId, app);
+  }
+
+  @override
+  Future<void> untwinGroup(String groupId, TwinApp app) async {
+    untwinCalls.add((groupId, app));
+    twinsByGroup.remove((groupId, app));
+  }
+
+  final List<String> previewedCodes = [];
+
+  @override
+  Future<JoinCodePreview?> preview(String code) async {
+    previewedCodes.add(code);
+    return previews[code];
+  }
+
+  @override
+  Future<JoinRequestOutcome> requestToJoin(String code) async {
+    requestedCodes.add(code);
+    return outcome;
+  }
+
+  @override
+  Future<List<JoinRequest>> pendingRequests() async {
+    pendingCalls++;
+    return requests;
+  }
+
+  @override
+  Future<void> answer(
+    String groupId,
+    String userId, {
+    required bool accept,
+  }) async {
+    answers.add((groupId, userId, accept));
+    requests = [
+      for (final r in requests)
+        if (!(r.groupId == groupId && r.requester.id == userId)) r,
+    ];
+  }
+
+  @override
+  Stream<int> watchRequests() => _changes.stream;
 }

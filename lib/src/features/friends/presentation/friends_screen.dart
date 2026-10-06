@@ -5,6 +5,7 @@ import 'package:dewdrop/src/features/friends/presentation/qr_invite.dart';
 import 'package:dewdrop/src/features/profile/application/profile_providers.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:dewdrop/src/features/groups/application/group_providers.dart';
+import 'package:dewdrop/src/features/groups/application/twin_providers.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/tour/application/tour_providers.dart';
 import 'package:dewdrop/src/features/tour/domain/tour_step.dart';
@@ -296,17 +297,36 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _section(white, 'Mes groupes'),
-                        TextButton.icon(
-                          onPressed: _createGroup,
-                          icon: const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: Color(0xFF8FE3A8),
-                          ),
-                          label: const Text(
-                            'Créer',
-                            style: TextStyle(color: Color(0xFF8FE3A8)),
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Repli d'un lien « Rejoindre » d'Agora ou d'Arpente
+                            // qui a ouvert le navigateur : saisir son code.
+                            TextButton.icon(
+                              onPressed: () => context.push('/join-circle'),
+                              icon: const Icon(
+                                Icons.vpn_key_outlined,
+                                size: 18,
+                                color: Color(0xFF8FE3A8),
+                              ),
+                              label: const Text(
+                                'Code',
+                                style: TextStyle(color: Color(0xFF8FE3A8)),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _createGroup,
+                              icon: const Icon(
+                                Icons.add,
+                                size: 18,
+                                color: Color(0xFF8FE3A8),
+                              ),
+                              label: const Text(
+                                'Créer',
+                                style: TextStyle(color: Color(0xFF8FE3A8)),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -432,9 +452,36 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         ),
       ),
       title: Text(g.name),
-      trailing: Icon(Icons.chevron_right, color: w.withValues(alpha: 0.5)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Demandes pour entrer à trancher (cercles que je crée seulement :
+          // la RLS ne montre que celles-là, hors les miennes).
+          if (_joinRequestCount(g.id) case final n when n > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8FE3A8).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                n == 1 ? '1 demande' : '$n demandes',
+                style: const TextStyle(color: Color(0xFF8FE3A8), fontSize: 12),
+              ),
+            ),
+          Icon(Icons.chevron_right, color: w.withValues(alpha: 0.5)),
+        ],
+      ),
     ),
   );
+
+  int _joinRequestCount(String groupId) =>
+      ref
+          .watch(pendingJoinRequestsProvider)
+          .value
+          ?.where((r) => r.groupId == groupId)
+          .length ??
+      0;
 
   /// Long-press a friend → block or report them.
   Future<void> _friendActions(Profile p) async {

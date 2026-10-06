@@ -7,6 +7,8 @@ import 'package:dewdrop/src/features/auth/presentation/sign_in_screen.dart';
 import 'package:dewdrop/src/features/friends/presentation/friends_screen.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
 import 'package:dewdrop/src/features/groups/presentation/group_screen.dart';
+import 'package:dewdrop/src/features/groups/presentation/join_circle_screen.dart';
+import 'package:dewdrop/src/features/groups/presentation/twin_screen.dart';
 import 'package:dewdrop/src/features/home/presentation/home_screen.dart';
 import 'package:dewdrop/src/features/home_widget/presentation/widget_settings_screen.dart';
 import 'package:dewdrop/src/features/profile/presentation/edit_profile_screen.dart';
@@ -55,6 +57,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/group',
         builder: (_, state) => GroupScreen(group: state.extra as Group),
+      ),
+      // Liens entre apps (Agora, Arpente) : ouverts par DeepLinkListener, jamais
+      // par une adresse reçue telle quelle — l'écran valide ses paramètres.
+      GoRoute(
+        path: '/twin',
+        builder: (_, state) => TwinScreen(
+          params: (state.extra as Map<String, String>?) ?? const {},
+        ),
+      ),
+      GoRoute(
+        path: '/join-circle',
+        builder: (_, state) =>
+            JoinCircleScreen(initialCode: state.uri.queryParameters['code']),
       ),
       GoRoute(path: '/thoughts', builder: (_, _) => const ThoughtsScreen()),
       GoRoute(

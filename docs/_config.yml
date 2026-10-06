@@ -1,0 +1,5 @@
+# GitHub Pages ignore les dossiers commençant par un point : sans cette ligne,
+# .well-known/assetlinks.json (vérification des App Links Android) ne serait
+# pas publié, et les liens jumeler.html / rejoindre.html ouvriraient le
+# navigateur au lieu de l'app.
+include: [".well-known"]

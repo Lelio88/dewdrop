@@ -5,6 +5,18 @@
 
 ## [Non publié]
 
+### Ajouté
+
+- 🔗 **Jumeler un cercle avec Agora ou Arpente** : dans le cercle, *Jumelage* relie ton
+  cercle à un groupe Agora (agendas partagés) ou Arpente (visites). Tes membres voient
+  « Rejoindre aussi dans Agora / Arpente » ; les membres de l'autre groupe peuvent
+  demander à entrer dans ton cercle. Une demande de jumelage venue d'Agora ou d'Arpente
+  s'ouvre directement dans DewDrop.
+- 🚪 **Demandes pour entrer dans un cercle** : un code reçu d'Agora ou d'Arpente envoie
+  une demande au créateur du cercle, qui l'accepte ou la refuse (repère « N demandes »
+  sur le cercle). Personne n'entre d'office. Un code se saisit aussi à la main :
+  *Amis → Mes groupes → Code*.
+
 ## [0.9.26+40] — 2026-09-30
 
 ### Corrigé

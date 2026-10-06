@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.dewdrop",
+      "sha256_cert_fingerprints": [
+        "9D:1A:F2:75:01:B4:16:2B:8F:AA:B4:22:D1:BE:AC:2E:95:AD:E8:DF:51:79:6F:D6:7F:28:DC:A1:62:AE:B5:5D",
+        "C5:72:43:1D:66:51:61:82:03:81:D5:57:E4:97:C6:F4:07:A0:AD:56:9D:4C:78:16:A6:29:76:31:68:E6:0F:64"
+      ]
+    }
+  }
+]

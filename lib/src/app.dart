@@ -7,6 +7,7 @@ import 'package:dewdrop/src/features/auth/application/auth_providers.dart';
 import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/friends/domain/friend_match.dart';
+import 'package:dewdrop/src/features/groups/application/twin_providers.dart';
 import 'package:dewdrop/src/features/home_widget/application/widget_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/push_providers.dart';
 import 'package:dewdrop/src/features/notifications/application/thought_notifications.dart';
@@ -37,6 +38,11 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
   // session exists — otherwise the friend request would fail silently.
   String? _pendingInvite;
 
+  // Same for a link from Agora or Arpente (jumelage, demande d'adhésion):
+  // its screen needs a session, so it opens once the user has signed in.
+  String? _pendingAppLinkRoute;
+  Object? _pendingAppLinkExtra;
+
   // Live "widget reconfigure" launches (long-press the widget → Reconfigure).
   StreamSubscription<Uri?>? _widgetClicks;
 
@@ -44,8 +50,14 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _deepLinks = DeepLinkListener(onInvite: _onInvite, onSend: _onSend)
-      ..start();
+    _deepLinks = DeepLinkListener(
+      onInvite: _onInvite,
+      onSend: _onSend,
+      onTwin: (params) => _openAppLink('/twin', extra: params),
+      onJoin: (code) => _openAppLink(
+        Uri(path: '/join-circle', queryParameters: {'code': code}).toString(),
+      ),
+    )..start();
     // Launching the app = the pensées are seen → clear the grouped tray + reset
     // the counters (also re-arms the "alert once" for the next batch).
     if (Platform.isAndroid || Platform.isIOS) {
@@ -105,6 +117,7 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
       ref.invalidate(receivedThoughtsProvider);
       ref.invalidate(recentContactsProvider);
       ref.invalidate(recentGroupsProvider);
+      ref.invalidate(pendingJoinRequestsProvider);
       if (Platform.isAndroid || Platform.isIOS) {
         unawaited(clearThoughtNotifications());
         _syncHomeWidget();
@@ -126,6 +139,35 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
     } on Exception catch (_) {
       _snack("Lien d'invitation invalide.");
     }
+  }
+
+  /// A link from another app of the container (Agora, Arpente): opens its
+  /// screen on top of the current one, which validates the parameters. Parked
+  /// while signed out (the router would bounce it to sign-in).
+  ///
+  /// The push waits until the router shows a real page that is not
+  /// `/sign-in`: on a cold start it has no route yet, and right after a
+  /// sign-in its redirect to `/home` would wipe a screen pushed too early.
+  void _openAppLink(String route, {Object? extra}) {
+    if (ref.read(authRepositoryProvider).currentSession == null) {
+      _pendingAppLinkRoute = route;
+      _pendingAppLinkExtra = extra;
+      _snack('Connecte-toi pour continuer 🌙');
+      return;
+    }
+    final router = ref.read(routerProvider);
+    final delegate = router.routerDelegate;
+    void tryPush() {
+      final current = delegate.currentConfiguration;
+      if (current.isEmpty || current.uri.path == '/sign-in') return;
+      delegate.removeListener(tryPush);
+      Future.microtask(() {
+        if (mounted) unawaited(router.push(route, extra: extra));
+      });
+    }
+
+    delegate.addListener(tryPush);
+    tryPush();
   }
 
   /// A `dewdrop://send?to=<handle>` deep link (a voice routine / future Gemini
@@ -237,6 +279,14 @@ class _DewDropAppState extends ConsumerState<DewDropApp>
         if (pending != null) {
           _pendingInvite = null;
           unawaited(_onInvite(pending));
+        }
+        // And a link from Agora or Arpente that arrived signed out.
+        final appLink = _pendingAppLinkRoute;
+        if (appLink != null) {
+          final extra = _pendingAppLinkExtra;
+          _pendingAppLinkRoute = null;
+          _pendingAppLinkExtra = null;
+          _openAppLink(appLink, extra: extra);
         }
       }
     });

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
+<title>Rejoindre un cercle — DewDrop</title>
+<!--
+  Page de repli de « Demander à rejoindre dans DewDrop » (protocole commun :
+  docs/liens-inter-apps.md du dépôt méta Projets). Agora ou Arpente ouvrent
+  rejoindre.html#code=CODE ; avec DewDrop installé, l'App Link ouvre l'app.
+  Sans l'app, la page affiche le code à saisir dans DewDrop (Amis → Mes
+  groupes → Code).
+  - Le code vient du FRAGMENT, jamais de la requête : un code ne doit pas
+    finir dans les journaux de l'hébergeur.
+  - Il n'est affiché que s'il a le format d'un code DewDrop, et par
+    textContent : un lien forgé ne peut rien injecter dans la page.
+-->
+<style>
+  :root {
+    --accent: #8ab4ff;
+    --txt: rgba(255, 255, 255, 0.95);
+    --txt-2: rgba(255, 255, 255, 0.6);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    color: var(--txt);
+    background:
+      radial-gradient(90% 60% at 30% 12%, #2a2150 0%, transparent 60%),
+      radial-gradient(80% 70% at 82% 95%, #16315e 0%, transparent 55%),
+      linear-gradient(170deg, #12162a 0%, #06070e 100%);
+    min-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px;
+  }
+  .card {
+    width: 100%; max-width: 380px; text-align: center;
+    padding: 40px 28px 32px; border-radius: 28px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+  }
+  .drop { font-size: 46px; line-height: 1; margin-bottom: 18px; }
+  h1 { font-weight: 400; font-size: 22px; letter-spacing: 0.3px; line-height: 1.35; }
+  .sub { color: var(--txt-2); font-size: 14.5px; line-height: 1.5; margin: 14px 0 18px; }
+  .code {
+    display: inline-block; margin: 4px 0 18px; padding: 10px 18px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    font: 600 26px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.16em;
+  }
+  .btn {
+    display: block; width: 100%; padding: 15px 18px; margin-top: 12px;
+    border-radius: 99px; font-size: 15px; font-weight: 600; letter-spacing: 0.2px;
+    text-decoration: none;
+    background: linear-gradient(180deg, #9cc0ff, #6f9bff);
+    color: #0a0e1c;
+    box-shadow: 0 10px 30px rgba(120, 160, 255, 0.35);
+  }
+  .hint { color: var(--txt-2); font-size: 12.5px; line-height: 1.5; margin-top: 22px; }
+  .wordmark { margin-top: 26px; font-size: 12px; letter-spacing: 3px; color: rgba(255,255,255,0.4); }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="drop">💧</div>
+    <h1>Rejoindre un cercle DewDrop</h1>
+    <p class="sub">Ce lien demande à entrer dans un cercle DewDrop : la personne qui l’a créé
+      accepte ou refuse. Il s’ouvre dans l’app DewDrop, qui ne semble pas installée sur cet
+      appareil.</p>
+    <div id="code-block" hidden>
+      <p class="sub">Dans DewDrop, ouvre <b>Amis</b>, puis <b>Code</b> à côté de « Mes
+        groupes », et saisis :</p>
+      <div id="code" class="code"></div>
+    </div>
+    <a class="btn" href="https://play.google.com/store/apps/details?id=app.dewdrop">Installer sur Google&nbsp;Play</a>
+    <p class="hint">Après l’installation, rouvre ce lien : il ouvrira directement DewDrop.</p>
+    <div class="wordmark">DEWDROP</div>
+  </main>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      var code = (params.get('code') || '').trim().toUpperCase();
+      if (/^[A-HJ-NP-Z2-9]{8}$/.test(code)) {
+        document.getElementById('code').textContent = code;
+        document.getElementById('code-block').hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

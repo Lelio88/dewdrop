@@ -3,6 +3,8 @@ import 'package:dewdrop/src/features/friends/application/friend_providers.dart';
 import 'package:dewdrop/src/features/friends/domain/friend.dart';
 import 'package:dewdrop/src/features/groups/application/group_providers.dart';
 import 'package:dewdrop/src/features/groups/domain/group.dart';
+import 'package:dewdrop/src/features/groups/presentation/join_requests_section.dart';
+import 'package:dewdrop/src/features/groups/presentation/twin_section.dart';
 import 'package:dewdrop/src/features/profile/domain/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,10 @@ import 'package:go_router/go_router.dart';
 
 /// Manage a group: see members, and — for the creator — add (from friends) or
 /// remove members and delete the group; for a plain member, leave or block it.
+///
+/// The creator also answers the requests to join that arrive through a twin's
+/// code, and twins the circle with a group in Agora or Arpente; every member
+/// sees the twins' « Rejoindre » links ([TwinBanner]).
 ///
 /// A group is also where you meet friends-of-friends: any member you aren't
 /// already friends with can be sent a friend request from here. That needs no
@@ -94,7 +100,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              TwinBanner(groupId: group.id),
+              const SizedBox(height: 8),
               _section(w, 'Membres'),
               members.when(
                 loading: () => const Padding(
@@ -126,6 +134,10 @@ class _GroupScreenState extends ConsumerState<GroupScreen> {
                   label: 'Ajouter un ami',
                   onTap: () => _addMembers(members.value ?? []),
                 ),
+                JoinRequestsSection(groupId: group.id),
+                const SizedBox(height: 20),
+                _section(w, 'Jumelage'),
+                TwinManager(group: group),
               ],
               const SizedBox(height: 28),
               if (isCreator)

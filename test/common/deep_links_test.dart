@@ -118,4 +118,73 @@ void main() {
       );
     });
   });
+
+  group('liens entre apps (jumeler.html, rejoindre.html)', () {
+    test('twinParams lit les paramètres du fragment de jumeler.html', () {
+      final uri = Uri.parse(
+        'https://dewdrop.heianenterprise.com/jumeler.html'
+        '#de=agora&code=ABCD2345&nom=Les+copains&etat=abcdefghijklmnop',
+      );
+      expect(DeepLinks.twinParams(uri), {
+        'de': 'agora',
+        'code': 'ABCD2345',
+        'nom': 'Les copains',
+        'etat': 'abcdefghijklmnop',
+      });
+    });
+
+    test('twinParams ignore la requête : un code n\'y voyage jamais', () {
+      final uri = Uri.parse(
+        'https://dewdrop.heianenterprise.com/jumeler.html?de=agora&code=ABCD2345',
+      );
+      expect(DeepLinks.twinParams(uri), isEmpty);
+    });
+
+    test('twinParams refuse un autre hôte, une autre page ou http', () {
+      for (final link in [
+        'https://evil.example/jumeler.html#de=agora',
+        'https://dewdrop.heianenterprise.com/invite.html#de=agora',
+        'http://dewdrop.heianenterprise.com/jumeler.html#de=agora',
+        'dewdrop://jumeler.html#de=agora',
+      ]) {
+        expect(DeepLinks.twinParams(Uri.parse(link)), isNull, reason: link);
+      }
+    });
+
+    test('joinCode lit et valide le code de rejoindre.html', () {
+      expect(
+        DeepLinks.joinCode(
+          Uri.parse(
+            DeepLinks.joinPage.replace(fragment: 'code=abcd2345').toString(),
+          ),
+        ),
+        'ABCD2345',
+      );
+      expect(
+        DeepLinks.joinCode(
+          Uri.parse(
+            'https://dewdrop.heianenterprise.com/rejoindre.html#code=ABC',
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        DeepLinks.joinCode(
+          Uri.parse(
+            'https://dewdrop.heianenterprise.com/rejoindre.html?code=ABCD2345',
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('les liens entre apps ne sont ni une invitation ni un envoi', () {
+      final uri = Uri.parse(
+        'https://dewdrop.heianenterprise.com/rejoindre.html#code=ABCD2345',
+      );
+      expect(DeepLinks.inviteHandle(uri), isNull);
+      expect(DeepLinks.sendTarget(uri), isNull);
+      expect(DeepLinks.twinParams(uri), isNull);
+    });
+  });
 }
