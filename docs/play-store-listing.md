@@ -84,21 +84,23 @@ Réponses attendues pour DewDrop :
 ## 6. Data safety (Sécurité des données)
 
 **Doit dire la même chose que la politique** (`docs/confidentialite.html`, tableau des traitements).
-Envoyée par l'API (`applications.dataSafety`, CSV du modèle Google) — le formulaire de la
-console affiche ensuite ces réponses.
+Se remplit dans la console (*Règles et programmes → Contenu de l'application → Sécurité des
+données*) ou par l'API (`applications.dataSafety`, CSV du modèle Google) : les deux chemins
+écrivent les mêmes réponses.
 
 | Donnée (catégorie Google) | Pourquoi | Facultative |
 |---|---|---|
 | Adresse e-mail | Fonctionnement, gestion du compte | Non |
 | Nom (pseudo) | Fonctionnement | Non |
-| ID utilisateur (@handle, id de compte) | Fonctionnement, gestion du compte | Non |
-| Autres actions (pensées, amis, cercles, blocages) | Fonctionnement | Non |
+| ID utilisateur (@handle, id de compte) | Fonctionnement, gestion du compte, prévention des fraudes et sécurité (codes de cercle erronés, gardés 1 h) | Non |
+| Autres actions (pensées, amis, cercles, jumelages, demandes d'entrée, blocages) | Fonctionnement | Non |
 | Autre contenu généré (nom de cercle, motif de signalement) | Fonctionnement, sécurité | Oui |
 | ID d'appareil (jeton FCM, id d'installation Crashlytics) | Fonctionnement, analyse | Non |
 | Journaux de plantage, diagnostics (Crashlytics) | Analyse | **Oui** (Réglages → Vie privée) |
 
 - **Rien n'est « partagé »** au sens de Google : Supabase, Firebase et Brevo sont des
-  prestataires qui traitent pour notre compte.
+  prestataires qui traitent pour notre compte, et rien ne part vers Agora ni Arpente (les
+  apps s'ouvrent l'une l'autre par un lien, sur le téléphone).
 - Chiffré en transit ; création de compte par **e-mail + mot de passe** ou **connexion Google** (OAuth).
 - **Suppression** : URL de suppression de compte **et** de données =
   `https://dewdrop.heianenterprise.com/suppression-compte.html`.
