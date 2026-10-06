@@ -5,6 +5,8 @@
 
 ## [Non publié]
 
+## [0.9.27+41] — 2026-10-06
+
 ### Ajouté
 
 - 🔗 **Jumeler un cercle avec Agora ou Arpente** : dans le cercle, *Jumelage* relie ton
